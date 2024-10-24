@@ -28,7 +28,7 @@ int VBV = 3;
 float INCREASE_MULTIPLE = 2.0;
 
 float INCREASE_MSEQ = 50.f;
-long INCREASE_SEQ = 2;
+long INCREASE_SEC = 4;
 
 long ROTATIONSEQ = 50;
 int LOGSLEEP = 1000;
@@ -193,7 +193,7 @@ void increasePower()
   float volumeB = analogRead(readB) / 1024.f;
 
   int TOTALNUM = POWER_A - STARTPOWER;
-  float IncreaseDuration = (float)(INCREASE_SEQ * 1000) / (float)(TOTALNUM);
+  float IncreaseDuration = (float)(INCREASE_SEC * 1000) / (float)(TOTALNUM);
   int IncreaseTotal = 0;
 
   float powerA = 0;
@@ -282,7 +282,7 @@ void writePower(int writePinNo, int analogReadPinNo, float timeRate)
 
   float volume = analogRead(analogReadPinNo) / 1024.f;
 
-  analogWrite(writePinNo, POWER * volume * timeRate);
+  analogWrite(writePinNo, constrain(POWER * volume * timeRate, 0, 255));
 
 }
 
@@ -397,12 +397,9 @@ void myLoop() {
 
 void loop() {
 
-  Serial.println("demo 1");
-
   while (true)
   {
     myLoop();
   }
 
-  Serial.println("demo 1");
 }
