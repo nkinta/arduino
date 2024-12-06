@@ -18,7 +18,9 @@
 // https://www.uuidgenerator.net/
 
 #define SERVICE_UUID "a9438aed-c675-4794-8cf5-0f993db8d262"
-#define CHARACTERISTIC_UUID "c0ddd532-528b-4860-ac19-f093a27df43a"
+#define LOGGER_CHARACTERISTIC_UUID "c0ddd532-528b-4860-ac19-f093a27df43a"
+#define COMMAND_CHARACTERISTIC_UUID "66b4f1b1-9e00-440c-a9a4-6bc688872af1"
+
 #define BLE_LOCAL_NAME "VoltageLogger"
 
 const int SENSOR_READ_VOLT = 2;
@@ -80,7 +82,8 @@ void bleSetup() {
 
 BLEService voltageLoggerService(SERVICE_UUID);  // create service
 // create switch characteristic and allow remote device to read and write
-BLECharacteristic loggerCharacteristic(CHARACTERISTIC_UUID, 16, BLERead | BLEWrite | BLENotify);
+BLECharacteristic loggerCharacteristic(LOGGER_CHARACTERISTIC_UUID, 16, BLERead | BLEWrite | BLENotify);
+BLECharacteristic commandCharacteristic(COMMAND_CHARACTERISTIC_UUID, 4, BLERead | BLEWrite);
 
 
 void bleSetup() {
@@ -97,13 +100,13 @@ void bleSetup() {
   BLE.setAdvertisedService(voltageLoggerService);
 
   voltageLoggerService.addCharacteristic(loggerCharacteristic);
+  voltageLoggerService.addCharacteristic(commandCharacteristic);
   BLE.addService(voltageLoggerService);
 
   BLE.setEventHandler(BLEConnected, blePeripheralConnectHandler);
   BLE.setEventHandler(BLEDisconnected, blePeripheralDisconnectHandler);
 
-  loggerCharacteristic.setEventHandler(BLEWritten, characteristicWritten);
-  loggerCharacteristic.setValue(0);
+  commandCharacteristic.setEventHandler(BLEWritten, characteristicWritten);
 
   // start advertising
   BLE.advertise();
@@ -112,6 +115,8 @@ void bleSetup() {
 }
 
 LSM6DS3 IMU(I2C_MODE, 0x6A);
+
+bool resetFlag = false;
 
 void gyroSetup() {
 
@@ -125,13 +130,15 @@ void gyroSetup() {
 
 void blePeripheralConnectHandler(BLEDevice central) {
   // central connected event handler
-  Serial.print("Connected event, central: ");
+  Serial.print("Connected: ");
   Serial.println(central.address());
 }
 
 void blePeripheralDisconnectHandler(BLEDevice central) {
   // central disconnected event handler
-  Serial.print("Disconnected event, central: ");
+  Serial.print("Disconnected: ");
+  // BLE.advertise();
+  // Serial.print("Advertise: ");
   Serial.println(central.address());
 }
 
@@ -139,11 +146,14 @@ void characteristicWritten(BLEDevice central, BLECharacteristic characteristic) 
   // central wrote new value to characteristic, update LED
   Serial.print("Characteristic event, written: ");
 
-  if (loggerCharacteristic.value()) {
-    Serial.println("LED on");
+  const uint8_t* pCommandValue = characteristic.value();
+
+  if (pCommandValue && pCommandValue[0] == 1) {
+    resetFlag = true;
   } else {
-    Serial.println("LED off");
+    resetFlag = false;
   }
+
 }
 
 #endif
@@ -179,8 +189,22 @@ class AngleCache
   const float calibEndMillis = 3000.f;
   const float scale = 0.001f;
 
-  bool begin(float currentMillis, float inX, float inY, float inZ)
+  void calib()
   {
+    Serial.println("Calib Start.");
+    while(calibLoop())
+    ;
+
+    Serial.println("Calib End.");
+  }
+
+  bool calibLoop()
+  {
+    float currentMillis = millis();
+    float inX = IMU.readFloatGyroX();
+    float inY = IMU.readFloatGyroY();
+    float inZ = IMU.readFloatGyroZ();
+
     if (startMillis == 0.f)
     {
       startMillis = currentMillis;
@@ -235,9 +259,6 @@ class AngleCache
   }
 };
 
-
-
-
 AngleCache currentAngle;
 
 float sendValue[4] = {0.f, 0.f, 0.f, 0.f};
@@ -256,8 +277,8 @@ void setup() {
   bleSetup();
   gyroSetup();
 
-  while(currentAngle.begin(millis(), IMU.readFloatGyroX(), IMU.readFloatGyroY(), IMU.readFloatGyroZ()))
-  ;
+  // currentAngle.calib();
+
 }
 
 void loop() {
@@ -292,7 +313,13 @@ void loop() {
       if (!BLE.connected()) {
         BLE.advertise();
       }
-
+/*
+      if (resetFlag)
+      {
+        currentAngle.calib();
+        resetFlag = false;
+      }
+*/
       {
         sendValue[1] = currentAngle.x;
         sendValue[2] = currentAngle.y;
