@@ -286,8 +286,6 @@ void loop() {
 
   static unsigned long volt_millis_buf = 0;
 
-  delay(1000);
-
   while (true) {
 
     readVolt();
@@ -311,30 +309,31 @@ void loop() {
       }
 
 #else
-      if (!BLE.connected())
+      if (BLE.connected())
       {
-        // BLE.advertise();
+    
+
+        if (resetFlag)
+        {
+          currentAngle.calib();
+          resetFlag = false;
+        }
+
+        {
+          sendValue[1] = currentAngle.x;
+          sendValue[2] = currentAngle.y;
+          sendValue[3] = currentAngle.z;
+        }
+        {
+          float averageValue = sumAnalogRead0 / (float)readCount;
+          sendValue[0] = averageValue;
+          // sumAnalogRead0 = 0;
+          // char* writeValue = (char*)&averageValue;
+
+          loggerCharacteristic.writeValue((size_t*)&sendValue[0], 16);
+        }
       }
 
-      if (resetFlag)
-      {
-        currentAngle.calib();
-        resetFlag = false;
-      }
-
-      {
-        sendValue[1] = currentAngle.x;
-        sendValue[2] = currentAngle.y;
-        sendValue[3] = currentAngle.z;
-      }
-      {
-        float averageValue = sumAnalogRead0 / (float)readCount;
-        sendValue[0] = averageValue;
-        // sumAnalogRead0 = 0;
-        // char* writeValue = (char*)&averageValue;
-
-        loggerCharacteristic.writeValue((size_t*)&sendValue[0], 16);
-      }
 #endif
       volt_millis_buf = millis();
     }
