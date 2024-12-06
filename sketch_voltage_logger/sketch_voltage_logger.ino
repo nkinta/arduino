@@ -136,9 +136,10 @@ void blePeripheralConnectHandler(BLEDevice central) {
 
 void blePeripheralDisconnectHandler(BLEDevice central) {
   // central disconnected event handler
-  Serial.print("Disconnected: ");
-  // BLE.advertise();
-  // Serial.print("Advertise: ");
+  Serial.println("Disconnected: ");
+  BLE.advertise();
+  Serial.print("Advertise: ");
+
   Serial.println(central.address());
 }
 
@@ -310,16 +311,17 @@ void loop() {
       }
 
 #else
-      if (!BLE.connected()) {
-        BLE.advertise();
+      if (!BLE.connected())
+      {
+        // BLE.advertise();
       }
-/*
+
       if (resetFlag)
       {
         currentAngle.calib();
         resetFlag = false;
       }
-*/
+
       {
         sendValue[1] = currentAngle.x;
         sendValue[2] = currentAngle.y;
