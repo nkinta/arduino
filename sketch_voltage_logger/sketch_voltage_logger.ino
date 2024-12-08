@@ -11,6 +11,9 @@
 
 #include <ArduinoBLE.h>
 #include <LSM6DS3.h>
+#include <Math.h>
+#include "Quaternion.h"
+// #include "Vector.h"
 
 #endif
 
@@ -116,7 +119,8 @@ void bleSetup() {
 
 LSM6DS3 IMU(I2C_MODE, 0x6A);
 
-bool resetFlag = false;
+bool calibFlag = false;
+bool stopFlag = true;
 
 void gyroSetup() {
 
@@ -124,8 +128,8 @@ void gyroSetup() {
     Serial.println("Failed to initialize IMU!");
   }
 
-  Serial.print("Accelerometer sample rate = ");
-  Serial.println("Hz");
+  Serial.print("IMU Initailized.");
+
 }
 
 void blePeripheralConnectHandler(BLEDevice central) {
@@ -145,22 +149,26 @@ void blePeripheralDisconnectHandler(BLEDevice central) {
 
 void characteristicWritten(BLEDevice central, BLECharacteristic characteristic) {
   // central wrote new value to characteristic, update LED
-  Serial.print("Characteristic event, written: ");
 
   const uint8_t* pCommandValue = characteristic.value();
 
-  if (pCommandValue && pCommandValue[0] == 1) {
-    resetFlag = true;
-  } else {
-    resetFlag = false;
+  if (pCommandValue && pCommandValue[0] > 0) {
+    Serial.println("Calib Flag On.");
+    calibFlag = true;
+  }
+
+  if (pCommandValue && pCommandValue[1] == 1) {
+    Serial.println("Stop.");
+    stopFlag = true;
+    calibFlag = true;
+  } else if (pCommandValue && pCommandValue[1] == 2) {
+    Serial.println("Start.");
+    stopFlag = false;
   }
 
 }
 
 #endif
-
-
-
 
 void readVolt() {
 
@@ -174,6 +182,8 @@ class AngleCache
 {
   public:
   AngleCache(){};
+  Quaternion quat = Quaternion();
+
   float x = 0.f;
   float y = 0.f;
   float z = 0.f;
@@ -192,6 +202,19 @@ class AngleCache
 
   void calib()
   {
+    quat = Quaternion();
+
+    x = 0.f;
+    y = 0.f;
+    z = 0.f;
+
+    calibX = 0.f;
+    calibY = 0.f;
+    calibZ = 0.f;
+
+    cacheMillis = 0.f;
+    startMillis = 0.f;
+
     Serial.println("Calib Start.");
     while(calibLoop())
     ;
@@ -256,18 +279,43 @@ class AngleCache
     x += (inX - calibX) * deltaMillis * scale;
     y += (inY - calibY) * deltaMillis * scale;
     z += (inZ - calibZ) * deltaMillis * scale;
+  }
 
+  void addAngleForQuat(float currentMillis, float inX, float inY, float inZ)
+  {
+    float deltaMillis = currentMillis - cacheMillis;
+    cacheMillis = currentMillis;
+
+    float tempX = (inX - calibX) * deltaMillis * scale;
+    float tempY = (inY - calibY) * deltaMillis * scale;
+    float tempZ = (inZ - calibZ) * deltaMillis * scale;
+
+    Quaternion mulQuat;
+    static float toRad = (M_PI / 180.f);
+    mulQuat = mulQuat.from_euler_rotation_approx(toRad * tempX, toRad * tempY, toRad * tempZ);
+
+    quat = mulQuat * quat;
+    quat.normalize();
+  }
+
+  static void quatToYPR(const Quaternion& quat, float& roll, float& pitch, float& yaw) {
+    float w = quat.a;
+    float x = quat.b;
+    float y = quat.c;
+    float z = quat.d;
+    static const float toRad = (180.f / M_PI);
+    roll = atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y)) * toRad;
+    pitch = asin(2 * (w * y - x * z)) * toRad;
+    yaw = atan2(2 * (w * z + x * y), 1 - 2 * (z * z + y * y)) * toRad;
   }
 };
 
 AngleCache currentAngle;
 
-float sendValue[4] = {0.f, 0.f, 0.f, 0.f};
-
 void readAngle() {
 
-  currentAngle.addAngle(millis(), IMU.readFloatGyroX(), IMU.readFloatGyroY(), IMU.readFloatGyroZ());
-
+  // currentAngle.addAngle(millis(), IMU.readFloatGyroX(), IMU.readFloatGyroY(), IMU.readFloatGyroZ());
+  currentAngle.addAngleForQuat(millis(), IMU.readFloatGyroX(), IMU.readFloatGyroY(), IMU.readFloatGyroZ());
 }
 
 void setup() {
@@ -278,9 +326,9 @@ void setup() {
   bleSetup();
   gyroSetup();
 
-  // currentAngle.calib();
-
 }
+
+float sendValue[4] = {0.f, 0.f, 0.f, 0.f};
 
 void loop() {
 
@@ -309,20 +357,37 @@ void loop() {
       }
 
 #else
-      if (BLE.connected())
+      if (BLE.connected() && stopFlag == false)
       {
-    
-
-        if (resetFlag)
+        if (calibFlag)
         {
           currentAngle.calib();
-          resetFlag = false;
+          calibFlag = false;
         }
 
         {
+          Serial.print(currentAngle.quat.a);
+          Serial.print(", ");
+          Serial.print(currentAngle.quat.b);
+          Serial.print(", ");
+          Serial.print(currentAngle.quat.c);
+          Serial.print(", ");
+          Serial.println(currentAngle.quat.c);
+
+          AngleCache::quatToYPR(currentAngle.quat, sendValue[1], sendValue[2], sendValue[3]);
+          /*
+          Serial.print(sendValue[1]);
+          Serial.print(", ");
+          Serial.print(sendValue[2]);
+          Serial.print(", ");
+          Serial.println(sendValue[3]);
+          */
+
+          /*
           sendValue[1] = currentAngle.x;
           sendValue[2] = currentAngle.y;
           sendValue[3] = currentAngle.z;
+          */
         }
         {
           float averageValue = sumAnalogRead0 / (float)readCount;
