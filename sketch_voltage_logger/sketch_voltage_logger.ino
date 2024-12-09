@@ -216,10 +216,12 @@ class AngleCache
     startMillis = 0.f;
 
     Serial.println("Calib Start.");
+    digitalWrite(LED_BUILTIN, LOW);
     while(calibLoop())
     ;
 
     Serial.println("Calib End.");
+    digitalWrite(LED_BUILTIN, HIGH);
   }
 
   bool calibLoop()
@@ -294,7 +296,7 @@ class AngleCache
     static float toRad = (M_PI / 180.f);
     mulQuat = mulQuat.from_euler_rotation_approx(toRad * tempX, toRad * tempY, toRad * tempZ);
 
-    quat = mulQuat * quat;
+    quat *= mulQuat;
     quat.normalize();
   }
 
@@ -319,8 +321,10 @@ void readAngle() {
 }
 
 void setup() {
+
   Serial.begin(115200);
 
+  pinMode(LED_BUILTIN, OUTPUT);
   pinMode(SENSOR_READ_VOLT, INPUT);
 
   bleSetup();
