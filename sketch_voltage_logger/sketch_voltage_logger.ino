@@ -31,9 +31,7 @@ const int SENSOR_READ_VOLT = 2;
 const float FPS = 6.f;
 const float ONE_FRAME_MS = (1.f / FPS) * 1000.f;
 
-int readCount = 0;
-float sumAnalogRead0 = 0;
-int count = 0;
+
 
 #if XIAO
 class DataSendCallbacks : public BLECharacteristicCallbacks {
@@ -90,9 +88,6 @@ BLECharacteristic commandCharacteristic(COMMAND_CHARACTERISTIC_UUID, 4, BLERead 
 
 
 void bleSetup() {
-  Serial.begin(9600);
-  while (!Serial)
-    ;
 
   // begin initialization
   while (!BLE.begin()) {
@@ -152,7 +147,7 @@ void characteristicWritten(BLEDevice central, BLECharacteristic characteristic) 
 
   const uint8_t* pCommandValue = characteristic.value();
 
-  if (pCommandValue && pCommandValue[0] > 0) {
+  if (pCommandValue && pCommandValue[0] == 1) {
     Serial.println("Calib Flag On.");
     calibFlag = true;
   }
@@ -160,9 +155,9 @@ void characteristicWritten(BLEDevice central, BLECharacteristic characteristic) 
   if (pCommandValue && pCommandValue[1] == 1) {
     Serial.println("Stop.");
     stopFlag = true;
-    calibFlag = true;
   } else if (pCommandValue && pCommandValue[1] == 2) {
     Serial.println("Start.");
+    calibFlag = true;
     stopFlag = false;
   }
 
@@ -170,13 +165,74 @@ void characteristicWritten(BLEDevice central, BLECharacteristic characteristic) 
 
 #endif
 
-void readVolt() {
+class VoltCache
+{
+  public:
+  int readCount = 0;
+  float sumAnalogRead = 0.f;
+  float calibVolt = 0.f;
 
-  float analogReadValue0 = analogRead(SENSOR_READ_VOLT);
+  float cacheMillis = 0.f;
+  float startMillis = 0.f;
 
-  readCount++;
-  sumAnalogRead0 += analogReadValue0;
-}
+  const float calibStartMillis = 100.f;
+  const float calibEndMillis = 200.f;
+
+  void addVolt() {
+    float analogReadValue0 = analogRead(SENSOR_READ_VOLT);
+    readCount++;
+    sumAnalogRead += analogReadValue0;
+  }
+
+  void calib()
+  {
+    sumAnalogRead = 0.f;
+    calibVolt = 0.f;
+    readCount = 0;
+
+    cacheMillis = 0.f;
+    startMillis = 0.f;
+
+    Serial.println("Volt Calib Start.");
+    while(calibLoop())
+    ;
+    Serial.println(calibVolt);
+    Serial.println("Volt Calib End.");
+  }
+
+  bool calibLoop()
+  {
+    float currentMillis = millis();
+    if (startMillis == 0.f)
+    {
+      startMillis = currentMillis;
+    }
+    else
+    {
+      float deltaMillis = currentMillis - startMillis;
+
+      if (deltaMillis > calibEndMillis)
+      {
+        calibVolt = getVolt();
+        return false;
+      }
+      else if (deltaMillis > calibStartMillis)
+      {
+        addVolt();
+      }
+    }
+
+    return true;
+  }
+
+  float getVolt()
+  {
+    float resultVolt = (sumAnalogRead / (float)readCount) - calibVolt;
+    sumAnalogRead = 0.f;
+    readCount = 0;
+    return resultVolt;
+  }
+};
 
 class AngleCache
 {
@@ -193,7 +249,6 @@ class AngleCache
   float calibZ = 0.f;
 
   float cacheMillis = 0.f;
-
   float startMillis = 0.f;
 
   const float calibStartMillis = 1000.f;
@@ -215,12 +270,13 @@ class AngleCache
     cacheMillis = 0.f;
     startMillis = 0.f;
 
-    Serial.println("Calib Start.");
+    Serial.println("Angle Calib Start.");
+    digitalWrite(LEDB, HIGH);
     digitalWrite(LED_BUILTIN, LOW);
     while(calibLoop())
     ;
 
-    Serial.println("Calib End.");
+    Serial.println("Angle Calib End.");
     digitalWrite(LED_BUILTIN, HIGH);
   }
 
@@ -241,7 +297,7 @@ class AngleCache
 
       if (deltaMillis > calibEndMillis)
       {
-        Serial.println(deltaMillis);
+
         calibX = x / ((calibEndMillis - calibStartMillis) * scale);
         calibY = y / ((calibEndMillis - calibStartMillis) * scale);
         calibZ = z / ((calibEndMillis - calibStartMillis) * scale);
@@ -249,10 +305,6 @@ class AngleCache
         x = 0.f;
         y = 0.f;
         z = 0.f;
-
-        Serial.println(calibX);
-        Serial.println(calibY);
-        Serial.println(calibZ);
 
         return false;
       }
@@ -313,6 +365,12 @@ class AngleCache
 };
 
 AngleCache currentAngle;
+VoltCache voltCache;
+
+void readVolt() {
+
+  voltCache.addVolt();
+}
 
 void readAngle() {
 
@@ -325,9 +383,13 @@ void setup() {
   Serial.begin(115200);
 
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(LEDB, OUTPUT);
   pinMode(SENSOR_READ_VOLT, INPUT);
 
+  digitalWrite(LEDB, LOW);
+
   bleSetup();
+
   gyroSetup();
 
 }
@@ -366,10 +428,12 @@ void loop() {
         if (calibFlag)
         {
           currentAngle.calib();
+          voltCache.calib();
           calibFlag = false;
         }
 
         {
+          /*
           Serial.print(currentAngle.quat.a);
           Serial.print(", ");
           Serial.print(currentAngle.quat.b);
@@ -377,6 +441,7 @@ void loop() {
           Serial.print(currentAngle.quat.c);
           Serial.print(", ");
           Serial.println(currentAngle.quat.c);
+          */
 
           AngleCache::quatToYPR(currentAngle.quat, sendValue[1], sendValue[2], sendValue[3]);
           /*
@@ -394,8 +459,8 @@ void loop() {
           */
         }
         {
-          float averageValue = sumAnalogRead0 / (float)readCount;
-          sendValue[0] = averageValue;
+
+          sendValue[0] = voltCache.getVolt();
           // sumAnalogRead0 = 0;
           // char* writeValue = (char*)&averageValue;
 
