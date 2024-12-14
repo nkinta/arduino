@@ -26,12 +26,13 @@
 
 #define BLE_LOCAL_NAME "VoltageLogger"
 
-const int SENSOR_READ_VOLT = 2;
+const int SENSOR_READ_VOLT = 0;
 
-const float FPS = 6.f;
+const float FPS = 60.f;
+
 const float ONE_FRAME_MS = (1.f / FPS) * 1000.f;
 
-
+const float TO_VOLT = (3.3f / 1024.f) * 2.f;
 
 #if XIAO
 class DataSendCallbacks : public BLECharacteristicCallbacks {
@@ -116,9 +117,32 @@ LSM6DS3 IMU(I2C_MODE, 0x6A);
 
 bool calibFlag = false;
 bool stopFlag = true;
+bool gyroActiveFlag = true;
 
 void gyroSetup() {
 
+  Serial.println("IMU Settings.");
+
+  char s[60];
+  sprintf(s, "%d %d %d %d %d %d %d %d %d",
+    IMU.settings.gyroEnabled,
+    IMU.settings.gyroFifoEnabled,
+    IMU.settings.accelEnabled,
+    IMU.settings.accelFifoEnabled,
+    IMU.settings.tempEnabled,
+    IMU.settings.gyroSampleRate,
+    IMU.settings.accelSampleRate,
+    IMU.settings.gyroBandWidth,
+    IMU.settings.accelBandWidth
+  );
+  Serial.println(s);
+
+/*
+  IMU.writeRegister(LSM6DS3_ACC_GYRO_CTRL2_G,  0x8C);
+  IMU.writeRegister(LSM6DS3_ACC_GYRO_CTRL1_XL, 0x8A);
+  IMU.writeRegister(LSM6DS3_ACC_GYRO_CTRL7_G,  0x00);
+  IMU.writeRegister(LSM6DS3_ACC_GYRO_CTRL8_XL, 0x09);
+*/
   while (IMU.begin() != 0) {
     Serial.println("Failed to initialize IMU!");
   }
@@ -159,6 +183,14 @@ void characteristicWritten(BLEDevice central, BLECharacteristic characteristic) 
     Serial.println("Start.");
     calibFlag = true;
     stopFlag = false;
+  } else if (pCommandValue && pCommandValue[1] == 3) {
+    Serial.print("Gyro Status ");
+    gyroActiveFlag = !gyroActiveFlag;
+    if (gyroActiveFlag) {
+      Serial.println("On.");
+    } else {
+      Serial.println("Off.");
+    }
   }
 
 }
@@ -227,7 +259,7 @@ class VoltCache
 
   float getVolt()
   {
-    float resultVolt = (sumAnalogRead / (float)readCount) - calibVolt;
+    float resultVolt = ((sumAnalogRead / (float)readCount) - calibVolt) * TO_VOLT;
     sumAnalogRead = 0.f;
     readCount = 0;
     return resultVolt;
@@ -254,6 +286,9 @@ class AngleCache
   const float calibStartMillis = 1000.f;
   const float calibEndMillis = 3000.f;
   const float scale = 0.001f;
+
+  static constexpr float toRad = (M_PI / 180.f);
+  static constexpr float toDeg = (180.f / M_PI);
 
   void calib()
   {
@@ -310,11 +345,11 @@ class AngleCache
       }
       else if (deltaMillis > calibStartMillis)
       {
-        addAngle(currentMillis, inX, inY, inZ);
+        addAngle();
       }
       else
       {
-        addAngle(currentMillis, inX, inY, inZ);
+        addAngle();
         x = 0.f;
         y = 0.f;
         z = 0.f;
@@ -325,8 +360,13 @@ class AngleCache
 
   }
 
-  void addAngle(float currentMillis, float inX, float inY, float inZ)
+  void addAngle()
   {
+    float currentMillis = millis();
+    float inX = IMU.readFloatGyroX();
+    float inY = IMU.readFloatGyroY();
+    float inZ = IMU.readFloatGyroZ();
+
     float deltaMillis = currentMillis - cacheMillis;
     cacheMillis = currentMillis;
 
@@ -335,8 +375,18 @@ class AngleCache
     z += (inZ - calibZ) * deltaMillis * scale;
   }
 
-  void addAngleForQuat(float currentMillis, float inX, float inY, float inZ)
+  void addAngleForQuat()
   {
+    float currentMillis = millis();
+
+    // uint8_t tempOutValue[12];
+    // IMU.readRegisterRegion(&tempOutValue[0], LSM6DS3_ACC_GYRO_OUTX_L_G, 12);
+    // IMU.readRegisterRegion(&tempOutValue[0], LSM6DS3_ACC_GYRO_OUTX_L_XL, 6);
+
+    float inX = IMU.readFloatGyroX();
+    float inY = IMU.readFloatGyroY();
+    float inZ = IMU.readFloatGyroZ();
+
     float deltaMillis = currentMillis - cacheMillis;
     cacheMillis = currentMillis;
 
@@ -345,7 +395,6 @@ class AngleCache
     float tempZ = (inZ - calibZ) * deltaMillis * scale;
 
     Quaternion mulQuat;
-    static float toRad = (M_PI / 180.f);
     mulQuat = mulQuat.from_euler_rotation_approx(toRad * tempX, toRad * tempY, toRad * tempZ);
 
     quat *= mulQuat;
@@ -357,10 +406,10 @@ class AngleCache
     float x = quat.b;
     float y = quat.c;
     float z = quat.d;
-    static const float toRad = (180.f / M_PI);
-    roll = atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y)) * toRad;
-    pitch = asin(2 * (w * y - x * z)) * toRad;
-    yaw = atan2(2 * (w * z + x * y), 1 - 2 * (z * z + y * y)) * toRad;
+
+    roll = atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y)) * toDeg;
+    pitch = asin(2 * (w * y - x * z)) * toDeg;
+    yaw = atan2(2 * (w * z + x * y), 1 - 2 * (z * z + y * y)) * toDeg;
   }
 };
 
@@ -374,13 +423,13 @@ void readVolt() {
 
 void readAngle() {
 
-  // currentAngle.addAngle(millis(), IMU.readFloatGyroX(), IMU.readFloatGyroY(), IMU.readFloatGyroZ());
-  currentAngle.addAngleForQuat(millis(), IMU.readFloatGyroX(), IMU.readFloatGyroY(), IMU.readFloatGyroZ());
+  currentAngle.addAngleForQuat();
 }
 
 void setup() {
 
   Serial.begin(115200);
+  // while (!Serial);
 
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(LEDB, OUTPUT);
@@ -404,7 +453,9 @@ void loop() {
 
     readVolt();
 
-    readAngle();
+    if (gyroActiveFlag) {
+      readAngle();
+    }
 
     if ((millis() - volt_millis_buf) > ONE_FRAME_MS) {
 #if XIAO
@@ -425,6 +476,8 @@ void loop() {
 #else
       if (BLE.connected() && stopFlag == false)
       {
+        // Serial.println(voltCache.readCount);
+
         if (calibFlag)
         {
           currentAngle.calib();
