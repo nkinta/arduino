@@ -183,14 +183,16 @@ void characteristicWritten(BLEDevice central, BLECharacteristic characteristic) 
     Serial.println("Start.");
     calibFlag = true;
     stopFlag = false;
-  } else if (pCommandValue && pCommandValue[1] == 3) {
+  }
+  
+  if (pCommandValue && pCommandValue[2] == 1) {
     Serial.print("Gyro Status ");
-    gyroActiveFlag = !gyroActiveFlag;
-    if (gyroActiveFlag) {
-      Serial.println("On.");
-    } else {
-      Serial.println("Off.");
-    }
+    Serial.println("On.");
+    gyroActiveFlag = true;
+  } else if (pCommandValue && pCommandValue[2] == 2) {
+    Serial.print("Gyro Status ");
+    Serial.println("Off.");
+    gyroActiveFlag = false;
   }
 
 }
