@@ -23,6 +23,7 @@
 #define SERVICE_UUID "a9438aed-c675-4794-8cf5-0f993db8d262"
 #define LOGGER_CHARACTERISTIC_UUID "c0ddd532-528b-4860-ac19-f093a27df43a"
 #define COMMAND_CHARACTERISTIC_UUID "66b4f1b1-9e00-440c-a9a4-6bc688872af1"
+#define READDATA_CHARACTERISTIC_UUID "9f601454-b36a-446d-92dc-839d4393f954"
 
 #define BLE_LOCAL_NAME "VoltageLogger"
 
@@ -33,6 +34,82 @@ const float FPS = 60.f;
 const float ONE_FRAME_MS = (1.f / FPS) * 1000.f;
 
 const float TO_VOLT = (3.3f / 1024.f) * 2.f;
+
+
+class ReadVoltCache
+{
+  public:
+
+  static constexpr int DATA_CHUNK_MAX = 64;
+  static constexpr int READ_DATA_MAX = 512;
+  static constexpr int FLOAT_READ_DATA_MAX = READ_DATA_MAX / 4; // 128
+  static constexpr int FLOAT_DATA_MAX = FLOAT_READ_DATA_MAX * DATA_CHUNK_MAX;
+
+  int voltdataCount{0};
+
+  int startVoltdataCount{0};
+
+  int endVoltdataCount{0};
+
+  float voltData[FLOAT_DATA_MAX] = {0.f};
+
+  void setReadChunk(int inReadChunkCount)
+  {
+    readChunkCount = inReadChunkCount;
+  }
+
+  int getReadChunk()
+  {
+    return readChunkCount;
+  }
+
+  void setVolt(float volt)
+  {
+    if (voltData[voltdataCount] < 0.1f && volt > 1.f)
+    {
+      startVoltdataCount = voltdataCount;
+    }
+    else if (volt < 0.1f && voltData[voltdataCount] > 1.f)
+    {
+      endVoltdataCount = voltdataCount; 
+    }
+
+    voltData[voltdataCount] = volt;
+    voltdataCount = (voltdataCount + 1) % FLOAT_DATA_MAX;
+  }
+
+  bool isReadData()
+  {
+    if (readChunkCount >= 0)
+    {
+      return true;
+    }
+    else
+    {
+      return false;
+    }
+  }
+
+  size_t* getWritePointer()
+  {
+    if (readChunkCount >= 0)
+    {
+      const int startChunk = startVoltdataCount / FLOAT_READ_DATA_MAX;
+      const int currentChunk = startChunk + readChunkCount;
+      return (size_t*)&voltData[currentChunk * FLOAT_READ_DATA_MAX];
+    }
+    else
+    {
+      return (size_t*)&voltData[0];
+    }
+  }
+
+  private:
+  int readChunkCount{0};
+
+};
+
+ReadVoltCache readVoltCache;
 
 #if XIAO
 class DataSendCallbacks : public BLECharacteristicCallbacks {
@@ -84,9 +161,9 @@ void bleSetup() {
 
 BLEService voltageLoggerService(SERVICE_UUID);  // create service
 // create switch characteristic and allow remote device to read and write
-BLECharacteristic loggerCharacteristic(LOGGER_CHARACTERISTIC_UUID, 16, BLERead | BLEWrite | BLENotify);
-BLECharacteristic commandCharacteristic(COMMAND_CHARACTERISTIC_UUID, 4, BLERead | BLEWrite);
-
+BLECharacteristic loggerCharacteristic(LOGGER_CHARACTERISTIC_UUID, BLERead | BLEWrite | BLENotify, 16);
+BLECharacteristic commandCharacteristic(COMMAND_CHARACTERISTIC_UUID, BLERead | BLEWrite, 4);
+BLECharacteristic readdataCharacteristic(READDATA_CHARACTERISTIC_UUID, BLERead | BLEWrite | BLENotify, ReadVoltCache::READ_DATA_MAX);
 
 void bleSetup() {
 
@@ -100,12 +177,15 @@ void bleSetup() {
 
   voltageLoggerService.addCharacteristic(loggerCharacteristic);
   voltageLoggerService.addCharacteristic(commandCharacteristic);
+  voltageLoggerService.addCharacteristic(readdataCharacteristic);
+
   BLE.addService(voltageLoggerService);
 
   BLE.setEventHandler(BLEConnected, blePeripheralConnectHandler);
   BLE.setEventHandler(BLEDisconnected, blePeripheralDisconnectHandler);
 
   commandCharacteristic.setEventHandler(BLEWritten, characteristicWritten);
+  // readdataCharacteristic.writeValue((size_t*)&voltData[0], 16);
 
   // start advertising
   BLE.advertise();
@@ -116,7 +196,7 @@ void bleSetup() {
 LSM6DS3 IMU(I2C_MODE, 0x6A);
 
 bool calibFlag = false;
-bool stopFlag = true;
+bool startFlag = false;
 bool gyroActiveFlag = true;
 
 void gyroSetup() {
@@ -177,12 +257,12 @@ void characteristicWritten(BLEDevice central, BLECharacteristic characteristic) 
   }
 
   if (pCommandValue && pCommandValue[1] == 1) {
-    Serial.println("Stop.");
-    stopFlag = true;
-  } else if (pCommandValue && pCommandValue[1] == 2) {
     Serial.println("Start.");
     calibFlag = true;
-    stopFlag = false;
+    startFlag = true;
+  } else if (pCommandValue && pCommandValue[1] == 2) {
+    Serial.println("Stop.");
+    startFlag = false;
   }
   
   if (pCommandValue && pCommandValue[2] == 1) {
@@ -193,6 +273,17 @@ void characteristicWritten(BLEDevice central, BLECharacteristic characteristic) 
     Serial.print("Gyro Status ");
     Serial.println("Off.");
     gyroActiveFlag = false;
+  }
+
+  if (!(pCommandValue && pCommandValue[3] < 0)) {
+    Serial.print("ReadData Flag Status ");
+    Serial.println(pCommandValue[3]);
+
+    readVoltCache.setReadChunk(pCommandValue[3]);
+  }
+  else
+  {
+    Serial.print("ReadData Flag Status ");
   }
 
 }
@@ -476,53 +567,71 @@ void loop() {
       }
 
 #else
-      if (BLE.connected() && stopFlag == false)
+      if (BLE.connected())
       {
+
+        if (startFlag == true)
+        {
         // Serial.println(voltCache.readCount);
 
-        if (calibFlag)
-        {
-          currentAngle.calib();
-          voltCache.calib();
-          calibFlag = false;
+          if (calibFlag)
+          {
+            currentAngle.calib();
+            voltCache.calib();
+            calibFlag = false;
+          }
+
+          {
+            /*
+            Serial.print(currentAngle.quat.a);
+            Serial.print(", ");
+            Serial.print(currentAngle.quat.b);
+            Serial.print(", ");
+            Serial.print(currentAngle.quat.c);
+            Serial.print(", ");
+            Serial.println(currentAngle.quat.c);
+            */
+
+            AngleCache::quatToYPR(currentAngle.quat, sendValue[1], sendValue[2], sendValue[3]);
+            /*
+            Serial.print(sendValue[1]);
+            Serial.print(", ");
+            Serial.print(sendValue[2]);
+            Serial.print(", ");
+            Serial.println(sendValue[3]);
+            */
+
+            /*
+            sendValue[1] = currentAngle.x;
+            sendValue[2] = currentAngle.y;
+            sendValue[3] = currentAngle.z;
+            */
+          }
+          {
+            sendValue[0] = voltCache.getVolt();
+            readVoltCache.setVolt(sendValue[0]);
+            loggerCharacteristic.writeValue((size_t*)&sendValue[0], 16);
+          }
         }
-
-        {
-          /*
-          Serial.print(currentAngle.quat.a);
-          Serial.print(", ");
-          Serial.print(currentAngle.quat.b);
-          Serial.print(", ");
-          Serial.print(currentAngle.quat.c);
-          Serial.print(", ");
-          Serial.println(currentAngle.quat.c);
-          */
-
-          AngleCache::quatToYPR(currentAngle.quat, sendValue[1], sendValue[2], sendValue[3]);
-          /*
-          Serial.print(sendValue[1]);
-          Serial.print(", ");
-          Serial.print(sendValue[2]);
-          Serial.print(", ");
-          Serial.println(sendValue[3]);
-          */
-
-          /*
-          sendValue[1] = currentAngle.x;
-          sendValue[2] = currentAngle.y;
-          sendValue[3] = currentAngle.z;
-          */
-        }
+        else
         {
 
-          sendValue[0] = voltCache.getVolt();
-          // sumAnalogRead0 = 0;
-          // char* writeValue = (char*)&averageValue;
+          if (readVoltCache.isReadData())
+          {
+            readdataCharacteristic.writeValue(readVoltCache.getWritePointer(), ReadVoltCache::READ_DATA_MAX); // ReadVoltCache::READ_DATA_MAX
+            digitalWrite(LEDB, LOW);
+            Serial.print("read!");
+            Serial.println(readVoltCache.getReadChunk());
+            readVoltCache.setReadChunk(-1);
 
-          loggerCharacteristic.writeValue((size_t*)&sendValue[0], 16);
+          }
+          else
+          {
+
+          }
+
         }
       }
-
 #endif
       volt_millis_buf = millis();
     }
