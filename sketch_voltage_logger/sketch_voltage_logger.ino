@@ -41,7 +41,7 @@ class ReadVoltCache
   public:
 
   static constexpr int DATA_CHUNK_MAX = 64;
-  static constexpr int READ_DATA_MAX = 512;
+  static constexpr int READ_DATA_MAX = 244;
   static constexpr int FLOAT_READ_DATA_MAX = READ_DATA_MAX / 4; // 128
   static constexpr int FLOAT_DATA_MAX = FLOAT_READ_DATA_MAX * DATA_CHUNK_MAX;
 
@@ -65,6 +65,7 @@ class ReadVoltCache
 
   void setVolt(float volt)
   {
+    /*
     if (voltData[voltdataCount] < 0.1f && volt > 1.f)
     {
       startVoltdataCount = voltdataCount;
@@ -73,6 +74,7 @@ class ReadVoltCache
     {
       endVoltdataCount = voltdataCount; 
     }
+    */
 
     voltData[voltdataCount] = volt;
     voltdataCount = (voltdataCount + 1) % FLOAT_DATA_MAX;
@@ -102,6 +104,18 @@ class ReadVoltCache
     {
       return (size_t*)&voltData[0];
     }
+  }
+
+  void reset()
+  {
+    for (int i = 0; i < FLOAT_DATA_MAX; ++i)
+    {
+      voltData[i] = 0.f;
+    }
+
+    voltdataCount = 0;
+    startVoltdataCount = 0;
+    endVoltdataCount = 0;
   }
 
   private:
@@ -578,6 +592,7 @@ void loop() {
           {
             currentAngle.calib();
             voltCache.calib();
+            readVoltCache.reset();
             calibFlag = false;
           }
 
