@@ -136,11 +136,15 @@ class ReadVoltCache
 class ParamSet{
   public:
 
+  static constexpr int PARAM_SIZE = 2;
+
   bool enableFlag = false;
   bool gyroFlag = false;
 
   bool oldEnableFlag = enableFlag;
   bool oldGyroFlag = gyroFlag;
+
+  uint8_t tempData[PARAM_SIZE]; 
 
   void setState(const uint8_t* pCommandValue)
   {
@@ -168,6 +172,24 @@ class ParamSet{
     }
   };
 
+  const uint8_t* getState()
+  {
+    if (gyroFlag) {
+      tempData[0] = 1;
+    }
+    else {
+      tempData[0] = 0;
+    }
+    if (gyroFlag) {
+      tempData[1] = 1;
+    }
+    else {
+      tempData[1] = 0;
+    }
+
+    return &tempData[0];
+  }
+
   bool isEnableTurnOn()
   {
     return enableFlag && (oldEnableFlag != enableFlag);
@@ -185,7 +207,7 @@ BLEService voltageLoggerService(SERVICE_UUID);  // create service
 BLECharacteristic loggerCharacteristic(LOGGER_CHARACTERISTIC_UUID, BLERead | BLEWrite | BLENotify, LOGGER_DATA_SIZE);
 BLECharacteristic commandCharacteristic(COMMAND_CHARACTERISTIC_UUID, BLERead | BLEWrite, 2);
 BLECharacteristic readdataCharacteristic(READDATA_CHARACTERISTIC_UUID, BLERead | BLEWrite | BLENotify, ReadVoltCache::READ_DATA_MAX);
-BLECharacteristic paramCharacteristic(PARAM_CHARACTERISTIC_UUID, BLERead | BLEWrite, 2);
+BLECharacteristic paramCharacteristic(PARAM_CHARACTERISTIC_UUID, BLERead | BLEWrite, ParamSet::PARAM_SIZE);
 
 void bleSetup() {
 
@@ -224,6 +246,8 @@ void bleSetup() {
   commandCharacteristic.setEventHandler(BLEWritten, commandCharacteristicWritten);
   paramCharacteristic.setEventHandler(BLEWritten, paramCharacteristicWritten);
   // readdataCharacteristic.writeValue((size_t*)&voltData[0], 16);
+
+  paramCharacteristic.writeValue(paramSet.getState(), ParamSet::PARAM_SIZE);
 
   // start advertising
   BLE.advertise();
