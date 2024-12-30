@@ -23,12 +23,15 @@
 #define SERVICE_UUID "a9438aed-c675-4794-8cf5-0f993db8d262"
 #define LOGGER_CHARACTERISTIC_UUID "c0ddd532-528b-4860-ac19-f093a27df43a"
 #define COMMAND_CHARACTERISTIC_UUID "66b4f1b1-9e00-440c-a9a4-6bc688872af1"
-#define COMMAND_CHARACTERISTIC_UUID "66b4f1b1-9e00-440c-a9a4-6bc688872af1"
+#define PARAM_CHARACTERISTIC_UUID "6584a9a6-01a2-4e70-a687-30447b50cf6e"
 #define READDATA_CHARACTERISTIC_UUID "9f601454-b36a-446d-92dc-839d4393f954"
+#define DESCRIPTER_UUID "00002902-0000-1000-8000-00805f9b34fb"
 
 #define BLE_LOCAL_NAME "VoltageLogger"
 
-const int SENSOR_READ_VOLT = 0;
+constexpr int SENSOR_READ_VOLT = 0;
+
+constexpr int LOGGER_DATA_SIZE = 20;
 
 const float FPS = 60.f;
 
@@ -82,6 +85,11 @@ class ReadVoltCache
     voltdataCount = (voltdataCount + 1) % FLOAT_DATA_MAX;
   }
 
+  float getDataCountPercent()
+  {
+    return ((float)voltdataCount / (float)FLOAT_DATA_MAX) * 100.f;
+  }
+
   bool isReadData()
   {
     if (readChunkCount >= 0)
@@ -125,49 +133,59 @@ class ReadVoltCache
 
 };
 
-class FlagSet{
+class ParamSet{
   public:
-  bool calibFlag = false;
-  bool startFlag = false;
-  bool gyroActiveFlag = true;
+
+  bool enableFlag = false;
+  bool gyroFlag = false;
+
+  bool oldEnableFlag = enableFlag;
+  bool oldGyroFlag = gyroFlag;
 
   void setState(const uint8_t* pCommandValue)
   {
-    if (pCommandValue && pCommandValue[0] == 1) {
-      Serial.println("Calib Flag On.");
-      calibFlag = true;
-    }
+    oldEnableFlag = enableFlag;
+    oldGyroFlag = gyroFlag;
 
-    if (pCommandValue && pCommandValue[1] == 1) {
-      Serial.println("Start.");
-      calibFlag = true;
-      startFlag = true;
-    } else if (pCommandValue && pCommandValue[1] == 2) {
-      Serial.println("Stop.");
-      startFlag = false;
+    if (pCommandValue && pCommandValue[0] == 1) {
+      Serial.print("Enable.");
+      Serial.println("On.");
+      enableFlag = true;
+    } else if (pCommandValue && pCommandValue[0] == 0) {
+      Serial.print("Enable.");
+      Serial.println("Off.");
+      enableFlag = false;
     }
     
-    if (pCommandValue && pCommandValue[2] == 1) {
-      Serial.print("Gyro Status ");
+    if (pCommandValue && pCommandValue[1] == 1) {
+      Serial.print("Gyro.");
       Serial.println("On.");
-      gyroActiveFlag = true;
-    } else if (pCommandValue && pCommandValue[2] == 2) {
-      Serial.print("Gyro Status ");
+      gyroFlag = true;
+    } else if (pCommandValue && pCommandValue[1] == 0) {
+      Serial.print("Gyro.");
       Serial.println("Off.");
-      gyroActiveFlag = false;
+      gyroFlag = false;
     }
   };
+
+  bool isEnableTurnOn()
+  {
+    return enableFlag && (oldEnableFlag != enableFlag);
+  }
+
 };
 
-FlagSet flagSet;
 
+ParamSet paramSet;
+bool calibFlag = false;
 ReadVoltCache readVoltCache;
 
 BLEService voltageLoggerService(SERVICE_UUID);  // create service
 // create switch characteristic and allow remote device to read and write
-BLECharacteristic loggerCharacteristic(LOGGER_CHARACTERISTIC_UUID, BLERead | BLEWrite | BLENotify, 16);
-BLECharacteristic commandCharacteristic(COMMAND_CHARACTERISTIC_UUID, BLERead | BLEWrite, 4);
+BLECharacteristic loggerCharacteristic(LOGGER_CHARACTERISTIC_UUID, BLERead | BLEWrite | BLENotify, LOGGER_DATA_SIZE);
+BLECharacteristic commandCharacteristic(COMMAND_CHARACTERISTIC_UUID, BLERead | BLEWrite, 2);
 BLECharacteristic readdataCharacteristic(READDATA_CHARACTERISTIC_UUID, BLERead | BLEWrite | BLENotify, ReadVoltCache::READ_DATA_MAX);
+BLECharacteristic paramCharacteristic(PARAM_CHARACTERISTIC_UUID, BLERead | BLEWrite, 2);
 
 void bleSetup() {
 
@@ -182,13 +200,29 @@ void bleSetup() {
   voltageLoggerService.addCharacteristic(loggerCharacteristic);
   voltageLoggerService.addCharacteristic(commandCharacteristic);
   voltageLoggerService.addCharacteristic(readdataCharacteristic);
+  voltageLoggerService.addCharacteristic(paramCharacteristic);
+
+/*
+  short cccdValue = 0x0001;
+  {
+    BLEDescriptor* descripter = new BLEDescriptor(DESCRIPTER_UUID, (uint8_t*)&cccdValue, sizeof(cccdValue));
+    BLEDescriptor commandDescriptor = commandCharacteristic.descriptor(DESCRIPTER_UUID);
+    commandCharacteristic.addDescriptor(*descripter);
+  }
+  {
+    BLEDescriptor* descripter = new BLEDescriptor(DESCRIPTER_UUID, (uint8_t*)&cccdValue, sizeof(cccdValue));
+    BLEDescriptor commandDescriptor = readdataCharacteristic.descriptor(DESCRIPTER_UUID);
+    readdataCharacteristic.addDescriptor(*descripter);
+  }
+*/
 
   BLE.addService(voltageLoggerService);
 
   BLE.setEventHandler(BLEConnected, blePeripheralConnectHandler);
   BLE.setEventHandler(BLEDisconnected, blePeripheralDisconnectHandler);
 
-  commandCharacteristic.setEventHandler(BLEWritten, characteristicWritten);
+  commandCharacteristic.setEventHandler(BLEWritten, commandCharacteristicWritten);
+  paramCharacteristic.setEventHandler(BLEWritten, paramCharacteristicWritten);
   // readdataCharacteristic.writeValue((size_t*)&voltData[0], 16);
 
   // start advertising
@@ -244,22 +278,36 @@ void blePeripheralDisconnectHandler(BLEDevice central) {
   Serial.println(central.address());
 }
 
-void characteristicWritten(BLEDevice central, BLECharacteristic characteristic) {
+void commandCharacteristicWritten(BLEDevice central, BLECharacteristic characteristic) {
   // central wrote new value to characteristic, update LED
 
-  const uint8_t* pCommandValue = characteristic.value();
+  const uint8_t* pValue = characteristic.value();
 
-  flagSet.setState(pCommandValue);
+  constexpr int CALIB_INDEX = 0;
+  constexpr int CHUNK_NUM_INDEX = 1;
 
-  if (!(pCommandValue && pCommandValue[3] < 0)) {
-    Serial.print("ReadData Flag Status ");
-    Serial.println(pCommandValue[3]);
-
-    readVoltCache.setReadChunk(pCommandValue[3]);
+  if (pValue && pValue[CALIB_INDEX] == 1) {
+    Serial.println("Calib Flag On.");
+    calibFlag = true;
   }
-  else
-  {
+
+  if (!(pValue && pValue[CHUNK_NUM_INDEX] < 0)) {
     Serial.print("ReadData Flag Status ");
+    Serial.println(pValue[CHUNK_NUM_INDEX]);
+
+    readVoltCache.setReadChunk(pValue[CHUNK_NUM_INDEX]);
+  }
+
+}
+
+void paramCharacteristicWritten(BLEDevice central, BLECharacteristic characteristic) {
+
+  const uint8_t* pValue = characteristic.value();
+  paramSet.setState(pValue);
+
+  if (paramSet.isEnableTurnOn())
+  {
+    calibFlag = true;
   }
 
 }
@@ -511,7 +559,7 @@ void setup() {
 
 }
 
-float sendValue[4] = {0.f, 0.f, 0.f, 0.f};
+float sendValue[6] = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
 
 void loop() {
 
@@ -520,7 +568,7 @@ void loop() {
   while (true) {
     readVolt();
 
-    if (flagSet.gyroActiveFlag) {
+    if (paramSet.gyroFlag) {
       readAngle();
     }
 
@@ -543,16 +591,16 @@ void loop() {
 #else
       if (BLE.connected())
       {
-        if (flagSet.startFlag == true)
+        if (paramSet.enableFlag == true)
         {
-        // Serial.println(voltCache.readCount);
+          // Serial.println(voltCache.readCount);
 
-          if (flagSet.calibFlag)
+          if (calibFlag)
           {
             currentAngle.calib();
             voltCache.calib();
             readVoltCache.reset();
-            flagSet.calibFlag = false;
+            calibFlag = false;
           }
 
           {
@@ -583,8 +631,9 @@ void loop() {
           }
           {
             sendValue[0] = voltCache.getVolt();
+            sendValue[4] = readVoltCache.getDataCountPercent();
             readVoltCache.setVolt(sendValue[0]);
-            loggerCharacteristic.writeValue((size_t*)&sendValue[0], 16);
+            loggerCharacteristic.writeValue((size_t*)&sendValue[0], LOGGER_DATA_SIZE);
           }
         }
         else
