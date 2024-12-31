@@ -24,7 +24,7 @@
 #define LOGGER_CHARACTERISTIC_UUID "c0ddd532-528b-4860-ac19-f093a27df43a"
 #define COMMAND_CHARACTERISTIC_UUID "66b4f1b1-9e00-440c-a9a4-6bc688872af1"
 #define PARAM_CHARACTERISTIC_UUID "6584a9a6-01a2-4e70-a687-30447b50cf6e"
-#define READDATA_CHARACTERISTIC_UUID "9f601454-b36a-446d-92dc-839d4393f954"
+#define DOWNLOAD_CHARACTERISTIC_UUID "9f601454-b36a-446d-92dc-839d4393f954"
 #define DESCRIPTER_UUID "00002902-0000-1000-8000-00805f9b34fb"
 
 #define BLE_LOCAL_NAME "VoltageLogger"
@@ -199,6 +199,16 @@ class ParamSet{
     return enableFlag && (oldEnableFlag != enableFlag);
   }
 
+  bool isGyroTurnOn()
+  {
+    return gyroFlag && (oldGyroFlag != gyroFlag);
+  }
+
+  bool isGyroTurnOff()
+  {
+    return !gyroFlag && (oldGyroFlag != gyroFlag);
+  }
+
 };
 
 
@@ -210,7 +220,7 @@ BLEService voltageLoggerService(SERVICE_UUID);  // create service
 // create switch characteristic and allow remote device to read and write
 BLECharacteristic loggerCharacteristic(LOGGER_CHARACTERISTIC_UUID, BLERead | BLEWrite | BLENotify, LOGGER_DATA_SIZE);
 BLECharacteristic commandCharacteristic(COMMAND_CHARACTERISTIC_UUID, BLERead | BLEWrite, 2);
-BLECharacteristic readdataCharacteristic(READDATA_CHARACTERISTIC_UUID, BLERead | BLEWrite | BLENotify, ReadVoltCache::READ_DATA_MAX);
+BLECharacteristic readdataCharacteristic(DOWNLOAD_CHARACTERISTIC_UUID, BLERead | BLEWrite | BLENotify, ReadVoltCache::READ_DATA_MAX);
 BLECharacteristic paramCharacteristic(PARAM_CHARACTERISTIC_UUID, BLERead | BLEWrite, ParamSet::PARAM_SIZE);
 
 void bleSetup() {
@@ -333,7 +343,7 @@ void paramCharacteristicWritten(BLEDevice central, BLECharacteristic characteris
   const uint8_t* pValue = characteristic.value();
   paramSet.setState(pValue);
 
-  if (paramSet.isEnableTurnOn())
+  if (paramSet.isEnableTurnOn() || paramSet.isGyroTurnOn()|| paramSet.isGyroTurnOff())
   {
     calibFlag = true;
   }
