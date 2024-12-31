@@ -154,10 +154,12 @@ class ParamSet{
     if (pCommandValue && pCommandValue[0] == 1) {
       Serial.print("Enable.");
       Serial.println("On.");
+      digitalWrite(LEDB, HIGH);
       enableFlag = true;
     } else if (pCommandValue && pCommandValue[0] == 0) {
       Serial.print("Enable.");
       Serial.println("Off.");
+      digitalWrite(LEDB, LOW);
       enableFlag = false;
     }
     
@@ -174,10 +176,12 @@ class ParamSet{
 
   const uint8_t* getState()
   {
-    if (gyroFlag) {
+    if (enableFlag) {
+      digitalWrite(LEDB, HIGH);
       tempData[0] = 1;
     }
     else {
+      digitalWrite(LEDB, LOW);
       tempData[0] = 0;
     }
     if (gyroFlag) {
@@ -318,7 +322,7 @@ void commandCharacteristicWritten(BLEDevice central, BLECharacteristic character
   if (!(pValue && pValue[CHUNK_NUM_INDEX] < 0)) {
     Serial.print("ReadData Flag Status ");
     Serial.println(pValue[CHUNK_NUM_INDEX]);
-
+    digitalWrite(LEDG, LOW);
     readVoltCache.setReadChunk(pValue[CHUNK_NUM_INDEX]);
   }
 
@@ -446,7 +450,7 @@ class AngleCache
     startMillis = 0.f;
 
     Serial.println("Angle Calib Start.");
-    digitalWrite(LEDB, HIGH);
+
     digitalWrite(LED_BUILTIN, LOW);
     while(calibLoop())
     ;
@@ -575,8 +579,6 @@ void setup() {
   pinMode(LEDB, OUTPUT);
   pinMode(SENSOR_READ_VOLT, INPUT);
 
-  digitalWrite(LEDB, LOW);
-
   bleSetup();
 
   gyroSetup();
@@ -666,9 +668,9 @@ void loop() {
           if (readVoltCache.isReadData())
           {
             readdataCharacteristic.writeValue(readVoltCache.getWritePointer(), ReadVoltCache::READ_DATA_MAX); // ReadVoltCache::READ_DATA_MAX
-            digitalWrite(LEDB, LOW);
             Serial.println(readVoltCache.getReadChunk());
             readVoltCache.setReadChunk(-1);
+            digitalWrite(LEDG, HIGH);
 
           }
           else
