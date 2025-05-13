@@ -81,26 +81,42 @@ class Counter
 {
   private:
   static constexpr int THREASHOULD{2048};
-  static constexpr uint8_t READ_PIN{3};
+  static constexpr float TO_RPM{60.f};
+
+  static constexpr int POLE{14};
+  static constexpr int ROT_RATE{POLE / 2};
+  static constexpr int GEAR_RATE{24 / 8};
+  static constexpr float PULSE_RATE{static_cast<float>(GEAR_RATE) / static_cast<float>(ROT_RATE)};
 
   bool currentVoltFlag{false};
 
   bool oldVoltFlag{false};
 
   int count{0};
-
   int maxCount{0};
+
+  void getCounter(int& outCount, int& outMaxCount)
+  {
+    outCount = count; 
+
+    if (count > maxCount)
+    {
+      maxCount = count;
+    }
+
+    outMaxCount = maxCount;
+
+    count = 0;
+  }
 
   public:
 
-  void setup()
-  {
-    pinMode(READ_PIN, INPUT);
-  }
+  float rpm{0.f};
+  float maxRpm{0.f};
 
-  void readVolt()
+  void readVolt(int inVolt)
   {
-    const int val{analogRead(READ_PIN)};
+    const int val{inVolt};
 
     oldVoltFlag = currentVoltFlag;
     if (val > THREASHOULD + 256)
@@ -118,23 +134,83 @@ class Counter
     }
   }
 
-  void getCounter(int& outCount, int& outMaxCount)
+  void calcRPM(float millis)
   {
-    outCount = count; 
+      int count{0}, maxCount{0};
+      getCounter(count, maxCount);
 
-    if (count > maxCount)
-    {
-      maxCount = count;
-    }
-
-    outMaxCount = maxCount;
-
-    count = 0;
+      rpm = count * PULSE_RATE * TO_RPM * (1000.f / millis);
+      maxRpm = maxCount * PULSE_RATE * TO_RPM * (1000.f / millis);
   }
+
 };
 
 class Controller
 {
+  static constexpr uint8_t READ_PIN{3};
+
+  enum class CheckMode{
+    FreeCheckMode = 0,
+    TorqueCheckMode
+  };
+
+  struct TorqueCheckParam
+  {
+    unsigned long voltMillisBuf{0};
+    unsigned long rpmMillisBuf{0};
+
+    Counter counter;
+
+    void start()
+    {
+      
+    }
+  };
+
+  struct FreeCheckParam
+  {
+    unsigned long voltMillisBuf{0};
+    unsigned long rpmMillisBuf{0};
+
+    static constexpr int TABLE[] = {30, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240, 250};
+    static constexpr int TABLE_COUNT{sizeof(TABLE) / sizeof(int)};
+
+    int power{TABLE[0]};
+    int powerNum{0};
+
+    Counter counter;
+
+    void displayB()
+    {
+      drawAdafruit.drawInt(counter.rpm, 0, 0);
+      drawAdafruit.drawInt(counter.maxRpm, 9, 0);
+    }
+
+    void displayA(bool onFlag)
+    {
+      if (onFlag)
+      {
+        char message[] = "On";
+        int sizeChar = sizeof(message);
+        drawAdafruit.drawChar(message, 0, 1, sizeChar);
+      }
+      else
+      {
+        char message[] = "Off";
+        int sizeChar = sizeof(message);
+        drawAdafruit.drawChar(message, 0, 1, sizeChar);
+      }
+
+      drawAdafruit.drawInt(power, 0, 2);
+    }
+
+    void next()
+    {
+      powerNum = (powerNum + 1) % TABLE_COUNT;
+      power = constrain(TABLE[powerNum], 0, 255);
+    }
+
+  };
 
 private:
 
@@ -146,25 +222,12 @@ private:
   static constexpr int PUSH_BUTTON1{10};
   static constexpr int PUSH_BUTTON2{9};
 
-  static constexpr int TABLE[] = {30, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240, 250};
-
-  static constexpr int TABLE_COUNT{sizeof(TABLE) / sizeof(int)};
-
-  static constexpr int POLE{14};
-
-  static constexpr int ROT_RATE{POLE / 2};
-
-  static constexpr int GEAR_RATE{24 / 8};
-
-  static constexpr float PULSE_RATE{static_cast<float>(GEAR_RATE) / static_cast<float>(ROT_RATE)};
+  FreeCheckParam freeCheckParam{};
+  TorqueCheckParam torqueCheckParam{};
 
   int buttonCount{0};
 
-  Counter counter;
-
-  unsigned long voltMillisBuf{0};
-
-  unsigned long rpmMillisBuf{0};
+  CheckMode checkMode{CheckMode::FreeCheckMode};
 
   bool button1Flag{false};
   bool button2Flag{false};
@@ -172,10 +235,7 @@ private:
 
   bool button2ReleaseFlag{false};
 
-  int powerNum{0};
-  int power{TABLE[0]};
-
-  void readVolt()
+  void loopMain()
   {
     int val1 = digitalRead(PUSH_BUTTON1);
     if (val1 == LOW)
@@ -196,15 +256,25 @@ private:
     {
       button2Flag = false;
     }
+    int volt{analogRead(READ_PIN)};
 
-    counter.readVolt();
+    if (checkMode == CheckMode::FreeCheckMode)
+    {
+      freeCheckParam.counter.readVolt(volt);
+    }
+    else if (checkMode == CheckMode::TorqueCheckMode)
+    {
+      torqueCheckParam.counter.readVolt(volt);
+    }
+
+
   }
 
 public:
 
   void setup()
   {
-    counter.setup();
+    pinMode(READ_PIN, INPUT);
     pinMode(WRITE_POWER_PIN, OUTPUT);
     pinMode(PUSH_BUTTON1, INPUT);
     pinMode(PUSH_BUTTON2, INPUT);
@@ -216,67 +286,69 @@ public:
 
   }
 
-  void controlMain()
-  {
-    if (!button2Flag && (button2OldFlag != button2Flag))
-    {
-      powerNum = (powerNum + 1) % TABLE_COUNT;
-      power = constrain(TABLE[powerNum], 0, 255);
-    }
-
-    button2OldFlag = button2Flag;
-  }
-
-  void display()
-  {
-    if (button1Flag)
-    {
-      char message[] = "On";
-      int sizeChar = sizeof(message);
-      drawAdafruit.drawChar(message, 0, 1, sizeChar);
-    }
-    else
-    {
-      char message[] = "Off";
-      int sizeChar = sizeof(message);
-      drawAdafruit.drawChar(message, 0, 1, sizeChar);
-    }
-
-    drawAdafruit.drawInt(power, 0, 2);
-
-  }
-
   void loopWhile()
   {
-    readVolt();
+    loopMain();
 
-    if ((millis() - rpmMillisBuf) > 1000.f)
+    if (checkMode == CheckMode::FreeCheckMode)
     {
+      const float rpmMisslisDiff{millis() - freeCheckParam.rpmMillisBuf};
+      if (rpmMisslisDiff > 1000.f)
+      {
+        freeCheckParam.counter.calcRPM(rpmMisslisDiff);
+        freeCheckParam.displayB();
+        freeCheckParam.rpmMillisBuf = millis();
+      }
 
-      int count{0};
-      int maxCount{0};
-      counter.getCounter(count, maxCount);
+      const float voltMillisDiff{millis() - freeCheckParam.voltMillisBuf};
+      if (voltMillisDiff > ONE_FRAME_MS)
+      {
+        if (!button2Flag && (button2OldFlag != button2Flag))
+        {
+          freeCheckParam.next();
+        }
+        button2OldFlag = button2Flag;
 
-      const int rpm{count * PULSE_RATE * 60.f};
-      const int maxRpm{maxCount * PULSE_RATE * 60.f};
+        freeCheckParam.displayA(button2Flag);
 
-      drawAdafruit.drawInt(rpm, 0, 0);
-      drawAdafruit.drawInt(maxRpm, 9, 0);
+        drawAdafruit.display();
 
-      rpmMillisBuf = millis();
+        analogWrite(WRITE_POWER_PIN, freeCheckParam.power);
+
+        freeCheckParam.voltMillisBuf = millis();
+      }
     }
-
-    if ((millis() - voltMillisBuf) > ONE_FRAME_MS)
+    else if (checkMode == CheckMode::TorqueCheckMode)
     {
-      controlMain();
 
-      display();
+      const float rpmMisslisDiff{millis() - torqueCheckParam.rpmMillisBuf};
+      if (rpmMisslisDiff > torqueCheckParam.currentModeMills())
+      {
+        torqueCheckParam.counter.calcRPM(rpmMisslisDiff);
 
-      drawAdafruit.display();
 
-      analogWrite(WRITE_POWER_PIN, power);
 
-      voltMillisBuf = millis();
+        torqueCheckParam.nextMode();
+        torqueCheckParam.rpmMillisBuf = millis();
+      }
+
+      const float voltMillisDiff{millis() - torqueCheckParam.voltMillisBuf};
+      if (voltMillisDiff > ONE_FRAME_MS)
+      {
+        if (!button2Flag && (button2OldFlag != button2Flag))
+        {
+          torqueCheckParam.start();
+        }
+        button2OldFlag = button2Flag;
+
+
+        torqueCheckParam.display();
+
+        drawAdafruit.display();
+
+        torqueCheckParam.voltMillisBuf = millis();
+      }
+
     }
 
   }
