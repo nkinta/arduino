@@ -51,22 +51,40 @@ public:
     adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * sizeChar, CHARSIZEY * 1, BLACK);
     adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
     adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
-    adaDisplay.println(chr);
+    adaDisplay.print(chr);
   }
 
-  void drawFloat(float volt, float offsetX, float offsetY) {
+  void drawFloat(float value, float offsetX, float offsetY) {
 
     adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * 5, CHARSIZEY * 1, BLACK);
     adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
     adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
-    adaDisplay.println(String(volt, 2));
+    adaDisplay.print(String(value, 2));
   }
 
-  void drawInt(int isButton, float offsetX, float offsetY) {
+  void drawIntR(int value, float offsetX, float offsetY) {
+    int offset{6};
+    int numOffset{offset - 1};
+
+    if (value != 0)
+    {
+      numOffset -= (log10(value) - 1);
+    }
+
+
+    adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * offset, CHARSIZEY * 1, BLACK);
+    adaDisplay.setCursor(CHARSIZEX * (offsetX + numOffset), CHARSIZEY * offsetY);
+    adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
+    // std::cout << std::setw(10) << std::right << num << std::endl;
+    adaDisplay.print(value);
+  }
+
+  void drawInt(int value, float offsetX, float offsetY) {
     adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * 5, CHARSIZEY * 1, BLACK);
     adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
     adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
-    adaDisplay.println(isButton);
+    // std::cout << std::setw(10) << std::right << num << std::endl;
+    adaDisplay.print(value);
   }
 
   void display()
@@ -243,6 +261,8 @@ private:
     int tableIndex{0};
     bool onFlag{false};
 
+    bool blinkFlag{false};
+
     unsigned long drawMillisBuf{0};
     unsigned long modeMillisBuf{0};
 
@@ -309,6 +329,8 @@ private:
 
     void display()
     {
+      blinkFlag = !blinkFlag;
+
       static char sleepMessage[] = "sleep";
       static char waitMessage[] = "wait";
       static char calcMessage[] = "calc";
@@ -333,21 +355,35 @@ private:
       static const int OFFSET{1};
       for (int i = 0; i < TABLE_COUNT; ++i)
       {
-        drawAdafruit.drawInt(rpmCahes[i].rpm, 4, i + 1);
+        drawAdafruit.drawIntR(rpmCahes[i].rpm, 4, i + 1);
 
         const int colIndex{i + OFFSET};
         const int rowIndex{2};
         if (currentMode == StateMode::CalcMode && i == tableIndex)
         {
-          drawAdafruit.drawChar(">>", 0, colIndex, rowIndex);
+          if (blinkFlag)
+          {
+            drawAdafruit.drawChar(">>", 0, colIndex, rowIndex);
+          }
+          else
+          {
+            drawAdafruit.drawChar("  ", 0, colIndex, rowIndex);
+          }
         }
         else if (currentMode == StateMode::WaitMode && i == tableIndex)
         {
-          drawAdafruit.drawChar(">", 0, colIndex, rowIndex);
+          if (blinkFlag)
+          {
+            drawAdafruit.drawChar("> ", 0, colIndex, rowIndex);
+          }
+          else
+          {
+            drawAdafruit.drawChar("  ", 0, colIndex, rowIndex);
+          }
         }
         else
         {
-          drawAdafruit.drawChar(" ", 0, colIndex, rowIndex);
+          drawAdafruit.drawChar("  ", 0, colIndex, rowIndex);
         }
         // drawAdafruit.drawInt(rpmCahes[i].maxRpm, 9, i + 1);
       }
