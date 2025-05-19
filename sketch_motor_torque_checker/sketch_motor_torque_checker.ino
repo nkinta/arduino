@@ -11,6 +11,10 @@ Preferences preferences;
 
 RTC_DATA_ATTR int counter = 0;  //RTC coprocessor領域に変数を宣言することでスリープ復帰後も値が保持できる
 
+static constexpr float FPS{30.f};
+static constexpr float SEC{1000.f};
+static constexpr float ONE_FRAME_MS{(1.f /FPS) * SEC};
+
 int MODE_ADDRESS = 0x0000;
 
 class DrawAdafruit
@@ -111,7 +115,8 @@ class Counter
   static constexpr int GEAR_RATE{24 / 8};
   static constexpr float PULSE_RATE{static_cast<float>(GEAR_RATE) / static_cast<float>(ROT_RATE)};
 
-  float oldMillis{0};
+  unsigned long oldMillis{0};
+  unsigned long totalDiffMillis{0};
 
   bool currentVoltFlag{false};
   bool oldVoltFlag{false};
@@ -119,25 +124,10 @@ class Counter
   int count{0};
   int maxCount{0};
 
-  void getCounter(int& outCount, int& outMaxCount)
-  {
-    outCount = count; 
-
-    if (count > maxCount)
-    {
-      maxCount = count;
-    }
-
-    outMaxCount = maxCount;
-
-    count = 0;
-  }
-
-  public:
-
   float rpm{0.f};
   float maxRpm{0.f};
 
+  public:
   void readVolt(int inVolt)
   {
     const int val{inVolt};
@@ -158,23 +148,29 @@ class Counter
     }
   }
 
-  void calcRPM(const float millis)
+  void sleep(unsigned long millis)
   {
-    const float diffMillis{millis - oldMillis};
+    const unsigned long diffMillis{millis - oldMillis};
+    totalDiffMillis += diffMillis;
+  }
 
-    int count{0}, maxCount{0};
-    getCounter(count, maxCount);
-
-    rpm = count * PULSE_RATE * TO_RPM * (1000.f / diffMillis);
-    maxRpm = maxCount * PULSE_RATE * TO_RPM * (1000.f / diffMillis);
-
+  void start(unsigned long millis)
+  {
     oldMillis = millis;
   }
 
-  void calcRPM()
+  void calcRPM(float& rpm, float& maxRpm)
   {
-    
+    if (count > maxCount)
+    {
+      maxCount = count;
+    }
 
+    rpm = count * PULSE_RATE * TO_RPM * (SEC / static_cast<float>(totalDiffMillis));
+    maxRpm = maxCount * PULSE_RATE * TO_RPM * (SEC / static_cast<float>(totalDiffMillis));
+
+    count = 0;
+    totalDiffMillis = 0;
   }
 
 
@@ -197,9 +193,6 @@ private:
   struct FreeCheckParam
   {
 
-    unsigned long voltMillisBuf{0};
-    unsigned long rpmMillisBuf{0};
-
     static constexpr float ANALOG_READ_SLOPE{3450.f / 2.5f};
 
     static constexpr int TABLE[] = {30, 100, 250};
@@ -212,9 +205,43 @@ private:
 
     bool nextFlag{false};
 
+    unsigned long misslisDiffA{0};
+    unsigned long misslisDiffB{0};
+
+    bool isChangeB(unsigned long millis)
+    {
+      const unsigned long misslisDiff{millis - misslisDiffB};
+      if (misslisDiff > SEC)
+      {
+        misslisDiffB = millis;
+        return true;
+      }
+      else
+      {
+        return false;
+      }
+    }
+
+    bool isChangeA(unsigned long millis)
+    {
+      const unsigned long misslisDiff{millis - misslisDiffA};
+      if (misslisDiff > ONE_FRAME_MS)
+      {
+        misslisDiffA = millis;
+        return true;
+      }
+      else
+      {
+        return false;
+      }
+    }
+
     void displayB()
     {
-      drawAdafruit.drawIntR(counter.rpm, 2, 0);
+      float rpm, maxRpm;
+      counter.calcRPM(rpm, maxRpm);
+
+      drawAdafruit.drawIntR(rpm, 2, 0);
       // drawAdafruit.drawIntR(counter.maxRpm, 9, 0);
 
       /*
@@ -339,8 +366,12 @@ private:
       }
       else if (currentMode == StateMode::CalcMode)
       {
-        rpmCahes[tableIndex].rpm = counter.rpm;
-        rpmCahes[tableIndex].maxRpm = counter.maxRpm;
+
+        float rpm, maxRpm;
+        counter.calcRPM(rpm, maxRpm);
+
+        rpmCahes[tableIndex].rpm = rpm;
+        rpmCahes[tableIndex].maxRpm = maxRpm;
 
         if (tableIndex == TABLE_COUNT - 1)
         {
@@ -465,10 +496,6 @@ private:
     }
 
   };
-
-  static constexpr float FPS{30.f};
-
-  static constexpr float ONE_FRAME_MS{(1.f /FPS) * 1000.f};
 
   static constexpr int WRITE_POWER_PIN{20};
   static constexpr int PUSH_BUTTON1{10};
@@ -605,25 +632,30 @@ public:
 
     if (checkMode == CheckMode::FreeCheckMode)
     {
-      const float rpmMisslisDiff{millis() - freeCheckParam.rpmMillisBuf};
-      if (rpmMisslisDiff > 1000.f)
+      // const float rpmMisslisDiff{millis() - freeCheckParam.rpmMillisBuf};
+      if (freeCheckParam.isChangeB(millis()))
       {
-        freeCheckParam.counter.calcRPM(millis());
+        freeCheckParam.counter.sleep(millis());
         freeCheckParam.displayB();
 
-        freeCheckParam.rpmMillisBuf = millis();
+        // freeCheckParam.rpmMillisBuf = millis();
+        freeCheckParam.counter.start(millis());
       }
 
-      const float voltMillisDiff{millis() - freeCheckParam.voltMillisBuf};
-      if (voltMillisDiff > ONE_FRAME_MS)
+      // const float voltMillisDiff{millis() - freeCheckParam.voltMillisBuf};
+      if (freeCheckParam.isChangeA(millis())) // voltMillisDiff > ONE_FRAME_MS)
       {
+        freeCheckParam.counter.sleep(millis());
+
         freeCheckParam.next();
         freeCheckParam.displayA();
 
         drawAdafruit.display();
 
         analogWrite(WRITE_POWER_PIN, freeCheckParam.power);
-        freeCheckParam.voltMillisBuf = millis();
+        // freeCheckParam.voltMillisBuf = millis();
+
+        freeCheckParam.counter.start(millis());
       }
     }
     else if (checkMode == CheckMode::TorqueCheckMode)
@@ -631,19 +663,24 @@ public:
 
       if (torqueCheckParam.isChangeMode(millis()))
       {
-        torqueCheckParam.counter.calcRPM(millis());
+        torqueCheckParam.counter.sleep(millis());
+
         torqueCheckParam.next();
+
+        torqueCheckParam.counter.start(millis());
       }
 
       if (torqueCheckParam.isDraw(millis()))
       {
-        torqueCheckParam.reset();
+        torqueCheckParam.counter.sleep(millis());
 
+        torqueCheckParam.reset();
         torqueCheckParam.display();
         drawAdafruit.display();
         analogWrite(WRITE_POWER_PIN, torqueCheckParam.power);
-      }
 
+        torqueCheckParam.counter.start(millis());
+      }
     }
 
   };
@@ -671,14 +708,10 @@ void setup() {
   drawAdafruit.setupDisplay();
 
   drawStartMessage();
-  // delay(1000);
   drawAdafruit.clearDisplay();
 
   controller.setup();
-
 }
-
-
 
 void go_to_sleep() {
     // put your setup code here, to run once:
