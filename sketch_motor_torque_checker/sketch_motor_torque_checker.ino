@@ -1,11 +1,17 @@
 #include "esp_bt_main.h"
 #include "esp_bt.h"
 #include "esp_wifi.h"
+#include "Preferences.h"
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <EEPROM.h>
+
+Preferences preferences;
 
 RTC_DATA_ATTR int counter = 0;  //RTC coprocessor領域に変数を宣言することでスリープ復帰後も値が保持できる
+
+int MODE_ADDRESS = 0x0000;
 
 class DrawAdafruit
 {
@@ -46,7 +52,7 @@ public:
     adaDisplay.clearDisplay();
   }
 
-  void drawChar(char* chr, int offsetX, int offsetY, int sizeChar) {
+  void drawChar(const char* chr, int offsetX, int offsetY, int sizeChar) {
 
     adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * sizeChar, CHARSIZEY * 1, BLACK);
     adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
@@ -70,7 +76,6 @@ public:
     {
       numOffset -= (log10(value) - 1);
     }
-
 
     adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * offset, CHARSIZEY * 1, BLACK);
     adaDisplay.setCursor(CHARSIZEX * (offsetX + numOffset), CHARSIZEY * offsetY);
@@ -166,11 +171,20 @@ class Counter
     oldMillis = millis;
   }
 
+  void calcRPM()
+  {
+    
+
+  }
+
+
 };
 
 class Controller
 {
   static constexpr uint8_t READ_PIN{3};
+  static constexpr uint8_t V_READ_PIN{2};
+  static constexpr uint8_t I_READ_PIN{4};
 
 private:
 
@@ -186,7 +200,9 @@ private:
     unsigned long voltMillisBuf{0};
     unsigned long rpmMillisBuf{0};
 
-    static constexpr int TABLE[] = {30, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240, 250};
+    static constexpr float ANALOG_READ_SLOPE{3450.f / 2.5f};
+
+    static constexpr int TABLE[] = {30, 100, 250};
     static constexpr int TABLE_COUNT{sizeof(TABLE) / sizeof(int)};
 
     int power{TABLE[0]};
@@ -198,8 +214,15 @@ private:
 
     void displayB()
     {
-      drawAdafruit.drawInt(counter.rpm, 0, 0);
-      drawAdafruit.drawInt(counter.maxRpm, 9, 0);
+      drawAdafruit.drawIntR(counter.rpm, 2, 0);
+      // drawAdafruit.drawIntR(counter.maxRpm, 9, 0);
+
+      /*
+      char rpmMessage[] = "rpm";
+      int sizeChar = sizeof(rpmMessage);
+      drawAdafruit.drawChar(rpmMessage, 5, 0, sizeChar);
+      drawAdafruit.drawChar(rpmMessage, 14, 0, sizeChar);
+      */
     };
 
     void displayA()
@@ -218,8 +241,16 @@ private:
         drawAdafruit.drawChar(message, 0, 1, sizeChar);
       }
       */
+      int vVoltInt{analogRead(V_READ_PIN)};
+      int iVoltInt{analogRead(I_READ_PIN)};
 
-      drawAdafruit.drawInt(power, 0, 2);
+      float vVoltFloat{static_cast<float>(vVoltInt) * (2.f / ANALOG_READ_SLOPE) };
+      float iVoltFloat{(static_cast<float>(iVoltInt) - 2.5f * ANALOG_READ_SLOPE) * (10.f / ANALOG_READ_SLOPE) };
+
+      drawAdafruit.drawFloat(vVoltFloat, 6, 1);
+      drawAdafruit.drawFloat(iVoltInt, 12, 1);
+
+      drawAdafruit.drawInt(power, 0, 1);
     };
 
     void setNext()
@@ -252,6 +283,8 @@ private:
     {
       int rpm{0};
       int maxRpm{0};
+      float vValue{0};
+      float iValue{0};
     };
 
     float waitTime{3000.f};
@@ -437,7 +470,7 @@ private:
 
   static constexpr float ONE_FRAME_MS{(1.f /FPS) * 1000.f};
 
-  static constexpr int WRITE_POWER_PIN{2};
+  static constexpr int WRITE_POWER_PIN{20};
   static constexpr int PUSH_BUTTON1{10};
   static constexpr int PUSH_BUTTON2{9};
   
@@ -454,6 +487,21 @@ private:
   bool button2Flag{false};
   bool button1OldFlag{false};
   bool button2OldFlag{false};
+
+  void drawMode()
+  {
+    String modeName;
+    if (checkMode == CheckMode::FreeCheckMode)
+    {
+      modeName = String("mode1");
+    }
+    else if (checkMode == CheckMode::TorqueCheckMode)
+    {
+      modeName = String("mode2");
+    }
+
+    drawAdafruit.drawChar(modeName.c_str(), 0, 0, modeName.length());
+  }
 
   void loopSub()
   {
@@ -480,6 +528,15 @@ private:
     if (!button1Flag && (button1OldFlag != button1Flag))
     {
       checkMode = static_cast<CheckMode>((static_cast<int>(checkMode) + 1) % static_cast<int>(CheckMode::MaxCheckMode));
+
+      // EEPROM.write(MODE_ADDRESS, static_cast<uint8_t>(checkMode));
+      int checkModeInt = static_cast<uint8_t>(checkMode);
+      preferences.putInt("check_mode", checkModeInt);
+
+      drawAdafruit.clearDisplay();
+      drawMode();
+      drawAdafruit.display();
+      delay(500);
       drawAdafruit.clearDisplay();
     }
     button1OldFlag = button1Flag;
@@ -517,15 +574,22 @@ public:
   void setup()
   {
     pinMode(READ_PIN, INPUT);
+    pinMode(V_READ_PIN, INPUT);
+    pinMode(I_READ_PIN, INPUT);
+
     pinMode(WRITE_POWER_PIN, OUTPUT);
     pinMode(PUSH_BUTTON1, INPUT);
     pinMode(PUSH_BUTTON2, INPUT);
 
-    char rpmMessage[] = "rpm";
-    int sizeChar = sizeof(rpmMessage);
-    drawAdafruit.drawChar(rpmMessage, 5, 0, sizeChar);
-    drawAdafruit.drawChar(rpmMessage, 14, 0, sizeChar);
+    preferences.begin("my-app", false); 
+    int checkModeInt = preferences.getInt("check_mode", 0);
 
+    checkMode = static_cast<CheckMode>(checkModeInt); // EEPROM.read(MODE_ADDRESS));
+    drawAdafruit.clearDisplay();
+    drawMode();
+    drawAdafruit.display();
+    delay(500);
+    drawAdafruit.clearDisplay();
   };
 
   void loopWhile()
@@ -533,7 +597,7 @@ public:
     loopMain();
 
     const unsigned long tempMills{millis()};
-    if (tempMills - loopSubMillis > 100)
+    if (tempMills - loopSubMillis > ONE_FRAME_MS)
     {
       loopSub();
       loopSubMillis = tempMills;
@@ -546,13 +610,13 @@ public:
       {
         freeCheckParam.counter.calcRPM(millis());
         freeCheckParam.displayB();
+
         freeCheckParam.rpmMillisBuf = millis();
       }
 
       const float voltMillisDiff{millis() - freeCheckParam.voltMillisBuf};
       if (voltMillisDiff > ONE_FRAME_MS)
       {
-
         freeCheckParam.next();
         freeCheckParam.displayA();
 
