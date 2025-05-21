@@ -11,7 +11,7 @@ Preferences preferences;
 
 RTC_DATA_ATTR int counter = 0;  //RTC coprocessor領域に変数を宣言することでスリープ復帰後も値が保持できる
 
-static constexpr float FPS{30.f};
+static constexpr float FPS{15.f};
 static constexpr float SEC{1000.f};
 static constexpr float ONE_FRAME_MS{(1.f /FPS) * SEC};
 
@@ -206,8 +206,8 @@ class RotateCounter
 class Controller
 {
   static constexpr uint8_t READ_PIN{3};
-  static constexpr uint8_t V_READ_PIN{4};
-  static constexpr uint8_t I_READ_PIN{2};
+  static constexpr uint8_t V_READ_PIN{2};
+  static constexpr uint8_t I_READ_PIN{4};
 
 private:
 
@@ -220,7 +220,7 @@ private:
   struct FreeCheckParam
   {
 
-    static constexpr float ANALOG_READ_SLOPE{3420.f / 2.5f};
+    static constexpr float ANALOG_READ_SLOPE{3453.f / 2.5f};
 
     static constexpr int TABLE[] = {30, 100, 250};
     static constexpr int TABLE_COUNT{sizeof(TABLE) / sizeof(int)};
@@ -231,6 +231,8 @@ private:
     RotateCounter rotateCounter;
     ValueCounter iValue;
     ValueCounter vValue;
+    
+    unsigned int iOffset{0};
 
     bool nextFlag{false};
 
@@ -269,42 +271,19 @@ private:
     {
       float rpm, maxRpm;
       rotateCounter.calcRPM(rpm, maxRpm);
-
       drawAdafruit.drawIntR(rpm, 2, 0);
-      // drawAdafruit.drawIntR(counter.maxRpm, 9, 0);
-
-      /*
-      char rpmMessage[] = "rpm";
-      int sizeChar = sizeof(rpmMessage);
-      drawAdafruit.drawChar(rpmMessage, 5, 0, sizeChar);
-      drawAdafruit.drawChar(rpmMessage, 14, 0, sizeChar);
-      */
     };
 
     void displayA()
     {
-      /*
-      if (onFlag)
-      {
-        char message[] = "On";
-        int sizeChar = sizeof(message);
-        drawAdafruit.drawChar(message, 0, 1, sizeChar);
-      }
-      else
-      {
-        char message[] = "Off";
-        int sizeChar = sizeof(message);
-        drawAdafruit.drawChar(message, 0, 1, sizeChar);
-      }
-      */
       int vVoltInt{vValue.calcValue()};
       int iVoltInt{iValue.calcValue()};
 
       float vVoltFloat{static_cast<float>(vVoltInt) * (2.f / ANALOG_READ_SLOPE) };
-      float iVoltFloat{(static_cast<float>(iVoltInt) - (2.5f / 2.f) * ANALOG_READ_SLOPE) * ((20.f *2.f) / ANALOG_READ_SLOPE) }; // * (10.f / ANALOG_READ_SLOPE) 
+      float iVoltFloat{(static_cast<float>(iVoltInt) - iOffset) * (20.f / ANALOG_READ_SLOPE) }; // * (10.f / ANALOG_READ_SLOPE) 
 
       drawAdafruit.drawFloat(vVoltFloat, 6, 1);
-      drawAdafruit.drawFloat(iVoltFloat, 12, 1);
+      drawAdafruit.drawFloat(-iVoltFloat, 12, 1);
 
       drawAdafruit.drawInt(power, 0, 1);
     };
@@ -365,6 +344,8 @@ private:
     RotateCounter rotateCounter;
     ValueCounter iValue;
     ValueCounter vValue;
+
+    unsigned int iOffset{0};
 
     void setOn()
     {
@@ -546,6 +527,8 @@ private:
   bool button1OldFlag{false};
   bool button2OldFlag{false};
 
+  unsigned long iOffset{3400};
+
   void drawMode()
   {
     String modeName;
@@ -559,6 +542,33 @@ private:
     }
 
     drawAdafruit.drawChar(modeName.c_str(), 0, 0, modeName.length());
+  }
+
+  void changeModeDisplay()
+  {
+      drawAdafruit.clearDisplay();
+      drawMode();
+      drawAdafruit.display();
+
+      unsigned long iOffset = calibI();
+      freeCheckParam.iOffset = iOffset;
+      torqueCheckParam.iOffset = iOffset;
+
+      drawAdafruit.clearDisplay();
+  }
+
+  unsigned long calibI()
+  {
+    ValueCounter iValue{};
+
+    for (int i = 0; i < 100; ++i)
+    {
+      int iVolt{analogRead(I_READ_PIN)};
+      iValue.readVolt(iVolt);
+      delay(10);
+    }
+
+    return iValue.calcValue();
   }
 
   void loopSub()
@@ -590,12 +600,7 @@ private:
       // EEPROM.write(MODE_ADDRESS, static_cast<uint8_t>(checkMode));
       int checkModeInt = static_cast<uint8_t>(checkMode);
       preferences.putInt("check_mode", checkModeInt);
-
-      drawAdafruit.clearDisplay();
-      drawMode();
-      drawAdafruit.display();
-      delay(500);
-      drawAdafruit.clearDisplay();
+      changeModeDisplay();
     }
     button1OldFlag = button1Flag;
 
@@ -654,6 +659,8 @@ public:
     drawAdafruit.display();
     delay(500);
     drawAdafruit.clearDisplay();
+
+    changeModeDisplay();
   };
 
   void loopWhile()
