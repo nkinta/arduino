@@ -104,7 +104,34 @@ public:
 
 DrawAdafruit drawAdafruit;
 
-class Counter
+class ValueCounter
+{
+  unsigned long totalValue{0};
+
+  int count{0};
+
+  public:
+  void readVolt(int inVolt)
+  {
+    totalValue += inVolt;
+    count += 1;
+  }
+
+  unsigned long calcValue()
+  {
+    if (count == 0)
+    {
+      return 0;
+    }
+    unsigned long result{totalValue / count};
+    totalValue = 0;
+    count = 0;
+    return result;
+  }
+
+};
+
+class RotateCounter
 {
   private:
   static constexpr int THREASHOULD{2048};
@@ -179,8 +206,8 @@ class Counter
 class Controller
 {
   static constexpr uint8_t READ_PIN{3};
-  static constexpr uint8_t V_READ_PIN{2};
-  static constexpr uint8_t I_READ_PIN{4};
+  static constexpr uint8_t V_READ_PIN{4};
+  static constexpr uint8_t I_READ_PIN{2};
 
 private:
 
@@ -193,7 +220,7 @@ private:
   struct FreeCheckParam
   {
 
-    static constexpr float ANALOG_READ_SLOPE{3450.f / 2.5f};
+    static constexpr float ANALOG_READ_SLOPE{3420.f / 2.5f};
 
     static constexpr int TABLE[] = {30, 100, 250};
     static constexpr int TABLE_COUNT{sizeof(TABLE) / sizeof(int)};
@@ -201,7 +228,9 @@ private:
     int power{TABLE[0]};
     int powerNum{0};
 
-    Counter counter;
+    RotateCounter rotateCounter;
+    ValueCounter iValue;
+    ValueCounter vValue;
 
     bool nextFlag{false};
 
@@ -239,7 +268,7 @@ private:
     void displayB()
     {
       float rpm, maxRpm;
-      counter.calcRPM(rpm, maxRpm);
+      rotateCounter.calcRPM(rpm, maxRpm);
 
       drawAdafruit.drawIntR(rpm, 2, 0);
       // drawAdafruit.drawIntR(counter.maxRpm, 9, 0);
@@ -268,14 +297,14 @@ private:
         drawAdafruit.drawChar(message, 0, 1, sizeChar);
       }
       */
-      int vVoltInt{analogRead(V_READ_PIN)};
-      int iVoltInt{analogRead(I_READ_PIN)};
+      int vVoltInt{vValue.calcValue()};
+      int iVoltInt{iValue.calcValue()};
 
       float vVoltFloat{static_cast<float>(vVoltInt) * (2.f / ANALOG_READ_SLOPE) };
-      float iVoltFloat{(static_cast<float>(iVoltInt) - 2.5f * ANALOG_READ_SLOPE) * (10.f / ANALOG_READ_SLOPE) };
+      float iVoltFloat{(static_cast<float>(iVoltInt) - (2.5f / 2.f) * ANALOG_READ_SLOPE) * ((20.f *2.f) / ANALOG_READ_SLOPE) }; // * (10.f / ANALOG_READ_SLOPE) 
 
       drawAdafruit.drawFloat(vVoltFloat, 6, 1);
-      drawAdafruit.drawFloat(iVoltInt, 12, 1);
+      drawAdafruit.drawFloat(iVoltFloat, 12, 1);
 
       drawAdafruit.drawInt(power, 0, 1);
     };
@@ -333,7 +362,9 @@ private:
 
     StateMode currentMode{StateMode::SleepMode};
 
-    Counter counter;
+    RotateCounter rotateCounter;
+    ValueCounter iValue;
+    ValueCounter vValue;
 
     void setOn()
     {
@@ -368,7 +399,7 @@ private:
       {
 
         float rpm, maxRpm;
-        counter.calcRPM(rpm, maxRpm);
+        rotateCounter.calcRPM(rpm, maxRpm);
 
         rpmCahes[tableIndex].rpm = rpm;
         rpmCahes[tableIndex].maxRpm = maxRpm;
@@ -586,13 +617,19 @@ private:
   void loopMain()
   {
     int volt{analogRead(READ_PIN)};
+    int vVolt{analogRead(V_READ_PIN)};
+    int iVolt{analogRead(I_READ_PIN)};
     if (checkMode == CheckMode::FreeCheckMode)
     {
-      freeCheckParam.counter.readVolt(volt);
+      freeCheckParam.rotateCounter.readVolt(volt);
+      freeCheckParam.vValue.readVolt(vVolt);
+      freeCheckParam.iValue.readVolt(iVolt);
     }
     else if (checkMode == CheckMode::TorqueCheckMode)
     {
-      torqueCheckParam.counter.readVolt(volt);
+      torqueCheckParam.rotateCounter.readVolt(volt);
+      torqueCheckParam.vValue.readVolt(vVolt);
+      torqueCheckParam.iValue.readVolt(iVolt);
     }
   };
 
@@ -600,9 +637,9 @@ public:
 
   void setup()
   {
-    pinMode(READ_PIN, INPUT);
-    pinMode(V_READ_PIN, INPUT);
-    pinMode(I_READ_PIN, INPUT);
+    pinMode(READ_PIN, ANALOG);
+    pinMode(V_READ_PIN, ANALOG);
+    pinMode(I_READ_PIN, ANALOG);
 
     pinMode(WRITE_POWER_PIN, OUTPUT);
     pinMode(PUSH_BUTTON1, INPUT);
@@ -635,17 +672,17 @@ public:
       // const float rpmMisslisDiff{millis() - freeCheckParam.rpmMillisBuf};
       if (freeCheckParam.isChangeB(millis()))
       {
-        freeCheckParam.counter.sleep(millis());
+        freeCheckParam.rotateCounter.sleep(millis());
         freeCheckParam.displayB();
 
         // freeCheckParam.rpmMillisBuf = millis();
-        freeCheckParam.counter.start(millis());
+        freeCheckParam.rotateCounter.start(millis());
       }
 
       // const float voltMillisDiff{millis() - freeCheckParam.voltMillisBuf};
       if (freeCheckParam.isChangeA(millis())) // voltMillisDiff > ONE_FRAME_MS)
       {
-        freeCheckParam.counter.sleep(millis());
+        freeCheckParam.rotateCounter.sleep(millis());
 
         freeCheckParam.next();
         freeCheckParam.displayA();
@@ -655,7 +692,7 @@ public:
         analogWrite(WRITE_POWER_PIN, freeCheckParam.power);
         // freeCheckParam.voltMillisBuf = millis();
 
-        freeCheckParam.counter.start(millis());
+        freeCheckParam.rotateCounter.start(millis());
       }
     }
     else if (checkMode == CheckMode::TorqueCheckMode)
@@ -663,23 +700,23 @@ public:
 
       if (torqueCheckParam.isChangeMode(millis()))
       {
-        torqueCheckParam.counter.sleep(millis());
+        torqueCheckParam.rotateCounter.sleep(millis());
 
         torqueCheckParam.next();
 
-        torqueCheckParam.counter.start(millis());
+        torqueCheckParam.rotateCounter.start(millis());
       }
 
       if (torqueCheckParam.isDraw(millis()))
       {
-        torqueCheckParam.counter.sleep(millis());
+        torqueCheckParam.rotateCounter.sleep(millis());
 
         torqueCheckParam.reset();
         torqueCheckParam.display();
         drawAdafruit.display();
         analogWrite(WRITE_POWER_PIN, torqueCheckParam.power);
 
-        torqueCheckParam.counter.start(millis());
+        torqueCheckParam.rotateCounter.start(millis());
       }
     }
 
