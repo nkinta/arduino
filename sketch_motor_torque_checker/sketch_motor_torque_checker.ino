@@ -148,8 +148,8 @@ class RotateCounter
   bool currentVoltFlag{false};
   bool oldVoltFlag{false};
 
-  int count{0};
-  int maxCount{0};
+  long count{0};
+  long maxCount{0};
 
   float rpm{0.f};
   float maxRpm{0.f};
@@ -217,10 +217,20 @@ private:
     MaxCheckMode
   };
 
+  static constexpr float ANALOG_READ_SLOPE{3453.f / 2.5f};
+
+  static float calcVValue(unsigned long voltInt)
+  {
+    return static_cast<float>(voltInt) * (2.f / ANALOG_READ_SLOPE);
+  }
+
+  static float calcIValue(unsigned long voltInt, unsigned long offset)
+  {
+    return (static_cast<float>(voltInt) - offset) * (-20.f / ANALOG_READ_SLOPE);
+  }
+
   struct FreeCheckParam
   {
-
-    static constexpr float ANALOG_READ_SLOPE{3453.f / 2.5f};
 
     static constexpr int TABLE[] = {30, 100, 250};
     static constexpr int TABLE_COUNT{sizeof(TABLE) / sizeof(int)};
@@ -229,8 +239,8 @@ private:
     int powerNum{0};
 
     RotateCounter rotateCounter;
-    ValueCounter iValue;
-    ValueCounter vValue;
+    ValueCounter iValueCounter;
+    ValueCounter vValueCounter;
     
     unsigned int iOffset{0};
 
@@ -276,14 +286,11 @@ private:
 
     void displayA()
     {
-      int vVoltInt{vValue.calcValue()};
-      int iVoltInt{iValue.calcValue()};
-
-      float vVoltFloat{static_cast<float>(vVoltInt) * (2.f / ANALOG_READ_SLOPE) };
-      float iVoltFloat{(static_cast<float>(iVoltInt) - iOffset) * (20.f / ANALOG_READ_SLOPE) }; // * (10.f / ANALOG_READ_SLOPE) 
+      float vVoltFloat{Controller::calcVValue(vValueCounter.calcValue())};
+      float iVoltFloat{Controller::calcIValue(iValueCounter.calcValue(), iOffset)}; // * (10.f / ANALOG_READ_SLOPE) 
 
       drawAdafruit.drawFloat(vVoltFloat, 6, 1);
-      drawAdafruit.drawFloat(-iVoltFloat, 12, 1);
+      drawAdafruit.drawFloat(iVoltFloat, 12, 1);
 
       drawAdafruit.drawInt(power, 0, 1);
     };
@@ -322,8 +329,8 @@ private:
       float iValue{0};
     };
 
-    float waitTime{3000.f};
-    float calcTime{3000.f};
+    float waitTime{2000.f};
+    float calcTime{2000.f};
 
     int power{TABLE[0]};
     int tableIndex{0};
@@ -341,9 +348,9 @@ private:
 
     StateMode currentMode{StateMode::SleepMode};
 
-    RotateCounter rotateCounter;
-    ValueCounter iValue;
-    ValueCounter vValue;
+    RotateCounter rotateCounter{};
+    ValueCounter iValueCounter{};
+    ValueCounter vValueCounter{};
 
     unsigned int iOffset{0};
 
@@ -384,6 +391,8 @@ private:
 
         rpmCahes[tableIndex].rpm = rpm;
         rpmCahes[tableIndex].maxRpm = maxRpm;
+        rpmCahes[tableIndex].vValue = Controller::calcVValue(vValueCounter.calcValue());
+        rpmCahes[tableIndex].iValue = Controller::calcIValue(iValueCounter.calcValue(), iOffset);
 
         if (tableIndex == TABLE_COUNT - 1)
         {
@@ -431,7 +440,9 @@ private:
       static const int OFFSET{1};
       for (int i = 0; i < TABLE_COUNT; ++i)
       {
-        drawAdafruit.drawIntR(rpmCahes[i].rpm, 4, i + 1);
+        drawAdafruit.drawIntR(rpmCahes[i].rpm, 3, i + 1);
+        drawAdafruit.drawFloat(rpmCahes[i].vValue, 10, i + 1);
+        drawAdafruit.drawFloat(rpmCahes[i].iValue, 16, i + 1);
 
         const int colIndex{i + OFFSET};
         const int rowIndex{2};
@@ -627,14 +638,14 @@ private:
     if (checkMode == CheckMode::FreeCheckMode)
     {
       freeCheckParam.rotateCounter.readVolt(volt);
-      freeCheckParam.vValue.readVolt(vVolt);
-      freeCheckParam.iValue.readVolt(iVolt);
+      freeCheckParam.vValueCounter.readVolt(vVolt);
+      freeCheckParam.iValueCounter.readVolt(iVolt);
     }
     else if (checkMode == CheckMode::TorqueCheckMode)
     {
       torqueCheckParam.rotateCounter.readVolt(volt);
-      torqueCheckParam.vValue.readVolt(vVolt);
-      torqueCheckParam.iValue.readVolt(iVolt);
+      torqueCheckParam.vValueCounter.readVolt(vVolt);
+      torqueCheckParam.iValueCounter.readVolt(iVolt);
     }
   };
 
