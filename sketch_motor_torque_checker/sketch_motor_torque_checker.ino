@@ -117,6 +117,12 @@ class ValueCounter
     count += 1;
   }
 
+  void reset()
+  {
+    totalValue = 0;
+    count = 0;
+  }
+
   unsigned long calcValue()
   {
     if (count == 0)
@@ -124,8 +130,7 @@ class ValueCounter
       return 0;
     }
     unsigned long result{totalValue / count};
-    totalValue = 0;
-    count = 0;
+    reset();
     return result;
   }
 
@@ -196,10 +201,14 @@ class RotateCounter
     rpm = count * PULSE_RATE * TO_RPM * (SEC / static_cast<float>(totalDiffMillis));
     maxRpm = maxCount * PULSE_RATE * TO_RPM * (SEC / static_cast<float>(totalDiffMillis));
 
+    reset();
+  }
+
+  void reset()
+  {
     count = 0;
     totalDiffMillis = 0;
   }
-
 
 };
 
@@ -227,6 +236,38 @@ private:
   static float calcIValue(unsigned long voltInt, unsigned long offset)
   {
     return (static_cast<float>(voltInt) - offset) * (-20.f / ANALOG_READ_SLOPE);
+  }
+
+  static const char* getDrawArrow(const bool blinkFlag, int blinkType)
+  {
+    static char arrow1Message[] = ">";
+    static char arrow2Message[] = ">>";
+    static char emptyMessage[] = "  ";
+    const char* arrowMessage = emptyMessage;
+    if (blinkType == 2)
+    {
+      if (blinkFlag)
+      {
+        arrowMessage = arrow2Message;
+      }
+      else
+      {
+        arrowMessage = emptyMessage;
+      }
+    }
+    else if (blinkType == 1)
+    {
+      if (blinkFlag)
+      {
+        arrowMessage = arrow1Message;
+      }
+      else
+      {
+        arrowMessage = emptyMessage;
+      }
+    }
+
+    return arrowMessage;
   }
 
   struct FreeCheckParam
@@ -281,17 +322,17 @@ private:
     {
       float rpm, maxRpm;
       rotateCounter.calcRPM(rpm, maxRpm);
-      drawAdafruit.drawIntR(rpm, 2, 0);
+
+      float vVoltFloat{Controller::calcVValue(vValueCounter.calcValue())};
+      float iVoltFloat{Controller::calcIValue(iValueCounter.calcValue(), iOffset)}; // * (10.f / ANALOG_READ_SLOPE) 
+
+      drawAdafruit.drawFloat(vVoltFloat, 10, 0);
+      drawAdafruit.drawFloat(iVoltFloat, 15, 0);
+      drawAdafruit.drawIntR(rpm, 3, 0);
     };
 
     void displayA()
     {
-      float vVoltFloat{Controller::calcVValue(vValueCounter.calcValue())};
-      float iVoltFloat{Controller::calcIValue(iValueCounter.calcValue(), iOffset)}; // * (10.f / ANALOG_READ_SLOPE) 
-
-      drawAdafruit.drawFloat(vVoltFloat, 6, 1);
-      drawAdafruit.drawFloat(iVoltFloat, 12, 1);
-
       drawAdafruit.drawInt(power, 0, 1);
     };
 
@@ -327,6 +368,13 @@ private:
       int maxRpm{0};
       float vValue{0};
       float iValue{0};
+      void reset()
+      {
+        rpm = 0;
+        maxRpm = 0;
+        vValue = 0.f;
+        iValue = 0.f;
+      }
     };
 
     float waitTime{2000.f};
@@ -359,20 +407,23 @@ private:
       onFlag = true;
     }
 
-    void reset()
+    void start()
+    {
+      currentMode = StateMode::WaitMode;
+      tableIndex = 0;
+      modeMillisBuf = millis();
+
+      for (int i = 0; i < TABLE_COUNT; ++i)
+      {
+        rpmCahes[i].reset();
+      }
+    }
+
+    void loop()
     {
       if (onFlag)
       {
-        currentMode = StateMode::WaitMode;
-        modeMillisBuf = millis();
-
-        tableIndex = 0;
-
-        for (int i = 0; i < TABLE_COUNT; ++i)
-        {
-          rpmCahes[i].rpm = 0;
-          rpmCahes[i].maxRpm = 0;
-        }
+        start();
         onFlag = false;
       }
     };
@@ -381,11 +432,13 @@ private:
     {
       if (currentMode == StateMode::WaitMode)
       {
+        rotateCounter.reset();
+        vValueCounter.reset();
+        iValueCounter.reset();
         currentMode = StateMode::CalcMode;
       }
       else if (currentMode == StateMode::CalcMode)
       {
-
         float rpm, maxRpm;
         rotateCounter.calcRPM(rpm, maxRpm);
 
@@ -406,7 +459,6 @@ private:
           tableIndex = (tableIndex + 1) % TABLE_COUNT;
           power = constrain(TABLE[tableIndex], 0, 255);
         }
-
 
       }
 
@@ -442,36 +494,24 @@ private:
       {
         drawAdafruit.drawIntR(rpmCahes[i].rpm, 3, i + 1);
         drawAdafruit.drawFloat(rpmCahes[i].vValue, 10, i + 1);
-        drawAdafruit.drawFloat(rpmCahes[i].iValue, 16, i + 1);
+        drawAdafruit.drawFloat(rpmCahes[i].iValue, 15, i + 1);
 
         const int colIndex{i + OFFSET};
         const int rowIndex{2};
+
+        int blinkType{0};
         if (currentMode == StateMode::CalcMode && i == tableIndex)
         {
-          if (blinkFlag)
-          {
-            drawAdafruit.drawChar(">>", 0, colIndex, rowIndex);
-          }
-          else
-          {
-            drawAdafruit.drawChar("  ", 0, colIndex, rowIndex);
-          }
+          blinkType = 1;
         }
-        else if (currentMode == StateMode::WaitMode && i == tableIndex)
+        else if (currentMode == StateMode::CalcMode && i == tableIndex)
         {
-          if (blinkFlag)
-          {
-            drawAdafruit.drawChar("> ", 0, colIndex, rowIndex);
-          }
-          else
-          {
-            drawAdafruit.drawChar("  ", 0, colIndex, rowIndex);
-          }
+          blinkType = 2;
         }
-        else
-        {
-          drawAdafruit.drawChar("  ", 0, colIndex, rowIndex);
-        }
+
+        const char* arrowMessage{getDrawArrow(blinkFlag, blinkType)};
+
+        drawAdafruit.drawChar(arrowMessage, 0, colIndex, rowIndex);
         // drawAdafruit.drawInt(rpmCahes[i].maxRpm, 9, i + 1);
       }
 
@@ -661,7 +701,7 @@ public:
     pinMode(PUSH_BUTTON1, INPUT);
     pinMode(PUSH_BUTTON2, INPUT);
 
-    preferences.begin("my-app", false); 
+    preferences.begin("torque_checker_app", false); 
     int checkModeInt = preferences.getInt("check_mode", 0);
 
     checkMode = static_cast<CheckMode>(checkModeInt); // EEPROM.read(MODE_ADDRESS));
@@ -729,7 +769,7 @@ public:
       {
         torqueCheckParam.rotateCounter.sleep(millis());
 
-        torqueCheckParam.reset();
+        torqueCheckParam.loop();
         torqueCheckParam.display();
         drawAdafruit.display();
         analogWrite(WRITE_POWER_PIN, torqueCheckParam.power);
