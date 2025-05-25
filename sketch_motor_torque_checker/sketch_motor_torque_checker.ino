@@ -3,9 +3,9 @@
 #include "esp_wifi.h"
 #include "Preferences.h"
 
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
 #include <EEPROM.h>
+
+#include "display/draw_adafruit.h"
 
 Preferences preferences;
 
@@ -16,91 +16,6 @@ static constexpr float SEC{1000.f};
 static constexpr float ONE_FRAME_MS{(1.f /FPS) * SEC};
 
 int MODE_ADDRESS = 0x0000;
-
-class DrawAdafruit
-{
-
-  static constexpr uint8_t SCREEN_HEIGHT{32};
-  static constexpr uint8_t SCREEN_WIDTH{128};
-
-  // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
-  static const uint8_t OLED_RESET{4}; // Reset pin # (or -1 if sharing Arduino reset pin)
-
-  static const uint8_t CHARSIZEX{6};
-  static const uint8_t CHARSIZEY{8};
-  static const uint8_t TEXT_SIZE{1};
-
-  Adafruit_SSD1306 adaDisplay{SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET};
-
-public:
-
-  void setupDisplay(void) {
-
-    // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-    if (!adaDisplay.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x32
-      Serial.println(F("SSD1306 allocation failed"));
-      for (;;); // Don't proceed, loop forever
-    }
-
-    // Show initial display buffer contents on the screen --
-    // the library initializes this with an Adafruit splash screen.
-
-    // Clear the buffer
-    adaDisplay.clearDisplay();
-    adaDisplay.display();
-    adaDisplay.setTextSize(TEXT_SIZE);
-  }
-
-  void clearDisplay()
-  {
-    adaDisplay.clearDisplay();
-  }
-
-  void drawChar(const char* chr, int offsetX, int offsetY, int sizeChar) {
-
-    adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * sizeChar, CHARSIZEY * 1, BLACK);
-    adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
-    adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
-    adaDisplay.print(chr);
-  }
-
-  void drawFloat(float value, float offsetX, float offsetY) {
-
-    adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * 5, CHARSIZEY * 1, BLACK);
-    adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
-    adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
-    adaDisplay.print(String(value, 2));
-  }
-
-  void drawIntR(int value, float offsetX, float offsetY) {
-    int offset{6};
-    int numOffset{offset - 1};
-
-    if (value != 0)
-    {
-      numOffset -= (log10(value) - 1);
-    }
-
-    adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * offset, CHARSIZEY * 1, BLACK);
-    adaDisplay.setCursor(CHARSIZEX * (offsetX + numOffset), CHARSIZEY * offsetY);
-    adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
-    // std::cout << std::setw(10) << std::right << num << std::endl;
-    adaDisplay.print(value);
-  }
-
-  void drawInt(int value, float offsetX, float offsetY) {
-    adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * 5, CHARSIZEY * 1, BLACK);
-    adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
-    adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
-    // std::cout << std::setw(10) << std::right << num << std::endl;
-    adaDisplay.print(value);
-  }
-
-  void display()
-  {
-    adaDisplay.display();
-  }
-};
 
 DrawAdafruit drawAdafruit;
 
@@ -191,17 +106,12 @@ class RotateCounter
     oldMillis = millis;
   }
 
-  void calcRPM(float& rpm, float& maxRpm)
+  float calcRPM()
   {
-    if (count > maxCount)
-    {
-      maxCount = count;
-    }
-
-    rpm = count * PULSE_RATE * TO_RPM * (SEC / static_cast<float>(totalDiffMillis));
-    maxRpm = maxCount * PULSE_RATE * TO_RPM * (SEC / static_cast<float>(totalDiffMillis));
-
+    float result{count * PULSE_RATE * TO_RPM * (SEC / static_cast<float>(totalDiffMillis))};
     reset();
+
+    return result;
   }
 
   void reset()
@@ -212,11 +122,41 @@ class RotateCounter
 
 };
 
+struct VoltageMapping
+{
+  struct VoltPair
+  {
+    int input{0.f};
+    float volt{0};
+  };
+
+  const std::vector<VoltPair> mappingData{{29, 0.f}, {327, 0.5f}, {658, 1.f}, {989, 1.5f}, {1326, 2.f}, {1671, 2.5f}, {2011, 3.f}, {2359, 3.5f}, {2698, 4.f}, {3042, 4.5f}, {3405, 5.f}};
+
+  float getVoltage(int input)
+  {
+    const VoltPair* before{0};
+    for (const VoltPair& current: mappingData)
+    {
+      if (before)
+      {
+        if (before->input < input && input <= current.input)
+        {
+          return before->volt + ((current.volt - before->volt) / static_cast<float>(current.input - before->input)) * (input - before->input);
+        }
+      }
+
+      before = &current;
+    }
+  }
+
+};
+
 class Controller
 {
   static constexpr uint8_t READ_PIN{3};
   static constexpr uint8_t V_READ_PIN{2};
   static constexpr uint8_t I_READ_PIN{4};
+
 
 private:
 
@@ -226,17 +166,32 @@ private:
     MaxCheckMode
   };
 
-  static constexpr float ANALOG_READ_SLOPE{3453.f / 2.5f};
-
-  static float calcVValue(unsigned long voltInt)
+  static float calcVValue(int voltInt)
   {
-    return static_cast<float>(voltInt) * (2.f / ANALOG_READ_SLOPE);
+    static VoltageMapping voltageMapping;
+    // return static_cast<float>(voltInt) * (2.f / ANALOG_READ_SLOPE);
+    return voltageMapping.getVoltage(voltInt);
   }
 
-  static float calcIValue(unsigned long voltInt, unsigned long offset)
+  static float calcIValue(int voltInt, int offset)
   {
-    return (static_cast<float>(voltInt) - offset) * (-20.f / ANALOG_READ_SLOPE);
+    static VoltageMapping voltageMapping;    
+    // return (static_cast<float>(voltInt) - offset) * (-20.f / ANALOG_READ_SLOPE);
+    return 10.f * voltageMapping.getVoltage(-voltInt + offset);
   }
+
+  struct RPMCache
+  {
+    int rpm{0};
+    float vValue{0};
+    float iValue{0};
+    void reset()
+    {
+      rpm = 0;
+      vValue = 0.f;
+      iValue = 0.f;
+    }
+  };
 
   static const char* getDrawArrow(const bool blinkFlag, int blinkType)
   {
@@ -276,7 +231,6 @@ private:
     static constexpr int TABLE[] = {30, 100, 250};
     static constexpr int TABLE_COUNT{sizeof(TABLE) / sizeof(int)};
 
-    int power{TABLE[0]};
     int powerNum{0};
 
     RotateCounter rotateCounter;
@@ -290,6 +244,10 @@ private:
     unsigned long misslisDiffA{0};
     unsigned long misslisDiffB{0};
 
+    static constexpr int RPM_CACHE_COUNT{2};
+
+    RPMCache rpmCahes[RPM_CACHE_COUNT]{};
+
     bool isChangeB(unsigned long millis)
     {
       const unsigned long misslisDiff{millis - misslisDiffB};
@@ -302,6 +260,12 @@ private:
       {
         return false;
       }
+    }
+
+    int getPower()
+    {
+      int power = constrain(TABLE[powerNum], 0, 255);
+      return power;
     }
 
     bool isChangeA(unsigned long millis)
@@ -320,20 +284,31 @@ private:
 
     void displayB()
     {
-      float rpm, maxRpm;
-      rotateCounter.calcRPM(rpm, maxRpm);
+      RPMCache& currentCache{rpmCahes[0]};
+      currentCache.rpm = rotateCounter.calcRPM();
+      currentCache.vValue = Controller::calcVValue(vValueCounter.calcValue());
+      currentCache.iValue = Controller::calcIValue(iValueCounter.calcValue(), iOffset);
 
-      float vVoltFloat{Controller::calcVValue(vValueCounter.calcValue())};
-      float iVoltFloat{Controller::calcIValue(iValueCounter.calcValue(), iOffset)}; // * (10.f / ANALOG_READ_SLOPE) 
+      RPMCache& maxCache{rpmCahes[1]};
+      if (currentCache.rpm > maxCache.rpm)
+      {
+        maxCache = currentCache;
+      }
 
-      drawAdafruit.drawFloat(vVoltFloat, 10, 0);
-      drawAdafruit.drawFloat(iVoltFloat, 15, 0);
-      drawAdafruit.drawIntR(rpm, 3, 0);
+      static const int OFFSET{1};
+      static const int ROW_INDEX{2};
+      for (int i = 0; i < RPM_CACHE_COUNT; ++i)
+      {
+        drawAdafruit.drawIntR(rpmCahes[i].rpm, 3, i + 1);
+        drawAdafruit.drawFloat(rpmCahes[i].vValue, 10, i + 1);
+        drawAdafruit.drawFloat(rpmCahes[i].iValue, 15, i + 1);
+      }
     };
 
     void displayA()
     {
-      drawAdafruit.drawInt(power, 0, 1);
+      drawAdafruit.drawChar("T", 0, 0, 1);
+      drawAdafruit.drawInt(powerNum, 1, 0);
     };
 
     void setNext()
@@ -341,12 +316,24 @@ private:
       nextFlag = true;
     }
 
+    void reset()
+    {
+      for (int i = 0; i < RPM_CACHE_COUNT; ++i)
+      {
+        rpmCahes[i].reset();
+      }
+      powerNum = 0;
+    }
+
     void next()
     {
       if (nextFlag)
       {
         powerNum = (powerNum + 1) % TABLE_COUNT;
-        power = constrain(TABLE[powerNum], 0, 255);
+        for (int i = 0; i < RPM_CACHE_COUNT; ++i)
+        {
+          rpmCahes[i].reset();
+        }
         nextFlag = false;
       }
     };
@@ -362,26 +349,9 @@ private:
       MaxStateMode,
     };
 
-    struct RPMCache
-    {
-      int rpm{0};
-      int maxRpm{0};
-      float vValue{0};
-      float iValue{0};
-      void reset()
-      {
-        rpm = 0;
-        maxRpm = 0;
-        vValue = 0.f;
-        iValue = 0.f;
-      }
-    };
-
     float waitTime{2000.f};
     float calcTime{2000.f};
 
-    int power{TABLE[0]};
-    int tableIndex{0};
     bool onFlag{false};
 
     bool blinkFlag{false};
@@ -389,6 +359,7 @@ private:
     unsigned long drawMillisBuf{0};
     unsigned long modeMillisBuf{0};
 
+    int tableIndex{0};
     static constexpr int TABLE[] = {30, 100, 250};
     static constexpr int TABLE_COUNT{sizeof(TABLE) / sizeof(int)};
 
@@ -428,6 +399,22 @@ private:
       }
     };
 
+    int getPower()
+    {
+      int power = constrain(TABLE[tableIndex], 0, 255);
+      return power;
+    }
+
+    void reset()
+    {
+      for (int i = 0; i < TABLE_COUNT; ++i)
+      {
+        rpmCahes[i].reset();
+      }
+      currentMode = StateMode::SleepMode;
+      tableIndex = 0;
+    }
+
     void next()
     {
       if (currentMode == StateMode::WaitMode)
@@ -439,25 +426,20 @@ private:
       }
       else if (currentMode == StateMode::CalcMode)
       {
-        float rpm, maxRpm;
-        rotateCounter.calcRPM(rpm, maxRpm);
-
-        rpmCahes[tableIndex].rpm = rpm;
-        rpmCahes[tableIndex].maxRpm = maxRpm;
-        rpmCahes[tableIndex].vValue = Controller::calcVValue(vValueCounter.calcValue());
-        rpmCahes[tableIndex].iValue = Controller::calcIValue(iValueCounter.calcValue(), iOffset);
+        RPMCache& currentCache = rpmCahes[tableIndex];
+        currentCache.rpm = rotateCounter.calcRPM();
+        currentCache.vValue = Controller::calcVValue(vValueCounter.calcValue());
+        currentCache.iValue = Controller::calcIValue(iValueCounter.calcValue(), iOffset);
 
         if (tableIndex == TABLE_COUNT - 1)
         {
           currentMode = StateMode::SleepMode;
           tableIndex = 0;
-          power = constrain(TABLE[0], 0, 255);
         }
         else
         {
           currentMode = StateMode::WaitMode;
           tableIndex = (tableIndex + 1) % TABLE_COUNT;
-          power = constrain(TABLE[tableIndex], 0, 255);
         }
 
       }
@@ -490,6 +472,7 @@ private:
       // drawAdafruit.drawInt(tableIndex, 0, 0);
 
       static const int OFFSET{1};
+      static const int ROW_INDEX{2};
       for (int i = 0; i < TABLE_COUNT; ++i)
       {
         drawAdafruit.drawIntR(rpmCahes[i].rpm, 3, i + 1);
@@ -497,7 +480,7 @@ private:
         drawAdafruit.drawFloat(rpmCahes[i].iValue, 15, i + 1);
 
         const int colIndex{i + OFFSET};
-        const int rowIndex{2};
+
 
         int blinkType{0};
         if (currentMode == StateMode::CalcMode && i == tableIndex)
@@ -511,7 +494,7 @@ private:
 
         const char* arrowMessage{getDrawArrow(blinkFlag, blinkType)};
 
-        drawAdafruit.drawChar(arrowMessage, 0, colIndex, rowIndex);
+        drawAdafruit.drawChar(arrowMessage, 0, colIndex, ROW_INDEX);
         // drawAdafruit.drawInt(rpmCahes[i].maxRpm, 9, i + 1);
       }
 
@@ -602,8 +585,16 @@ private:
       drawAdafruit.display();
 
       unsigned long iOffset = calibI();
-      freeCheckParam.iOffset = iOffset;
-      torqueCheckParam.iOffset = iOffset;
+      if (checkMode == CheckMode::FreeCheckMode)
+      {
+        freeCheckParam.reset();
+        freeCheckParam.iOffset = iOffset;
+      }
+      else if (checkMode == CheckMode::TorqueCheckMode)
+      {
+        torqueCheckParam.reset();
+        torqueCheckParam.iOffset = iOffset;
+      }
 
       drawAdafruit.clearDisplay();
   }
@@ -747,7 +738,7 @@ public:
 
         drawAdafruit.display();
 
-        analogWrite(WRITE_POWER_PIN, freeCheckParam.power);
+        analogWrite(WRITE_POWER_PIN, freeCheckParam.getPower());
         // freeCheckParam.voltMillisBuf = millis();
 
         freeCheckParam.rotateCounter.start(millis());
@@ -772,7 +763,7 @@ public:
         torqueCheckParam.loop();
         torqueCheckParam.display();
         drawAdafruit.display();
-        analogWrite(WRITE_POWER_PIN, torqueCheckParam.power);
+        analogWrite(WRITE_POWER_PIN, torqueCheckParam.getPower());
 
         torqueCheckParam.rotateCounter.start(millis());
       }
