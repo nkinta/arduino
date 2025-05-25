@@ -6,10 +6,11 @@
 #include <EEPROM.h>
 
 #include "display/draw_adafruit.h"
+#include "deep_sleep.h"
 
 Preferences preferences;
 
-RTC_DATA_ATTR int counter = 0;  //RTC coprocessor領域に変数を宣言することでスリープ復帰後も値が保持できる
+// 
 
 static constexpr float FPS{ 15.f };
 static constexpr float SEC{ 1000.f };
@@ -93,7 +94,11 @@ public:
   }
 
   float calcRPM() {
-    float result{ count * PULSE_RATE * TO_RPM * (SEC / static_cast<float>(totalDiffMillis)) };
+    float result{0};
+    if (totalDiffMillis > 0)
+    {
+      result = count * PULSE_RATE * TO_RPM * (SEC / static_cast<float>(totalDiffMillis));
+    }
     reset();
 
     return result;
@@ -114,7 +119,7 @@ struct VoltageMapping {
   const std::vector<VoltPair> mappingData{ { 29, 0.f }, { 327, 0.5f }, { 658, 1.f }, { 989, 1.5f }, { 1326, 2.f }, { 1671, 2.5f }, { 2011, 3.f }, { 2359, 3.5f }, { 2698, 4.f }, { 3042, 4.5f }, { 3405, 5.f } };
 
   float getVoltage(int input) {
-    const VoltPair* before{ 0 };
+    const VoltPair* before{ nullptr };
     for (const VoltPair& current : mappingData) {
       if (before) {
         if (before->input < input && input <= current.input) {
@@ -124,6 +129,7 @@ struct VoltageMapping {
 
       before = &current;
     }
+    return 0.f;
   }
 };
 
@@ -193,9 +199,9 @@ private:
 
     int powerNum{ 0 };
 
-    RotateCounter rotateCounter;
-    ValueCounter iValueCounter;
-    ValueCounter vValueCounter;
+    RotateCounter rotateCounter{};
+    ValueCounter iValueCounter{};
+    ValueCounter vValueCounter{};
 
     unsigned int iOffset{ 0 };
 
@@ -206,7 +212,7 @@ private:
 
     static constexpr int RPM_CACHE_COUNT{ 2 };
 
-    RPMCache rpmCahes[RPM_CACHE_COUNT]{};
+    RPMCache rpmCaches[RPM_CACHE_COUNT]{};
 
     bool isChangeB(unsigned long millis) {
       const unsigned long misslisDiff{ millis - misslisDiffB };
@@ -234,12 +240,12 @@ private:
     }
 
     void displayB() {
-      RPMCache& currentCache{ rpmCahes[0] };
+      RPMCache& currentCache{ rpmCaches[0] };
       currentCache.rpm = rotateCounter.calcRPM();
       currentCache.vValue = Controller::calcVValue(vValueCounter.calcValue());
       currentCache.iValue = Controller::calcIValue(iValueCounter.calcValue(), iOffset);
 
-      RPMCache& maxCache{ rpmCahes[1] };
+      RPMCache& maxCache{ rpmCaches[1] };
       if (currentCache.rpm > maxCache.rpm) {
         maxCache = currentCache;
       }
@@ -247,9 +253,10 @@ private:
       static const int OFFSET{ 1 };
       static const int ROW_INDEX{ 2 };
       for (int i = 0; i < RPM_CACHE_COUNT; ++i) {
-        drawAdafruit.drawIntR(rpmCahes[i].rpm, 3, i + 1);
-        drawAdafruit.drawFloat(rpmCahes[i].vValue, 10, i + 1);
-        drawAdafruit.drawFloat(rpmCahes[i].iValue, 15, i + 1);
+        const RPMCache& rpmCache{rpmCaches[i]};
+        drawAdafruit.drawIntR(rpmCache.rpm, 3, i + 1);
+        drawAdafruit.drawFloat(rpmCache.vValue, 10, i + 1);
+        drawAdafruit.drawFloat(rpmCache.iValue, 15, i + 1);
       }
     };
 
@@ -264,7 +271,7 @@ private:
 
     void reset() {
       for (int i = 0; i < RPM_CACHE_COUNT; ++i) {
-        rpmCahes[i].reset();
+        rpmCaches[i].reset();
       }
       powerNum = 0;
     }
@@ -273,7 +280,7 @@ private:
       if (nextFlag) {
         powerNum = (powerNum + 1) % TABLE_COUNT;
         for (int i = 0; i < RPM_CACHE_COUNT; ++i) {
-          rpmCahes[i].reset();
+          rpmCaches[i].reset();
         }
         nextFlag = false;
       }
@@ -302,7 +309,7 @@ private:
     static constexpr int TABLE[] = { 30, 100, 250 };
     static constexpr int TABLE_COUNT{ sizeof(TABLE) / sizeof(int) };
 
-    RPMCache rpmCahes[TABLE_COUNT];
+    RPMCache rpmCaches[TABLE_COUNT]{};
 
     StateMode currentMode{ StateMode::SleepMode };
 
@@ -322,7 +329,7 @@ private:
       modeMillisBuf = millis();
 
       for (int i = 0; i < TABLE_COUNT; ++i) {
-        rpmCahes[i].reset();
+        rpmCaches[i].reset();
       }
     }
 
@@ -340,7 +347,7 @@ private:
 
     void reset() {
       for (int i = 0; i < TABLE_COUNT; ++i) {
-        rpmCahes[i].reset();
+        rpmCaches[i].reset();
       }
       currentMode = StateMode::SleepMode;
       tableIndex = 0;
@@ -353,7 +360,7 @@ private:
         iValueCounter.reset();
         currentMode = StateMode::CalcMode;
       } else if (currentMode == StateMode::CalcMode) {
-        RPMCache& currentCache = rpmCahes[tableIndex];
+        RPMCache& currentCache = rpmCaches[tableIndex];
         currentCache.rpm = rotateCounter.calcRPM();
         currentCache.vValue = Controller::calcVValue(vValueCounter.calcValue());
         currentCache.iValue = Controller::calcIValue(iValueCounter.calcValue(), iOffset);
@@ -390,9 +397,10 @@ private:
       static const int OFFSET{ 1 };
       static const int ROW_INDEX{ 2 };
       for (int i = 0; i < TABLE_COUNT; ++i) {
-        drawAdafruit.drawIntR(rpmCahes[i].rpm, 3, i + 1);
-        drawAdafruit.drawFloat(rpmCahes[i].vValue, 10, i + 1);
-        drawAdafruit.drawFloat(rpmCahes[i].iValue, 15, i + 1);
+        const RPMCache& rpmCache{rpmCaches[i]};
+        drawAdafruit.drawIntR(rpmCache.rpm, 3, i + 1);
+        drawAdafruit.drawFloat(rpmCache.vValue, 10, i + 1);
+        drawAdafruit.drawFloat(rpmCache.iValue, 15, i + 1);
 
         const int colIndex{ i + OFFSET };
 
@@ -407,7 +415,7 @@ private:
         const char* arrowMessage{ getDrawArrow(blinkFlag, blinkType) };
 
         drawAdafruit.drawChar(arrowMessage, 0, colIndex, ROW_INDEX);
-        // drawAdafruit.drawInt(rpmCahes[i].maxRpm, 9, i + 1);
+        // drawAdafruit.drawInt(rpmCaches[i].maxRpm, 9, i + 1);
       }
     };
 
@@ -468,7 +476,7 @@ private:
       modeName = String("mode2");
     }
 
-    drawAdafruit.drawChar(modeName.c_str(), 0, 0, modeName.length());
+    drawAdafruit.drawString(modeName, 0, 0);
   }
 
   void changeModeDisplay() {
@@ -492,7 +500,7 @@ private:
     ValueCounter iValue{};
 
     for (int i = 0; i < 100; ++i) {
-      int iVolt{ analogRead(I_READ_PIN) };
+      int iVolt{ analogRead(I_READ_PIN)};
       iValue.readVolt(iVolt);
       delay(10);
     }
@@ -646,7 +654,7 @@ void setup() {
 
   delay(500);
 
-  Serial.begin(9600);
+  Serial.begin(115200);
   Serial.printf("start\r\n");
 
   drawAdafruit.setupDisplay();
@@ -657,21 +665,6 @@ void setup() {
   controller.setup();
 }
 
-void go_to_sleep() {
-  // put your setup code here, to run once:
-  Serial.begin(115200);
-  Serial.printf("Cause:%d\r\n", esp_sleep_get_wakeup_cause());
-  wakeup_cause_print();
-  Serial.printf("Counter:%d\r\n", counter++);
-  Serial.println("Start!!");
-  for (int i = 0; i < 15; i++) {
-    Serial.printf("%d analog :%d\n", i, analogRead(0));
-    delay(1000);
-  }
-  Serial.println("Go to DeepSleep!!");
-  esp32c3_deepsleep(10, 2);  //10秒間スリープ スリープ中にGPIO2がHIGHになったら目覚める
-}
-
 void loop() {
 
   while (true) {
@@ -680,34 +673,4 @@ void loop() {
 
   return;
   // put your main code here, to run repeatedly:
-}
-
-void esp32c3_deepsleep(uint8_t sleep_time, uint8_t wakeup_gpio) {
-  // スリープ前にwifiとBTを明示的に止めないとエラーになる
-  esp_bluedroid_disable();
-  esp_bt_controller_disable();
-  esp_wifi_stop();
-  esp_deep_sleep_enable_gpio_wakeup(BIT(wakeup_gpio), ESP_GPIO_WAKEUP_GPIO_HIGH);  // 設定したIOピンがHIGHになったら目覚める
-  esp_deep_sleep(1000 * 1000 * sleep_time);
-}
-
-void wakeup_cause_print() {
-  esp_sleep_wakeup_cause_t wakeup_reason;
-  wakeup_reason = esp_sleep_get_wakeup_cause();
-  switch (wakeup_reason) {
-    case 0: Serial.println("Wakeup caused by ESP_SLEEP_WAKEUP_UNDEFINED"); break;
-    case 1: Serial.println("Wakeup caused by ESP_SLEEP_WAKEUP_ALL"); break;
-    case 2: Serial.println("Wakeup caused by ESP_SLEEP_WAKEUP_EXT0"); break;
-    case 3: Serial.println("Wakeup caused by ESP_SLEEP_WAKEUP_EXT1"); break;
-    case 4: Serial.println("Wakeup caused by ESP_SLEEP_WAKEUP_TIMER"); break;
-    case 5: Serial.println("Wakeup caused by ESP_SLEEP_WAKEUP_TOUCHPAD"); break;
-    case 6: Serial.println("Wakeup caused by ESP_SLEEP_WAKEUP_ULP"); break;
-    case 7: Serial.println("Wakeup caused by ESP_SLEEP_WAKEUP_GPIO"); break;
-    case 8: Serial.println("Wakeup caused by ESP_SLEEP_WAKEUP_UART"); break;
-    case 9: Serial.println("Wakeup caused by ESP_SLEEP_WAKEUP_WIFI"); break;
-    case 10: Serial.println("Wakeup caused by ESP_SLEEP_WAKEUP_COCPU"); break;
-    case 11: Serial.println("Wakeup caused by ESP_SLEEP_WAKEUP_COCPU_TRAP_TRIG"); break;
-    case 12: Serial.println("Wakeup caused by ESP_SLEEP_WAKEUP_BT"); break;
-    default: Serial.println("Wakeup was not caused by deep sleep"); break;
-  }
 }

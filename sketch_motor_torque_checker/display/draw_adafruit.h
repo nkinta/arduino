@@ -1,3 +1,5 @@
+#pragma once
+
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
@@ -40,8 +42,12 @@ public:
     adaDisplay.clearDisplay();
   }
 
-  void drawChar(const char* chr, int offsetX, int offsetY, int sizeChar) {
+  void drawString(const String& string, int offsetX, int offsetY) {
 
+    drawChar(string.c_str(), offsetX, offsetY, string.length());
+  }
+
+  void drawChar(const char* chr, int offsetX, int offsetY, int sizeChar) {
     adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * sizeChar, CHARSIZEY * 1, BLACK);
     adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
     adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
@@ -49,7 +55,6 @@ public:
   }
 
   void drawFloat(float value, float offsetX, float offsetY) {
-
     adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * 5, CHARSIZEY * 1, BLACK);
     adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
     adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
