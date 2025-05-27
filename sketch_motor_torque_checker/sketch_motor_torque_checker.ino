@@ -194,16 +194,18 @@ private:
     return arrowMessage;
   }
 
-  struct FreeCheckParam {
+  struct BaseCheckParam {
+    RotateCounter rotateCounter{};
+    ValueCounter iValueCounter{};
+    ValueCounter vValueCounter{};
+  };
+
+  struct FreeCheckParam : public BaseCheckParam {
 
     static constexpr int TABLE[] = { 30, 100, 120, 250 };
     static constexpr int TABLE_COUNT{ sizeof(TABLE) / sizeof(int) };
 
     int powerNum{ 0 };
-
-    RotateCounter rotateCounter{};
-    ValueCounter iValueCounter{};
-    ValueCounter vValueCounter{};
 
     float iOffsetVoltage{ 0.f };
 
@@ -267,7 +269,7 @@ private:
       drawAdafruit.drawInt(powerNum, 1, 0);
     };
 
-    void setNext() {
+    void pushButton2() {
       nextFlag = true;
     }
 
@@ -289,7 +291,7 @@ private:
     };
   };
 
-  struct TorqueCheckParam {
+  struct TorqueCheckParam : public BaseCheckParam {
     enum class StateMode {
       SleepMode = 0,
       WaitMode,
@@ -321,7 +323,7 @@ private:
 
     float iOffsetVoltage{ 0.f };
 
-    void setOn() {
+    void pushButton2() {
       onFlag = true;
     }
 
@@ -450,6 +452,7 @@ private:
     }
   };
 
+  static constexpr int LONG_PUSH_MILLIS{ 1000 };
   static constexpr int WRITE_POWER_PIN{ 20 };
   static constexpr int PUSH_BUTTON1{ 10 };
   static constexpr int PUSH_BUTTON2{ 9 };
@@ -465,10 +468,56 @@ private:
 
   CheckMode checkMode{ CheckMode::FreeCheckMode };
 
-  bool button1Flag{ false };
-  bool button2Flag{ false };
-  bool button1OldFlag{ false };
-  bool button2OldFlag{ false };
+  struct ButtonStatus{
+
+    void init(const int inPinID)
+    {
+      pinID = inPinID;
+    }
+
+    int check()
+    {
+      int val = digitalRead(pinID);
+      if (val == LOW) {
+        buttonFlag = true;
+      } else {
+        buttonFlag = false;
+      }
+
+      bool releaseFlag{false};
+
+      if (buttonFlag && (buttonOldFlag != buttonFlag))
+      {
+        pushedMillis = millis();
+      }
+      else if (!buttonFlag && (buttonOldFlag != buttonFlag)) {
+        releaseFlag = true;
+      }
+      buttonOldFlag = buttonFlag;
+
+      if (releaseFlag)
+      {
+        if ((millis() - pushedMillis) > LONG_PUSH_MILLIS)
+        {
+          return 2;
+        }
+        else
+        {
+          return 1;
+        }
+      }
+
+      return 0;
+    }
+
+    int pinID{ 0 };
+    bool buttonFlag{ false };
+    bool buttonOldFlag{ false };
+    unsigned long pushedMillis{0};
+  };
+
+  ButtonStatus button1Status{};
+  ButtonStatus button2Status{};
 
   unsigned long iOffset{ 3400 };
 
@@ -513,21 +562,8 @@ private:
   }
 
   void loopSub() {
-    int val1 = digitalRead(PUSH_BUTTON1);
-    if (val1 == LOW) {
-      button1Flag = true;
-    } else {
-      button1Flag = false;
-    }
 
-    int val2 = digitalRead(PUSH_BUTTON2);
-    if (val2 == LOW) {
-      button2Flag = true;
-    } else {
-      button2Flag = false;
-    }
-
-    if (!button1Flag && (button1OldFlag != button1Flag)) {
+    if (button1Status.check() == 1) {
       cachedPushButtonMillis = millis();
 
       checkMode = static_cast<CheckMode>((static_cast<int>(checkMode) + 1) % static_cast<int>(CheckMode::MaxCheckMode));
@@ -535,18 +571,16 @@ private:
       preferences.putInt("check_mode", checkModeInt);
       changeModeDisplay();
     }
-    button1OldFlag = button1Flag;
 
-    if (!button2Flag && (button2OldFlag != button2Flag)) {
+    if (button2Status.check() == 1) {
       cachedPushButtonMillis = millis();
 
       if (checkMode == CheckMode::FreeCheckMode) {
-        freeCheckParam.setNext();
+        freeCheckParam.pushButton2();
       } else if (checkMode == CheckMode::TorqueCheckMode) {
-        torqueCheckParam.setOn();
+        torqueCheckParam.pushButton2();
       }
     }
-    button2OldFlag = button2Flag;
   }
 
   void loopMain() {
@@ -574,6 +608,9 @@ public:
     pinMode(WRITE_POWER_PIN, OUTPUT);
     pinMode(PUSH_BUTTON1, INPUT);
     pinMode(PUSH_BUTTON2, INPUT);
+
+    button1Status.init(PUSH_BUTTON1);
+    button2Status.init(PUSH_BUTTON2);
 
     preferences.begin("torque_checker_app", false);
     int checkModeInt = preferences.getInt("check_mode", 0);
