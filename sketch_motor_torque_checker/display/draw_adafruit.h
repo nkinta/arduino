@@ -61,8 +61,8 @@ public:
     adaDisplay.print(String(value, 2));
   }
 
-  void drawIntR(int value, float offsetX, float offsetY) {
-    int offset{6};
+  void drawIntR(int value, float offsetX, float offsetY, int startOffset) {
+    const int offset{startOffset};
     int numOffset{offset - 1};
 
     if (value != 0)

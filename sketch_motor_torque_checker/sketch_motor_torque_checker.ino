@@ -258,9 +258,9 @@ private:
       static const int ROW_INDEX{ 2 };
       for (int i = 0; i < RPM_CACHE_COUNT; ++i) {
         const RPMCache& rpmCache{rpmCaches[i]};
-        drawAdafruit.drawIntR(rpmCache.rpm, 3, i + 1);
-        drawAdafruit.drawFloat(rpmCache.vValue, 10, i + 1);
-        drawAdafruit.drawFloat(rpmCache.iValue, 15, i + 1);
+        drawAdafruit.drawIntR(rpmCache.rpm, 4, i + 1, 6);
+        drawAdafruit.drawFloat(rpmCache.vValue, 11, i + 1);
+        drawAdafruit.drawFloat(rpmCache.iValue, 16, i + 1);
       }
     };
 
@@ -400,11 +400,20 @@ private:
 
       static const int OFFSET{ 1 };
       static const int ROW_INDEX{ 2 };
+
+      float baseRpm = rpmCaches[0].rpm;
       for (int i = 0; i < TABLE_COUNT; ++i) {
         const RPMCache& rpmCache{rpmCaches[i]};
-        drawAdafruit.drawIntR(rpmCache.rpm, 3, i + 1);
-        drawAdafruit.drawFloat(rpmCache.vValue, 10, i + 1);
-        drawAdafruit.drawFloat(rpmCache.iValue, 15, i + 1);
+        int rpmRate{100};
+        if (baseRpm > 10.f)
+        {
+          rpmRate = constrain((rpmCache.rpm / baseRpm) * 100.f, 0, 100);
+        }
+
+        drawAdafruit.drawIntR(rpmRate, 0, i + 1, 3);
+        drawAdafruit.drawIntR(rpmCache.rpm, 4, i + 1, 6);
+        drawAdafruit.drawFloat(rpmCache.vValue, 11, i + 1);
+        drawAdafruit.drawFloat(rpmCache.iValue, 16, i + 1);
 
         const int colIndex{ i + OFFSET };
 
@@ -412,13 +421,15 @@ private:
         int blinkType{ 0 };
         if (currentMode == StateMode::CalcMode && i == tableIndex) {
           blinkType = 1;
-        } else if (currentMode == StateMode::CalcMode && i == tableIndex) {
+        } else if (currentMode == StateMode::WaitMode && i == tableIndex) {
           blinkType = 2;
         }
 
+        if (currentMode != StateMode::SleepMode && i == tableIndex)
+        {
         const char* arrowMessage{ getDrawArrow(blinkFlag, blinkType) };
-
         drawAdafruit.drawChar(arrowMessage, 0, colIndex, ROW_INDEX);
+        }
         // drawAdafruit.drawInt(rpmCaches[i].maxRpm, 9, i + 1);
       }
     };
