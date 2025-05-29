@@ -67,10 +67,10 @@ public:
 
     if (value != 0)
     {
-      numOffset -= (log10(value) - 1);
+      numOffset -= (floor(log10(value)));
     }
 
-    adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * offset, CHARSIZEY * 1, BLACK);
+    adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * (offset + numOffset), CHARSIZEY * 1, BLACK);
     adaDisplay.setCursor(CHARSIZEX * (offsetX + numOffset), CHARSIZEY * offsetY);
     adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
     // std::cout << std::setw(10) << std::right << num << std::endl;

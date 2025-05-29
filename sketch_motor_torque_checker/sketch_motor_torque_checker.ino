@@ -135,6 +135,30 @@ struct VoltageMapping {
 
 static VoltageMapping voltageMapping;
 
+
+struct EvalTiming{
+
+  EvalTiming(float timingDiff){
+    nextDiff = timingDiff;
+  };
+
+public:
+  bool isExecute(float millis) {
+    const float diff{ millis - oldMillis };
+    if (diff > nextDiff) {
+      oldMillis = millis;
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  float nextDiff{0.f};
+
+private:
+  float oldMillis{0.f};
+};
+
 class Controller {
   static constexpr uint8_t READ_PIN{ 3 };
   static constexpr uint8_t V_READ_PIN{ 2 };
@@ -202,7 +226,7 @@ private:
 
   struct FreeCheckParam : public BaseCheckParam {
 
-    static constexpr int TABLE[] = { 30, 100, 120, 250 };
+    static constexpr int TABLE[] = { 30, 105, 250 };
     static constexpr int TABLE_COUNT{ sizeof(TABLE) / sizeof(int) };
 
     int powerNum{ 0 };
@@ -211,39 +235,14 @@ private:
 
     bool nextFlag{ false };
 
-    unsigned long misslisDiffA{ 0 };
-    unsigned long misslisDiffB{ 0 };
+    EvalTiming evalATiming{ONE_FRAME_MS};
+    EvalTiming evalBTiming{SEC};
 
     static constexpr int RPM_CACHE_COUNT{ 2 };
 
     RPMCache rpmCaches[RPM_CACHE_COUNT]{};
 
-    bool isExecuteB(unsigned long millis) {
-      const unsigned long misslisDiff{ millis - misslisDiffB };
-      if (misslisDiff > SEC) {
-        misslisDiffB = millis;
-        return true;
-      } else {
-        return false;
-      }
-    }
-
-    int getPower() {
-      int power = constrain(TABLE[powerNum], 0, 255);
-      return power;
-    }
-
-    bool isExecuteA(unsigned long millis) {
-      const unsigned long misslisDiff{ millis - misslisDiffA };
-      if (misslisDiff > ONE_FRAME_MS) {
-        misslisDiffA = millis;
-        return true;
-      } else {
-        return false;
-      }
-    }
-
-    void displayB() {
+    void execB() {
       RPMCache& currentCache{ rpmCaches[0] };
       currentCache.rpm = rotateCounter.calcRPM();
       currentCache.vValue = Controller::calcVValue(vValueCounter.calcValue());
@@ -264,21 +263,30 @@ private:
       }
     };
 
-    void displayA() {
+    void execA() {
+      next();
       drawAdafruit.drawChar("T", 0, 0, 1);
       drawAdafruit.drawInt(powerNum, 1, 0);
+      analogWrite(WRITE_POWER_PIN, getPower());
     };
-
-    void pushButton2() {
-      nextFlag = true;
-    }
 
     void reset() {
       for (int i = 0; i < RPM_CACHE_COUNT; ++i) {
         rpmCaches[i].reset();
       }
       powerNum = 0;
-    }
+    };
+
+    void pushButton2() {
+      nextFlag = true;
+    };
+
+private:
+
+    int getPower() {
+      int power = constrain(TABLE[powerNum], 0, 255);
+      return power;
+    };
 
     void next() {
       if (nextFlag) {
@@ -299,27 +307,22 @@ private:
       MaxStateMode,
     };
 
-    float waitTime{ 2000.f };
-    float calcTime{ 2000.f };
-
     bool onFlag{ false };
-
     bool blinkFlag{ false };
 
     unsigned long drawMillisBuf{ 0 };
     unsigned long modeMillisBuf{ 0 };
 
+    EvalTiming evalATiming{ONE_FRAME_MS};
+    EvalTiming evalBTiming{2 * SEC};
+
     int tableIndex{ 0 };
-    static constexpr int TABLE[] = { 30, 100, 250 };
+    static constexpr int TABLE[] = { 30, 105, 250 };
     static constexpr int TABLE_COUNT{ sizeof(TABLE) / sizeof(int) };
 
     RPMCache rpmCaches[TABLE_COUNT]{};
 
     StateMode currentMode{ StateMode::SleepMode };
-
-    RotateCounter rotateCounter{};
-    ValueCounter iValueCounter{};
-    ValueCounter vValueCounter{};
 
     float iOffsetVoltage{ 0.f };
 
@@ -327,6 +330,25 @@ private:
       onFlag = true;
     }
 
+    void execA() {
+      loop();
+      display();
+      analogWrite(WRITE_POWER_PIN, getPower());
+    }
+
+    void execB() {
+      next();
+    }
+
+    void reset() {
+      for (int i = 0; i < TABLE_COUNT; ++i) {
+        rpmCaches[i].reset();
+      }
+      currentMode = StateMode::SleepMode;
+      tableIndex = 0;
+    }
+
+  private:
     void start() {
       currentMode = StateMode::WaitMode;
       tableIndex = 0;
@@ -347,14 +369,6 @@ private:
     int getPower() {
       int power = constrain(TABLE[tableIndex], 0, 255);
       return power;
-    }
-
-    void reset() {
-      for (int i = 0; i < TABLE_COUNT; ++i) {
-        rpmCaches[i].reset();
-      }
-      currentMode = StateMode::SleepMode;
-      tableIndex = 0;
     }
 
     void next() {
@@ -382,24 +396,19 @@ private:
     void display() {
       blinkFlag = !blinkFlag;
 
-      static char sleepMessage[] = "sleep";
-      static char waitMessage[] = "wait";
-      static char calcMessage[] = "calc";
+      static String sleepStr{"sleep"};
+      static String waitStr{"wait "};
+      static String calcStr{"calc "};
       if (currentMode == StateMode::WaitMode) {
-        int sizeChar = sizeof(waitMessage);
-        drawAdafruit.drawChar(waitMessage, 0, 0, sizeChar);
+        drawAdafruit.drawString(sleepStr, 0, 0);
       } else if (currentMode == StateMode::CalcMode) {
-        int sizeChar = sizeof(calcMessage);
-        drawAdafruit.drawChar(calcMessage, 0, 0, sizeChar);
+        drawAdafruit.drawString(waitStr, 0, 0);
       } else if (currentMode == StateMode::SleepMode) {
-        int sizeChar = sizeof(sleepMessage);
-        drawAdafruit.drawChar(sleepMessage, 0, 0, sizeChar);
+        drawAdafruit.drawString(calcStr, 0, 0);
       }
 
-      // drawAdafruit.drawInt(tableIndex, 0, 0);
-
       static const int OFFSET{ 1 };
-      static const int ROW_INDEX{ 2 };
+      static const int ROW_NUM{ 2 };
 
       float baseRpm = rpmCaches[0].rpm;
       for (int i = 0; i < TABLE_COUNT; ++i) {
@@ -410,7 +419,6 @@ private:
           rpmRate = constrain((rpmCache.rpm / baseRpm) * 100.f, 0, 100);
         }
 
-        drawAdafruit.drawIntR(rpmRate, 0, i + 1, 3);
         drawAdafruit.drawIntR(rpmCache.rpm, 4, i + 1, 6);
         drawAdafruit.drawFloat(rpmCache.vValue, 11, i + 1);
         drawAdafruit.drawFloat(rpmCache.iValue, 16, i + 1);
@@ -425,42 +433,24 @@ private:
           blinkType = 2;
         }
 
+        if (currentMode == StateMode::SleepMode)
+        {
+          drawAdafruit.drawIntR(rpmRate, 0, i + 1, 3);
+        }
+        else
+        {
+          drawAdafruit.drawChar("   ", 0, colIndex, 3);
+        }
+
         if (currentMode != StateMode::SleepMode && i == tableIndex)
         {
-        const char* arrowMessage{ getDrawArrow(blinkFlag, blinkType) };
-        drawAdafruit.drawChar(arrowMessage, 0, colIndex, ROW_INDEX);
+          const char* arrowMessage{ getDrawArrow(blinkFlag, blinkType) };
+          drawAdafruit.drawChar(arrowMessage, 0, colIndex, ROW_NUM);
         }
+
         // drawAdafruit.drawInt(rpmCaches[i].maxRpm, 9, i + 1);
       }
     };
-
-    float currentMills() {
-      if (currentMode == StateMode::WaitMode) {
-        return waitTime;
-      } else if (currentMode == StateMode::CalcMode) {
-        return calcTime;
-      }
-    };
-
-    bool isChangeMode(float millis) {
-      const float modeMisslisDiff{ millis - modeMillisBuf };
-      if (modeMisslisDiff > currentMills()) {
-        modeMillisBuf = millis;
-        return true;
-      } else {
-        return false;
-      }
-    }
-
-    bool isDraw(float millis) {
-      const float drawMillisDiff{ millis - drawMillisBuf };
-      if (drawMillisDiff > ONE_FRAME_MS) {
-        drawMillisBuf = millis;
-        return true;
-      } else {
-        return false;
-      }
-    }
   };
 
   static constexpr int LONG_PUSH_MILLIS{ 1000 };
@@ -647,42 +637,35 @@ public:
 
     if (checkMode == CheckMode::FreeCheckMode) {
       // const float rpmMisslisDiff{millis() - freeCheckParam.rpmMillisBuf};
-      if (freeCheckParam.isExecuteB(millis())) {
+      if (freeCheckParam.evalBTiming.isExecute(millis())) {
         freeCheckParam.rotateCounter.sleep(millis());
-        freeCheckParam.displayB();
+        freeCheckParam.execB();
 
         freeCheckParam.rotateCounter.start(millis());
       }
 
-
-      if (freeCheckParam.isExecuteA(millis()))  // voltMillisDiff > ONE_FRAME_MS)
-      {
+      if (freeCheckParam.evalATiming.isExecute(millis())) {
         freeCheckParam.rotateCounter.sleep(millis());
 
-        freeCheckParam.next();
-        freeCheckParam.displayA();
+        freeCheckParam.execA();
         drawAdafruit.display();
-
-        analogWrite(WRITE_POWER_PIN, freeCheckParam.getPower());
 
         freeCheckParam.rotateCounter.start(millis());
       }
     } else if (checkMode == CheckMode::TorqueCheckMode) {
 
-      if (torqueCheckParam.isChangeMode(millis())) {
+      if (torqueCheckParam.evalBTiming.isExecute(millis())) {
         torqueCheckParam.rotateCounter.sleep(millis());
 
-        torqueCheckParam.next();
+        torqueCheckParam.execB();
         torqueCheckParam.rotateCounter.start(millis());
       }
 
-      if (torqueCheckParam.isDraw(millis())) {
+      if (torqueCheckParam.evalATiming.isExecute(millis())) {
         torqueCheckParam.rotateCounter.sleep(millis());
 
-        torqueCheckParam.loop();
-        torqueCheckParam.display();
+        torqueCheckParam.execA();
         drawAdafruit.display();
-        analogWrite(WRITE_POWER_PIN, torqueCheckParam.getPower());
 
         torqueCheckParam.rotateCounter.start(millis());
       }
