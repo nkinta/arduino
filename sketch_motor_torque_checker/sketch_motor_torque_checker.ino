@@ -242,6 +242,17 @@ private:
 
     RPMCache rpmCaches[RPM_CACHE_COUNT]{};
 
+    void reset() {
+      for (int i = 0; i < RPM_CACHE_COUNT; ++i) {
+        rpmCaches[i].reset();
+      }
+      powerNum = 0;
+    };
+
+    void pushButton2() {
+      nextFlag = true;
+    };
+
     void execB() {
       RPMCache& currentCache{ rpmCaches[0] };
       currentCache.rpm = rotateCounter.calcRPM();
@@ -268,17 +279,6 @@ private:
       drawAdafruit.drawChar("T", 0, 0, 1);
       drawAdafruit.drawInt(powerNum, 1, 0);
       analogWrite(WRITE_POWER_PIN, getPower());
-    };
-
-    void reset() {
-      for (int i = 0; i < RPM_CACHE_COUNT; ++i) {
-        rpmCaches[i].reset();
-      }
-      powerNum = 0;
-    };
-
-    void pushButton2() {
-      nextFlag = true;
     };
 
 private:
@@ -326,6 +326,14 @@ private:
 
     float iOffsetVoltage{ 0.f };
 
+    void reset() {
+      for (int i = 0; i < TABLE_COUNT; ++i) {
+        rpmCaches[i].reset();
+      }
+      currentMode = StateMode::SleepMode;
+      tableIndex = 0;
+    }
+
     void pushButton2() {
       onFlag = true;
     }
@@ -338,14 +346,6 @@ private:
 
     void execB() {
       next();
-    }
-
-    void reset() {
-      for (int i = 0; i < TABLE_COUNT; ++i) {
-        rpmCaches[i].reset();
-      }
-      currentMode = StateMode::SleepMode;
-      tableIndex = 0;
     }
 
   private:
