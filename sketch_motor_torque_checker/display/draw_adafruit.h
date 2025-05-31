@@ -54,11 +54,22 @@ public:
     adaDisplay.print(chr);
   }
 
-  void drawFloat(float value, float offsetX, float offsetY) {
+  void drawFloat(float value, float offsetX, float offsetY, int decimal = 2) {
     adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * 5, CHARSIZEY * 1, BLACK);
     adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
     adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
-    adaDisplay.print(String(value, 2));
+    adaDisplay.print(String(value, decimal));
+  }
+
+  void drawFloatR(float value, float offsetX, float offsetY, int size = 4, int decimal = 2) {
+
+    String valueStr{String(value, decimal)};
+    int offset{valueStr.length()};
+
+    adaDisplay.fillRect(CHARSIZEX * (offsetX - size), CHARSIZEY * offsetY, CHARSIZEX * offsetX, CHARSIZEY * 1, BLACK);
+    adaDisplay.setCursor(CHARSIZEX * (offsetX - offset), CHARSIZEY * offsetY);
+    adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
+    adaDisplay.print(String(value, decimal));
   }
 
   void drawIntR(int value, float offsetX, float offsetY, int startOffset) {
