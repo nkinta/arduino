@@ -4,6 +4,8 @@
 
 static constexpr int WRITE_POWER_PIN{ 20 };
 
+static constexpr int POWER_MAP[] = { 30, 95, 100, 105, 110, 120, 250 };
+
 static constexpr float FPS{ 15.f };
 static constexpr float SEC{ 1000.f };
 static constexpr float ONE_FRAME_MS{ (1.f / FPS) * SEC };
@@ -231,7 +233,7 @@ struct BaseCheckParam {
 
 struct FreeCheckParam : public BaseCheckParam {
 
-  static constexpr int TABLE[] = { 30, 105, 250 };
+  static constexpr int TABLE[] = { 0, 1, 2, 3, 4, 5, 6};
   static constexpr int TABLE_COUNT{ sizeof(TABLE) / sizeof(int) };
 
   int powerNum{ 0 };
@@ -287,7 +289,7 @@ struct FreeCheckParam : public BaseCheckParam {
 private:
 
   int getPower() {
-    int power = constrain(TABLE[powerNum], 0, 255);
+    int power = constrain(POWER_MAP[TABLE[powerNum]], 0, 255);
     return power;
   };
 
@@ -308,6 +310,17 @@ struct RunSimCheckParam : public BaseCheckParam {
     RunMode
   };
 
+  struct RunStatus{
+    float meter{0.f};
+    int powerIndex{0.f};
+  };
+
+  std::vector<RunStatus> runStatuses{{0.f, 3}, {10.f, 1}, {15.f, 6}, {18.f, 1}, {25.f, 6}, {28.f, 1}, {30.f, 2}};
+  float oneCycleMeter{40.f}; 
+  unsigned int cycleNumber{5};
+
+  unsigned int currentStatusIndex{0};
+
   bool onFlag{ false };
 
   EvalTiming evalATiming{ONE_FRAME_MS};
@@ -315,13 +328,14 @@ struct RunSimCheckParam : public BaseCheckParam {
 
   StateMode currentMode{ StateMode::SleepMode };
 
-  RunSimCache runSimCache;
-
-  float runMeter{100.f};
+  RunSimCache runSimCache{};
+  RPMCache currentRpmCache{};
 
   void reset() {
     runSimCache.reset();
+    currentRpmCache.reset();
     currentMode = StateMode::SleepMode;
+    currentStatusIndex = 0;
   }
 
   void pushButton2() {
@@ -335,7 +349,7 @@ struct RunSimCheckParam : public BaseCheckParam {
   }
 
   void execB() {
-    
+
   }
 
 private:
@@ -344,29 +358,29 @@ private:
     if (onFlag) {
       if (currentMode == StateMode::SleepMode) {
         currentMode = StateMode::RunMode;
+        // reset();
         start();
       }
       else if (currentMode == StateMode::RunMode) {
         currentMode = StateMode::SleepMode;
-        reset();
       }
       onFlag = false;
       return;
     }
 
-    RPMCache currentCache;
+    currentRpmCache.rpm = rotateCounter.calcRPS();
+    currentRpmCache.vValue = calcVValue(vValueCounter.calcValue());
+    currentRpmCache.iValue = calcIValue(iValueCounter.calcValue(), iOffsetVoltage);
 
     if (currentMode == StateMode::RunMode)
     {
-      currentCache.rpm = rotateCounter.calcRPS();
-      currentCache.vValue = calcVValue(vValueCounter.calcValue());
-      currentCache.iValue = calcIValue(iValueCounter.calcValue(), iOffsetVoltage);
-
       constexpr float METER_RATE{(1.f / 4.0f) * 23.f * PI * (1.f / 1000.f)};
       constexpr float TOTAL_RATE{METER_RATE * (1.f / FPS)};
-      const float diffMeter{currentCache.rpm * TOTAL_RATE};
+      const float diffMeter{currentRpmCache.rpm * TOTAL_RATE};
       const float newMeter{runSimCache.meter + diffMeter};
       float rate{1.f};
+
+      float runMeter{oneCycleMeter * cycleNumber};
       if (newMeter > runMeter)
       {
         rate = (newMeter - runMeter) / diffMeter;
@@ -379,26 +393,55 @@ private:
       }
 
       constexpr float TOTAL_WATT_HOUR_RATE{1.f / (FPS * 60.f * 60.f)};
-      runSimCache.watt += rate * currentCache.vValue * currentCache.iValue * TOTAL_WATT_HOUR_RATE;
+      runSimCache.watt += rate * currentRpmCache.vValue * currentRpmCache.iValue * TOTAL_WATT_HOUR_RATE;
 
       runSimCache.sec += rate * (1.f /FPS);
     }
 
-
-
   };
 
   void display() {
-      static float WATT_TO_MAH{(1.f / 1.2f) * 1000.f};
-      drawAdafruit.drawFloatR(runSimCache.meter, 6, 1, 5, 1);
-      drawAdafruit.drawFloatR(runSimCache.watt * WATT_TO_MAH, 13, 1, 5, 1);
-      drawAdafruit.drawFloatR(runSimCache.sec, 20, 1, 5, 1);
+
+    static String sleepStr{"sleep"};
+    static String RunStr{"run  "};
+    if (currentMode == StateMode::RunMode) {
+      drawAdafruit.drawString(RunStr, 0, 0);
+
+      int statusSize{runStatuses.size()};
+      drawAdafruit.drawIntR((currentStatusIndex / statusSize) + 1, 7, 0, 1);
+      drawAdafruit.drawChar("C", 6, 0, 1);
+
+      drawAdafruit.drawIntR(runStatuses[currentStatusIndex % statusSize].powerIndex, 11, 0, 1);
+      drawAdafruit.drawChar("T", 10, 0, 1);
+
+    } else if (currentMode == StateMode::SleepMode) {
+      drawAdafruit.drawString(sleepStr, 0, 0);
+    }
+
+    int meterDrawRow{1};
+    static float WATT_TO_MAH{(1.f / 2.4f) * 1000.f};
+
+    drawAdafruit.drawFloatR(runSimCache.meter, 5, meterDrawRow, 5, 1);
+    drawAdafruit.drawChar("m", 5, meterDrawRow, 1);
+
+    drawAdafruit.drawFloatR(runSimCache.sec, 11, meterDrawRow, 5, 1);
+    drawAdafruit.drawChar("s", 11, meterDrawRow, 1);
+
+    drawAdafruit.drawFloatR(runSimCache.watt * WATT_TO_MAH, 17, meterDrawRow, 5, 1);
+    drawAdafruit.drawChar("mah", 17, meterDrawRow, 3);
+
+    int rpmDrawRow{2};
+    drawAdafruit.drawIntR(currentRpmCache.rpm, 4, rpmDrawRow, 6);
+    drawAdafruit.drawFloat(currentRpmCache.vValue, 11, rpmDrawRow);
+    drawAdafruit.drawFloat(currentRpmCache.iValue, 16, rpmDrawRow);
+
   }
 
   void start() {
     evalATiming.isExecute(millis());
     evalBTiming.isExecute(millis());    
     currentMode = StateMode::RunMode;
+    currentStatusIndex = 0;
     runSimCache.reset();
   }
 
@@ -406,7 +449,17 @@ private:
     int power{0};
     if (currentMode == StateMode::RunMode)
     {
-      power = 110;
+      int statusSize{runStatuses.size()};
+
+      unsigned int nextStatus{(currentStatusIndex + 1) % statusSize};
+      unsigned int nextCycle{(currentStatusIndex + 1) / statusSize};
+
+      if (runSimCache.meter > (runStatuses[nextStatus].meter + (oneCycleMeter * nextCycle)))
+      {
+        currentStatusIndex = currentStatusIndex + 1;
+      }
+      int powerIndex{runStatuses[currentStatusIndex % statusSize].powerIndex};
+      power = POWER_MAP[powerIndex];
     }
 
     return power;
@@ -430,7 +483,7 @@ struct TorqueCheckParam : public BaseCheckParam {
   EvalTiming evalBTiming{2 * SEC};
 
   int tableIndex{ 0 };
-  static constexpr int TABLE[] = { 30, 105, 250 };
+  static constexpr int TABLE[] = { 0, 3, 6 };
   static constexpr int TABLE_COUNT{ sizeof(TABLE) / sizeof(int) };
 
   RPMCache rpmCaches[TABLE_COUNT]{};
