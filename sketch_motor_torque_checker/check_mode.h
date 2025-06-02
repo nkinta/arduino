@@ -6,6 +6,11 @@ static constexpr int WRITE_POWER_PIN{ 20 };
 
 static constexpr int POWER_MAP[] = { 30, 95, 100, 105, 110, 120, 250 };
 
+static constexpr float SEC_TO_RPM{ 60.f };
+
+static constexpr float TIRE_DIA{23.f};
+static constexpr float GEAR_RATE{1.f / 4.f};
+
 static constexpr float FPS{ 15.f };
 static constexpr float SEC{ 1000.f };
 static constexpr float ONE_FRAME_MS{ (1.f / FPS) * SEC };
@@ -151,12 +156,11 @@ public:
 class RotateCounter {
 private:
   static constexpr int THREASHOULD{ 2048 };
-  static constexpr float TO_RPM{ 60.f };
 
   static constexpr int POLE{ 14 };
   static constexpr int ROT_RATE{ POLE / 2 };
-  static constexpr int GEAR_RATE{ 24 / 8 };
-  static constexpr float PULSE_RATE{ static_cast<float>(GEAR_RATE) / static_cast<float>(ROT_RATE) };
+  static constexpr int GENE_GEAR_RATE{ 24 / 8 };
+  static constexpr float PULSE_RATE{ static_cast<float>(GENE_GEAR_RATE) / static_cast<float>(ROT_RATE) };
 
   unsigned long oldMillis{ 0 };
   unsigned long totalDiffMillis{ 0 };
@@ -199,7 +203,7 @@ public:
     float result{0};
     if (totalDiffMillis > 0)
     {
-      result = count * PULSE_RATE * TO_RPM * (SEC / static_cast<float>(totalDiffMillis));
+      result = count * PULSE_RATE * SEC_TO_RPM * (SEC / static_cast<float>(totalDiffMillis));
     }
     reset();
 
@@ -275,7 +279,7 @@ struct FreeCheckParam : public BaseCheckParam {
       const RPMCache& rpmCache{rpmCaches[i]};
       drawAdafruit.drawIntR(rpmCache.rpm, 4, i + 1, 6);
       drawAdafruit.drawFloat(rpmCache.vValue, 11, i + 1);
-      drawAdafruit.drawFloat(rpmCache.iValue, 16, i + 1);
+      drawAdafruit.drawFloat(max(rpmCache.iValue, 0.f), 16, i + 1);
     }
   };
 
@@ -315,7 +319,10 @@ struct RunSimCheckParam : public BaseCheckParam {
     int powerIndex{0.f};
   };
 
-  std::vector<RunStatus> runStatuses{{0.f, 3}, {10.f, 1}, {15.f, 6}, {18.f, 1}, {25.f, 6}, {28.f, 1}, {30.f, 2}};
+  static constexpr float METER_RATE{GEAR_RATE * TIRE_DIA * PI * (1.f / 1000.f)};
+  static constexpr float KIRO_RATE{METER_RATE / 1000.f};
+
+  std::vector<RunStatus> runStatuses{{0.f, 4}, {2.f, 1}, {16.f, 6}, {18.f, 1}, {26.f, 6}, {28.f, 1}, {30.f, 2}};
   float oneCycleMeter{40.f}; 
   unsigned int cycleNumber{5};
 
@@ -329,11 +336,11 @@ struct RunSimCheckParam : public BaseCheckParam {
   StateMode currentMode{ StateMode::SleepMode };
 
   RunSimCache runSimCache{};
-  RPMCache currentRpmCache{};
+  RPMCache currentCache{};
 
   void reset() {
     runSimCache.reset();
-    currentRpmCache.reset();
+    currentCache.reset();
     currentMode = StateMode::SleepMode;
     currentStatusIndex = 0;
   }
@@ -368,15 +375,14 @@ private:
       return;
     }
 
-    currentRpmCache.rpm = rotateCounter.calcRPS();
-    currentRpmCache.vValue = calcVValue(vValueCounter.calcValue());
-    currentRpmCache.iValue = calcIValue(iValueCounter.calcValue(), iOffsetVoltage);
+    currentCache.rpm = rotateCounter.calcRPS();
+    currentCache.vValue = calcVValue(vValueCounter.calcValue());
+    currentCache.iValue = calcIValue(iValueCounter.calcValue(), iOffsetVoltage);
 
     if (currentMode == StateMode::RunMode)
     {
-      constexpr float METER_RATE{(1.f / 4.0f) * 23.f * PI * (1.f / 1000.f)};
       constexpr float TOTAL_RATE{METER_RATE * (1.f / FPS)};
-      const float diffMeter{currentRpmCache.rpm * TOTAL_RATE};
+      const float diffMeter{currentCache.rpm * TOTAL_RATE};
       const float newMeter{runSimCache.meter + diffMeter};
       float rate{1.f};
 
@@ -393,7 +399,7 @@ private:
       }
 
       constexpr float TOTAL_WATT_HOUR_RATE{1.f / (FPS * 60.f * 60.f)};
-      runSimCache.watt += rate * currentRpmCache.vValue * currentRpmCache.iValue * TOTAL_WATT_HOUR_RATE;
+      runSimCache.watt += rate * currentCache.vValue * currentCache.iValue * TOTAL_WATT_HOUR_RATE;
 
       runSimCache.sec += rate * (1.f /FPS);
     }
@@ -416,9 +422,10 @@ private:
 
     } else if (currentMode == StateMode::SleepMode) {
       drawAdafruit.drawString(sleepStr, 0, 0);
+      drawAdafruit.drawString("         ", 6, 0);
     }
 
-    int meterDrawRow{1};
+    const int meterDrawRow{1};
     static float WATT_TO_MAH{(1.f / 2.4f) * 1000.f};
 
     drawAdafruit.drawFloatR(runSimCache.meter, 5, meterDrawRow, 5, 1);
@@ -430,10 +437,12 @@ private:
     drawAdafruit.drawFloatR(runSimCache.watt * WATT_TO_MAH, 17, meterDrawRow, 5, 1);
     drawAdafruit.drawChar("mah", 17, meterDrawRow, 3);
 
-    int rpmDrawRow{2};
-    drawAdafruit.drawIntR(currentRpmCache.rpm, 4, rpmDrawRow, 6);
-    drawAdafruit.drawFloat(currentRpmCache.vValue, 11, rpmDrawRow);
-    drawAdafruit.drawFloat(currentRpmCache.iValue, 16, rpmDrawRow);
+    const int rpmDrawRow{2};
+    const float kiroMeter = currentCache.rpm * ((SEC_TO_RPM * 60.f) * KIRO_RATE);
+    drawAdafruit.drawFloatR(kiroMeter, 5, rpmDrawRow, 5, 1);
+    drawAdafruit.drawChar("km/h", 5, rpmDrawRow, 4);
+    drawAdafruit.drawFloat(currentCache.vValue, 11, rpmDrawRow);
+    drawAdafruit.drawFloat(max(currentCache.iValue, 0.f), 16, rpmDrawRow);
 
   }
 
@@ -515,9 +524,10 @@ struct TorqueCheckParam : public BaseCheckParam {
 
 private:
   void start() {
-    tableIndex = 0;
     evalATiming.isExecute(millis());
-    evalBTiming.isExecute(millis());    
+    evalBTiming.isExecute(millis());
+    currentMode = StateMode::WaitMode;
+    tableIndex = 0;
 
     for (int i = 0; i < TABLE_COUNT; ++i) {
       rpmCaches[i].reset();
@@ -532,7 +542,7 @@ private:
   };
 
   int getPower() {
-    int power = constrain(TABLE[tableIndex], 0, 255);
+    int power = constrain(POWER_MAP[TABLE[tableIndex]], 0, 255);
     return power;
   }
 
@@ -565,11 +575,11 @@ private:
     static String waitStr{"wait "};
     static String calcStr{"calc "};
     if (currentMode == StateMode::WaitMode) {
-      drawAdafruit.drawString(sleepStr, 0, 0);
-    } else if (currentMode == StateMode::CalcMode) {
       drawAdafruit.drawString(waitStr, 0, 0);
-    } else if (currentMode == StateMode::SleepMode) {
+    } else if (currentMode == StateMode::CalcMode) {
       drawAdafruit.drawString(calcStr, 0, 0);
+    } else if (currentMode == StateMode::SleepMode) {
+      drawAdafruit.drawString(sleepStr, 0, 0);
     }
 
     static const int OFFSET{ 1 };
@@ -586,16 +596,16 @@ private:
 
       drawAdafruit.drawIntR(rpmCache.rpm, 4, i + 1, 6);
       drawAdafruit.drawFloat(rpmCache.vValue, 11, i + 1);
-      drawAdafruit.drawFloat(rpmCache.iValue, 16, i + 1);
+      drawAdafruit.drawFloat(max(rpmCache.iValue, 0.f), 16, i + 1);
 
       const int colIndex{ i + OFFSET };
 
 
       int blinkType{ 0 };
       if (currentMode == StateMode::CalcMode && i == tableIndex) {
-        blinkType = 1;
-      } else if (currentMode == StateMode::WaitMode && i == tableIndex) {
         blinkType = 2;
+      } else if (currentMode == StateMode::WaitMode && i == tableIndex) {
+        blinkType = 1;
       }
 
       if (currentMode == StateMode::SleepMode)

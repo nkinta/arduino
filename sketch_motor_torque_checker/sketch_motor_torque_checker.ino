@@ -34,7 +34,7 @@ private:
   static constexpr int PUSH_BUTTON2{ 9 };
 
   unsigned long loopSubMillis{ 0 };
-
+  unsigned long drawModeMillis{ 0 };
   unsigned long cachedPushButtonMillis{ 0 };
 
   FreeCheckParam freeCheckParam{};
@@ -96,8 +96,6 @@ private:
   ButtonStatus button1Status{};
   ButtonStatus button2Status{};
 
-  unsigned long iOffset{ 3400 };
-
   void drawMode() {
     String modeName;
     if (checkMode == CheckMode::FreeCheckMode) {
@@ -108,27 +106,18 @@ private:
       modeName = String("mode3");
     }
 
+    drawAdafruit.clearDisplay();
     drawAdafruit.drawString(modeName, 0, 0);
   }
 
-  void changeModeDisplay() {
-    drawAdafruit.clearDisplay();
-    drawMode();
-    drawAdafruit.display();
-
-    unsigned long iOffset = calibI();
+  void changeMode() {
     if (checkMode == CheckMode::FreeCheckMode) {
       freeCheckParam.reset();
-      freeCheckParam.iOffsetVoltage = voltageMapping.getVoltage(iOffset) * 0.5f;
     } else if (checkMode == CheckMode::TorqueCheckMode) {
       torqueCheckParam.reset();
-      torqueCheckParam.iOffsetVoltage = voltageMapping.getVoltage(iOffset) * 0.5f;
     } else if (checkMode == CheckMode::RunSimCheckMode) {
       runSimCheckParam.reset();
-      runSimCheckParam.iOffsetVoltage = voltageMapping.getVoltage(iOffset) * 0.5f;
     }
-
-    drawAdafruit.clearDisplay();
   }
 
   unsigned long calibI() {
@@ -151,7 +140,9 @@ private:
       checkMode = static_cast<CheckMode>((static_cast<int>(checkMode) + 1) % static_cast<int>(CheckMode::MaxCheckMode));
       int checkModeInt = static_cast<uint8_t>(checkMode);
       preferences.putInt("check_mode", checkModeInt);
-      changeModeDisplay();
+
+      drawModeMillis = millis();
+      changeMode();
     }
 
     if (button2Status.check() == 1) {
@@ -211,7 +202,11 @@ public:
     delay(500);
     drawAdafruit.clearDisplay();
 
-    changeModeDisplay();
+    unsigned long iOffset = calibI();
+    freeCheckParam.iOffsetVoltage = voltageMapping.getVoltage(iOffset) * 0.5f;
+    torqueCheckParam.iOffsetVoltage = voltageMapping.getVoltage(iOffset) * 0.5f;
+    runSimCheckParam.iOffsetVoltage = voltageMapping.getVoltage(iOffset) * 0.5f;
+    changeMode();
   };
 
   void loopWhile() {
@@ -223,57 +218,67 @@ public:
       loopSubMillis = tempMillis;
     }
 
-    if (checkMode == CheckMode::FreeCheckMode) {
-      // const float rpmMisslisDiff{millis() - freeCheckParam.rpmMillisBuf};
-      if (freeCheckParam.evalBTiming.isExecute(millis())) {
-        freeCheckParam.rotateCounter.sleep(millis());
-        freeCheckParam.execB();
+    if (!(tempMillis - drawModeMillis > 1000))
+    {
+      drawMode();
+      drawAdafruit.display();
+    }
+    else
+    {
+      if (checkMode == CheckMode::FreeCheckMode) {
+        // const float rpmMisslisDiff{millis() - freeCheckParam.rpmMillisBuf};
+        if (freeCheckParam.evalBTiming.isExecute(millis())) {
+          freeCheckParam.rotateCounter.sleep(millis());
+          freeCheckParam.execB();
 
-        freeCheckParam.rotateCounter.start(millis());
+          freeCheckParam.rotateCounter.start(millis());
+        }
+
+        if (freeCheckParam.evalATiming.isExecute(millis())) {
+          freeCheckParam.rotateCounter.sleep(millis());
+
+          freeCheckParam.execA();
+          drawAdafruit.display();
+
+          freeCheckParam.rotateCounter.start(millis());
+        }
+      } else if (checkMode == CheckMode::TorqueCheckMode) {
+
+        if (torqueCheckParam.evalBTiming.isExecute(millis())) {
+          torqueCheckParam.rotateCounter.sleep(millis());
+
+          torqueCheckParam.execB();
+          torqueCheckParam.rotateCounter.start(millis());
+        }
+
+        if (torqueCheckParam.evalATiming.isExecute(millis())) {
+          torqueCheckParam.rotateCounter.sleep(millis());
+
+          torqueCheckParam.execA();
+          drawAdafruit.display();
+
+          torqueCheckParam.rotateCounter.start(millis());
+        }
+      } else if (checkMode == CheckMode::RunSimCheckMode) {
+
+        if (runSimCheckParam.evalBTiming.isExecute(millis())) {
+          runSimCheckParam.rotateCounter.sleep(millis());
+
+          runSimCheckParam.execB();
+          runSimCheckParam.rotateCounter.start(millis());
+        }
+
+        if (runSimCheckParam.evalATiming.isExecute(millis())) {
+          runSimCheckParam.rotateCounter.sleep(millis());
+
+          runSimCheckParam.execA();
+          drawAdafruit.display();
+
+          runSimCheckParam.rotateCounter.start(millis());
+        }
       }
 
-      if (freeCheckParam.evalATiming.isExecute(millis())) {
-        freeCheckParam.rotateCounter.sleep(millis());
 
-        freeCheckParam.execA();
-        drawAdafruit.display();
-
-        freeCheckParam.rotateCounter.start(millis());
-      }
-    } else if (checkMode == CheckMode::TorqueCheckMode) {
-
-      if (torqueCheckParam.evalBTiming.isExecute(millis())) {
-        torqueCheckParam.rotateCounter.sleep(millis());
-
-        torqueCheckParam.execB();
-        torqueCheckParam.rotateCounter.start(millis());
-      }
-
-      if (torqueCheckParam.evalATiming.isExecute(millis())) {
-        torqueCheckParam.rotateCounter.sleep(millis());
-
-        torqueCheckParam.execA();
-        drawAdafruit.display();
-
-        torqueCheckParam.rotateCounter.start(millis());
-      }
-    } else if (checkMode == CheckMode::RunSimCheckMode) {
-
-      if (runSimCheckParam.evalBTiming.isExecute(millis())) {
-        runSimCheckParam.rotateCounter.sleep(millis());
-
-        runSimCheckParam.execB();
-        runSimCheckParam.rotateCounter.start(millis());
-      }
-
-      if (runSimCheckParam.evalATiming.isExecute(millis())) {
-        runSimCheckParam.rotateCounter.sleep(millis());
-
-        runSimCheckParam.execA();
-        drawAdafruit.display();
-
-        runSimCheckParam.rotateCounter.start(millis());
-      }
     }
   };
 };
