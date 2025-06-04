@@ -145,7 +145,8 @@ private:
       changeMode();
     }
 
-    if (button2Status.check() == 1) {
+    const int checkFlag{button2Status.check()};
+    if (checkFlag == 1) {
       cachedPushButtonMillis = millis();
 
       if (checkMode == CheckMode::FreeCheckMode) {
@@ -155,7 +156,11 @@ private:
       } else if (checkMode == CheckMode::RunSimCheckMode) {
         runSimCheckParam.pushButton2();
       }
-
+    }
+    else if (checkFlag == 2) {
+      if (checkMode == CheckMode::RunSimCheckMode) {
+        runSimCheckParam.pushButtonLong2();
+      }
     }
   }
 

@@ -42,6 +42,10 @@ public:
     adaDisplay.clearDisplay();
   }
 
+  void drawClear(int offsetY) {
+    adaDisplay.fillRect(0, CHARSIZEY * offsetY, SCREEN_WIDTH, CHARSIZEY * 1, BLACK);
+  }
+
   void drawString(const String& string, int offsetX, int offsetY) {
 
     drawChar(string.c_str(), offsetX, offsetY, string.length());

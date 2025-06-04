@@ -319,16 +319,34 @@ struct RunSimCheckParam : public BaseCheckParam {
     int powerIndex{0.f};
   };
 
+  struct RunProfile{
+    String name{};
+    std::vector<RunStatus> runStatuses;
+  };
+
   static constexpr float METER_RATE{GEAR_RATE * TIRE_DIA * PI * (1.f / 1000.f)};
   static constexpr float KIRO_RATE{METER_RATE / 1000.f};
 
-  std::vector<RunStatus> runStatuses{{0.f, 4}, {2.f, 1}, {16.f, 6}, {18.f, 1}, {26.f, 6}, {28.f, 1}, {30.f, 2}};
+  std::vector<RunProfile> runProfiles{
+    {String("P0"), {{0.f, 6}, {2.f, 1}, {10.f, 3}, {25.f, 1}}},
+    {String("P1"), {{0.f, 6}, {2.f, 2}, {10.f, 4}, {25.f, 2}}},
+    {String("P2"), {{0.f, 4}, {3.f, 1}, {16.f, 6}, {18.f, 2}, {26.f, 6}, {28.f, 1}, {30.f, 2}}},
+    {String("T0"), {{0.f, 0}}},
+    {String("T1"), {{0.f, 1}}},
+    {String("T2"), {{0.f, 2}}},
+    {String("T3"), {{0.f, 3}}},
+    {String("T4"), {{0.f, 4}}},
+    {String("T5"), {{0.f, 5}}}
+    };
+
   float oneCycleMeter{40.f}; 
   unsigned int cycleNumber{5};
 
   unsigned int currentStatusIndex{0};
+  unsigned int currentProfileIndex{0};
 
-  bool onFlag{ false };
+  bool onStartFlag{ false };
+  bool onChangeFlag{ false };
 
   EvalTiming evalATiming{ONE_FRAME_MS};
   EvalTiming evalBTiming{2 * SEC};
@@ -343,11 +361,16 @@ struct RunSimCheckParam : public BaseCheckParam {
     currentCache.reset();
     currentMode = StateMode::SleepMode;
     currentStatusIndex = 0;
+    currentProfileIndex = 0;
   }
 
   void pushButton2() {
-    onFlag = true;
+    onChangeFlag = true;
   }
+
+  void pushButtonLong2() {
+    onStartFlag = true;
+  }  
 
   void execA() {
     loop();
@@ -362,7 +385,7 @@ struct RunSimCheckParam : public BaseCheckParam {
 private:
 
   void loop() {
-    if (onFlag) {
+    if (onStartFlag) {
       if (currentMode == StateMode::SleepMode) {
         currentMode = StateMode::RunMode;
         // reset();
@@ -371,9 +394,18 @@ private:
       else if (currentMode == StateMode::RunMode) {
         currentMode = StateMode::SleepMode;
       }
-      onFlag = false;
+      onStartFlag = false;
       return;
     }
+
+    if (onChangeFlag)
+    {
+      currentProfileIndex = (currentProfileIndex + 1) % runProfiles.size();
+      currentStatusIndex = 0;
+      onChangeFlag = false;
+      return;
+    }
+
 
     currentCache.rpm = rotateCounter.calcRPS();
     currentCache.vValue = calcVValue(vValueCounter.calcValue());
@@ -386,7 +418,7 @@ private:
       const float newMeter{runSimCache.meter + diffMeter};
       float rate{1.f};
 
-      float runMeter{oneCycleMeter * cycleNumber};
+      const float runMeter{oneCycleMeter * cycleNumber};
       if (newMeter > runMeter)
       {
         rate = (newMeter - runMeter) / diffMeter;
@@ -413,16 +445,21 @@ private:
     if (currentMode == StateMode::RunMode) {
       drawAdafruit.drawString(RunStr, 0, 0);
 
-      int statusSize{runStatuses.size()};
-      drawAdafruit.drawIntR((currentStatusIndex / statusSize) + 1, 7, 0, 1);
-      drawAdafruit.drawChar("C", 6, 0, 1);
+      const std::vector<RunStatus>& runStatuses{runProfiles[currentProfileIndex].runStatuses};
 
-      drawAdafruit.drawIntR(runStatuses[currentStatusIndex % statusSize].powerIndex, 11, 0, 1);
-      drawAdafruit.drawChar("T", 10, 0, 1);
+      const int statusSize{runStatuses.size()};
+      drawAdafruit.drawIntR((currentStatusIndex / statusSize) + 1, 11, 0, 1);
+      drawAdafruit.drawChar("C", 10, 0, 1);
+
+      drawAdafruit.drawIntR(runStatuses[currentStatusIndex % statusSize].powerIndex, 14, 0, 1);
+      drawAdafruit.drawChar("T", 13, 0, 1);
 
     } else if (currentMode == StateMode::SleepMode) {
       drawAdafruit.drawString(sleepStr, 0, 0);
       drawAdafruit.drawString("         ", 6, 0);
+
+      // drawAdafruit.drawIntR(currentProfileIndex, 8, 0, 1);
+      drawAdafruit.drawString(runProfiles[currentProfileIndex].name, 7, 0);
     }
 
     const int meterDrawRow{1};
@@ -434,15 +471,46 @@ private:
     drawAdafruit.drawFloatR(runSimCache.sec, 11, meterDrawRow, 5, 1);
     drawAdafruit.drawChar("s", 11, meterDrawRow, 1);
 
-    drawAdafruit.drawFloatR(runSimCache.watt * WATT_TO_MAH, 17, meterDrawRow, 5, 1);
+    const float milliAmpHour{runSimCache.watt * WATT_TO_MAH}; 
+    drawAdafruit.drawFloatR(milliAmpHour, 17, meterDrawRow, 5, 1);
     drawAdafruit.drawChar("mah", 17, meterDrawRow, 3);
 
     const int rpmDrawRow{2};
     const float kiroMeter = currentCache.rpm * ((SEC_TO_RPM * 60.f) * KIRO_RATE);
-    drawAdafruit.drawFloatR(kiroMeter, 5, rpmDrawRow, 5, 1);
-    drawAdafruit.drawChar("km/h", 5, rpmDrawRow, 4);
-    drawAdafruit.drawFloat(currentCache.vValue, 11, rpmDrawRow);
-    drawAdafruit.drawFloat(max(currentCache.iValue, 0.f), 16, rpmDrawRow);
+    drawAdafruit.drawFloatR(kiroMeter, 4, rpmDrawRow, 4, 1);
+    drawAdafruit.drawChar("km/h", 4, rpmDrawRow, 3);
+    drawAdafruit.drawFloatR(currentCache.vValue, 13, rpmDrawRow, 4, 2);
+    drawAdafruit.drawChar("v", 13, rpmDrawRow, 1);
+
+    drawAdafruit.drawFloatR(max(currentCache.iValue, 0.f), 19, rpmDrawRow, 3, 1);
+    drawAdafruit.drawChar("a", 19, rpmDrawRow, 1);
+
+    const int rpmResultRow{3};
+    const float runMeter{oneCycleMeter * cycleNumber};
+    if (currentMode == StateMode::RunMode) {
+      drawAdafruit.drawClear(rpmResultRow);
+    } else if (currentMode == StateMode::SleepMode) {
+      if (runSimCache.meter < runMeter)
+      {
+        drawAdafruit.drawClear(rpmResultRow);
+      }
+      else
+      {
+        static float AVE_KIROMETER_RATE{60.f * 60.f * (1.f / 1000.f)};
+        const float averageMilliSec{runSimCache.meter / runSimCache.sec};
+        const float averagekiroMeter{AVE_KIROMETER_RATE * averageMilliSec};
+        drawAdafruit.drawFloatR(averagekiroMeter, 4, rpmResultRow, 4, 1);
+        drawAdafruit.drawChar("km/h", 4, rpmResultRow, 3);
+
+        drawAdafruit.drawFloatR(averageMilliSec, 12, rpmResultRow, 4, 1);
+        drawAdafruit.drawChar("m/s", 12, rpmResultRow, 4);
+
+        static float AVE_AMP{60.f * 60.f * (1.f / 1000.f)};
+        const float averageAmp{AVE_AMP * (milliAmpHour / runSimCache.sec)};
+        drawAdafruit.drawFloatR(averageAmp, 19, rpmResultRow, 3, 1);
+        drawAdafruit.drawChar("a", 19, rpmResultRow, 1);
+      }
+    }
 
   }
 
@@ -458,6 +526,7 @@ private:
     int power{0};
     if (currentMode == StateMode::RunMode)
     {
+      const std::vector<RunStatus>& runStatuses{runProfiles[currentProfileIndex].runStatuses};
       int statusSize{runStatuses.size()};
 
       unsigned int nextStatus{(currentStatusIndex + 1) % statusSize};
