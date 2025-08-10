@@ -277,9 +277,13 @@ struct FreeCheckParam : public BaseCheckParam {
     static const int ROW_INDEX{ 2 };
     for (int i = 0; i < RPM_CACHE_COUNT; ++i) {
       const RPMCache& rpmCache{rpmCaches[i]};
-      drawAdafruit.drawIntR(rpmCache.rpm, 4, i + 1, 6);
-      drawAdafruit.drawFloat(rpmCache.vValue, 11, i + 1);
-      drawAdafruit.drawFloat(max(rpmCache.iValue, 0.f), 16, i + 1);
+
+      drawAdafruit.drawFillLine(2 * i + OFFSET);
+      drawAdafruit.drawRPM(rpmCache.rpm, 10, 2 * i + OFFSET);
+
+      drawAdafruit.drawFillLine(2 * i + OFFSET + 1);
+      drawAdafruit.drawV(rpmCache.vValue, 8, 2 * i + OFFSET + 1);
+      drawAdafruit.drawI(max(rpmCache.iValue, 0.f), 15, 2 * i + OFFSET + 1);
     }
   };
 
@@ -448,17 +452,16 @@ private:
       const std::vector<RunStatus>& runStatuses{runProfiles[currentProfileIndex].runStatuses};
 
       const int statusSize{runStatuses.size()};
-      drawAdafruit.drawIntR((currentStatusIndex / statusSize) + 1, 11, 0, 1);
+      drawAdafruit.drawIntR((currentStatusIndex / statusSize) + 1, 11, 0);
       drawAdafruit.drawChar("C", 10, 0, 1);
 
-      drawAdafruit.drawIntR(runStatuses[currentStatusIndex % statusSize].powerIndex, 14, 0, 1);
+      drawAdafruit.drawIntR(runStatuses[currentStatusIndex % statusSize].powerIndex, 14, 0);
       drawAdafruit.drawChar("T", 13, 0, 1);
 
     } else if (currentMode == StateMode::SleepMode) {
       drawAdafruit.drawString(sleepStr, 0, 0);
       drawAdafruit.drawString("         ", 6, 0);
 
-      // drawAdafruit.drawIntR(currentProfileIndex, 8, 0, 1);
       drawAdafruit.drawString(runProfiles[currentProfileIndex].name, 7, 0);
     }
 
@@ -663,12 +666,11 @@ private:
         rpmRate = constrain((rpmCache.rpm / baseRpm) * 100.f, 0, 100);
       }
 
-      drawAdafruit.drawIntR(rpmCache.rpm, 4, i + 1, 6);
-      drawAdafruit.drawFloat(rpmCache.vValue, 11, i + 1);
-      drawAdafruit.drawFloat(max(rpmCache.iValue, 0.f), 16, i + 1);
+      drawAdafruit.drawIntR(rpmCache.rpm, 10, 2 * i + OFFSET);
+      drawAdafruit.drawFloat(rpmCache.vValue, 11, 2 * i + OFFSET);
+      drawAdafruit.drawFloat(max(rpmCache.iValue, 0.f), 16, 2 * i + OFFSET);
 
       const int colIndex{ i + OFFSET };
-
 
       int blinkType{ 0 };
       if (currentMode == StateMode::CalcMode && i == tableIndex) {
@@ -679,7 +681,7 @@ private:
 
       if (currentMode == StateMode::SleepMode)
       {
-        drawAdafruit.drawIntR(rpmRate, 0, i + 1, 3);
+        drawAdafruit.drawIntR(rpmRate, 3, 2 * i + OFFSET);
       }
       else
       {

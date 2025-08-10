@@ -13,8 +13,10 @@ class DrawAdafruit
   static const uint8_t OLED_RESET{4}; // Reset pin # (or -1 if sharing Arduino reset pin)
 
   static const uint8_t CHARSIZEX{6};
-  static const uint8_t CHARSIZEY{8};
+  static const uint8_t CHARSIZEY{10};
   static const uint8_t TEXT_SIZE{1};
+
+  // static const uint8_t LINE_OFFSET{2};
 
   Adafruit_SSD1306 adaDisplay{SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET};
 
@@ -68,6 +70,32 @@ public:
     adaDisplay.print(value);
   }
 
+  void drawRPM(int value, float offsetX, float offsetY)
+  {
+    const char chr[]{"rpm"};
+    drawIntR(value, offsetX, offsetY);
+    adaDisplay.setCursor(CHARSIZEX * (offsetX) + (CHARSIZEX / 2), CHARSIZEY * offsetY);
+    adaDisplay.print(chr);
+  }
+
+  void drawV(float value, float offsetX, float offsetY)
+  {
+    const char chr[]{"v"};
+    const int floatSize{4};
+    drawFloat(value, offsetX, offsetY);
+    adaDisplay.setCursor(CHARSIZEX * (offsetX + floatSize) + (CHARSIZEX / 2), CHARSIZEY * offsetY);
+    adaDisplay.print(chr);
+  }
+
+  void drawI(float value, float offsetX, float offsetY)
+  {
+    const char chr[]{"a"};
+    const int floatSize{4};
+    drawFloat(value, offsetX, offsetY);
+    adaDisplay.setCursor(CHARSIZEX * (offsetX + floatSize) + (CHARSIZEX / 2), CHARSIZEY * offsetY);
+    adaDisplay.print(chr);
+  }
+
   void drawFloatR(float value, float offsetX, float offsetY, int size = 4, int decimal = 2) {
     String valueStr{String(value, decimal)};
     const int offset{valueStr.length()};
@@ -79,7 +107,7 @@ public:
     adaDisplay.print(String(value, decimal));
   }
 
-  void drawIntR(int value, float offsetX, float offsetY, int startOffset) {
+  void drawIntROld(int value, float offsetX, float offsetY, int startOffset) {
     const int offset{startOffset};
     int numOffset{offset - 1};
 
@@ -94,6 +122,24 @@ public:
     adaDisplay.print(value);
   }
 
+  void drawFillLine(int line)
+  {
+    adaDisplay.fillRect(0, CHARSIZEY * line, 128, CHARSIZEY, BLACK);
+    // adaDisplay.drawFastHLine(0, CHARSIZEY + 5, 128, BLACK);
+  }
+
+  void drawIntR(int value, float offsetX, float offsetY) {
+
+    String valueInt{String(value)};
+
+    adaDisplay.fillRect(CHARSIZEX * (offsetX - valueInt.length()), CHARSIZEY * offsetY, CHARSIZEX * valueInt.length(), CHARSIZEY * 1, BLACK);
+    adaDisplay.setCursor(CHARSIZEX * (offsetX - valueInt.length()), CHARSIZEY * offsetY);
+
+    adaDisplay.print(valueInt.c_str());
+  }
+
+
+
   void display()
   {
     adaDisplay.display();
@@ -105,5 +151,6 @@ public:
     // adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
     adaDisplay.print(chr);
   }
+
 
 };
