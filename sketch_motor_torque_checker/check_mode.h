@@ -233,6 +233,17 @@ struct BaseCheckParam {
   ValueCounter vValueCounter{};
 
   float iOffsetVoltage{ 0.f };
+
+  static void drawRpm(int OFFSET, int lineIndex, const RPMCache& rpmCache)
+  {
+      drawAdafruit.drawFillLine(2 * lineIndex + OFFSET);
+      drawAdafruit.drawRPM(rpmCache.rpm, 10, 2 * lineIndex + OFFSET);
+
+      drawAdafruit.drawFillLine(2 * lineIndex + OFFSET + 1);
+      drawAdafruit.drawV(rpmCache.vValue, 8, 2 * lineIndex + OFFSET + 1);
+      drawAdafruit.drawI(max(rpmCache.iValue, 0.f), 15, 2 * lineIndex + OFFSET + 1);
+  };
+
 };
 
 struct FreeCheckParam : public BaseCheckParam {
@@ -276,14 +287,7 @@ struct FreeCheckParam : public BaseCheckParam {
     static const int OFFSET{ 1 };
     static const int ROW_INDEX{ 2 };
     for (int i = 0; i < RPM_CACHE_COUNT; ++i) {
-      const RPMCache& rpmCache{rpmCaches[i]};
-
-      drawAdafruit.drawFillLine(2 * i + OFFSET);
-      drawAdafruit.drawRPM(rpmCache.rpm, 10, 2 * i + OFFSET);
-
-      drawAdafruit.drawFillLine(2 * i + OFFSET + 1);
-      drawAdafruit.drawV(rpmCache.vValue, 8, 2 * i + OFFSET + 1);
-      drawAdafruit.drawI(max(rpmCache.iValue, 0.f), 15, 2 * i + OFFSET + 1);
+      drawRpm(OFFSET, i, rpmCaches[i]);
     }
   };
 
@@ -665,12 +669,9 @@ private:
       {
         rpmRate = constrain((rpmCache.rpm / baseRpm) * 100.f, 0, 100);
       }
+      drawRpm(OFFSET, i, rpmCache);
 
-      drawAdafruit.drawIntR(rpmCache.rpm, 10, 2 * i + OFFSET);
-      drawAdafruit.drawFloat(rpmCache.vValue, 11, 2 * i + OFFSET);
-      drawAdafruit.drawFloat(max(rpmCache.iValue, 0.f), 16, 2 * i + OFFSET);
-
-      const int colIndex{ i + OFFSET };
+      const int colIndex{ 2 * i + OFFSET };
 
       int blinkType{ 0 };
       if (currentMode == StateMode::CalcMode && i == tableIndex) {
@@ -681,7 +682,7 @@ private:
 
       if (currentMode == StateMode::SleepMode)
       {
-        drawAdafruit.drawIntR(rpmRate, 3, 2 * i + OFFSET);
+        drawAdafruit.drawIntR(rpmRate, 3, colIndex);
       }
       else
       {

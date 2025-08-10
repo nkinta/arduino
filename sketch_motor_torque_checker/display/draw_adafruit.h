@@ -13,8 +13,9 @@ class DrawAdafruit
   static const uint8_t OLED_RESET{4}; // Reset pin # (or -1 if sharing Arduino reset pin)
 
   static const uint8_t CHARSIZEX{6};
-  static const uint8_t CHARSIZEY{10};
+  static const uint8_t CHARSIZEY{9};
   static const uint8_t TEXT_SIZE{1};
+  static const uint8_t UNIT_OFFSET{2};
 
   // static const uint8_t LINE_OFFSET{2};
 
@@ -74,7 +75,7 @@ public:
   {
     const char chr[]{"rpm"};
     drawIntR(value, offsetX, offsetY);
-    adaDisplay.setCursor(CHARSIZEX * (offsetX) + (CHARSIZEX / 2), CHARSIZEY * offsetY);
+    adaDisplay.setCursor(CHARSIZEX * (offsetX) + UNIT_OFFSET, CHARSIZEY * offsetY);
     adaDisplay.print(chr);
   }
 
@@ -83,7 +84,7 @@ public:
     const char chr[]{"v"};
     const int floatSize{4};
     drawFloat(value, offsetX, offsetY);
-    adaDisplay.setCursor(CHARSIZEX * (offsetX + floatSize) + (CHARSIZEX / 2), CHARSIZEY * offsetY);
+    adaDisplay.setCursor(CHARSIZEX * (offsetX + floatSize) + UNIT_OFFSET, CHARSIZEY * offsetY);
     adaDisplay.print(chr);
   }
 
@@ -92,7 +93,7 @@ public:
     const char chr[]{"a"};
     const int floatSize{4};
     drawFloat(value, offsetX, offsetY);
-    adaDisplay.setCursor(CHARSIZEX * (offsetX + floatSize) + (CHARSIZEX / 2), CHARSIZEY * offsetY);
+    adaDisplay.setCursor(CHARSIZEX * (offsetX + floatSize) + UNIT_OFFSET, CHARSIZEY * offsetY);
     adaDisplay.print(chr);
   }
 
