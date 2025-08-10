@@ -6,7 +6,7 @@
 class DrawAdafruit
 {
 
-  static constexpr uint8_t SCREEN_HEIGHT{32};
+  static constexpr uint8_t SCREEN_HEIGHT{64};
   static constexpr uint8_t SCREEN_WIDTH{128};
 
   // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
@@ -32,14 +32,17 @@ public:
     // the library initializes this with an Adafruit splash screen.
 
     // Clear the buffer
-    adaDisplay.clearDisplay();
+    // adaDisplay.clearDisplay();
     adaDisplay.display();
     adaDisplay.setTextSize(TEXT_SIZE);
+    adaDisplay.setTextColor(SSD1306_WHITE);
   }
 
   void clearDisplay()
   {
     adaDisplay.clearDisplay();
+    adaDisplay.setTextSize(TEXT_SIZE);
+    adaDisplay.setTextColor(SSD1306_WHITE);
   }
 
   void drawClear(int offsetY) {
@@ -47,15 +50,7 @@ public:
   }
 
   void drawString(const String& string, int offsetX, int offsetY) {
-
     drawChar(string.c_str(), offsetX, offsetY, string.length());
-  }
-
-  void drawChar(const char* chr, int offsetX, int offsetY, int sizeChar) {
-    adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * sizeChar, CHARSIZEY * 1, BLACK);
-    adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
-    // adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
-    adaDisplay.print(chr);
   }
 
   void drawFloat(float value, float offsetX, float offsetY, int decimal = 2) {
@@ -65,8 +60,15 @@ public:
     adaDisplay.print(String(value, decimal));
   }
 
-  void drawFloatR(float value, float offsetX, float offsetY, int size = 4, int decimal = 2) {
+  void drawInt(int value, float offsetX, float offsetY) {
+    adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * 5, CHARSIZEY * 1, BLACK);
+    adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
 
+    // std::cout << std::setw(10) << std::right << num << std::endl;
+    adaDisplay.print(value);
+  }
+
+  void drawFloatR(float value, float offsetX, float offsetY, int size = 4, int decimal = 2) {
     String valueStr{String(value, decimal)};
     const int offset{valueStr.length()};
     const int clearOffset{max(offset, size)};
@@ -88,15 +90,6 @@ public:
 
     adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * (offset + numOffset), CHARSIZEY * 1, BLACK);
     adaDisplay.setCursor(CHARSIZEX * (offsetX + numOffset), CHARSIZEY * offsetY);
-    adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
-    // std::cout << std::setw(10) << std::right << num << std::endl;
-    adaDisplay.print(value);
-  }
-
-  void drawInt(int value, float offsetX, float offsetY) {
-    adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * 5, CHARSIZEY * 1, BLACK);
-    adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
-    adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
     // std::cout << std::setw(10) << std::right << num << std::endl;
     adaDisplay.print(value);
   }
@@ -105,4 +98,12 @@ public:
   {
     adaDisplay.display();
   }
+
+  void drawChar(const char* chr, int offsetX, int offsetY, int sizeChar) {
+    adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * sizeChar, CHARSIZEY * 1, BLACK);
+    adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
+    // adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
+    adaDisplay.print(chr);
+  }
+
 };

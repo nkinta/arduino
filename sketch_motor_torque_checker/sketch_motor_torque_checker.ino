@@ -33,6 +33,8 @@ private:
   static constexpr int PUSH_BUTTON1{ 10 };
   static constexpr int PUSH_BUTTON2{ 9 };
 
+  // bool displayInitFlag{false};
+
   unsigned long loopSubMillis{ 0 };
   unsigned long drawModeMillis{ 0 };
   unsigned long cachedPushButtonMillis{ 0 };
@@ -44,6 +46,7 @@ private:
   int buttonCount{ 0 };
 
   CheckMode checkMode{ CheckMode::FreeCheckMode };
+  bool chageCheckModeFlag{true};
 
   struct ButtonStatus{
 
@@ -104,13 +107,15 @@ private:
       modeName = String("mode2");
     } else if (checkMode == CheckMode::RunSimCheckMode) {
       modeName = String("mode3");
+    } else {
+      modeName = String("no mode");
     }
 
     drawAdafruit.clearDisplay();
     drawAdafruit.drawString(modeName, 0, 0);
   }
 
-  void changeMode() {
+  void changeModeReset() {
     if (checkMode == CheckMode::FreeCheckMode) {
       freeCheckParam.reset();
     } else if (checkMode == CheckMode::TorqueCheckMode) {
@@ -138,11 +143,12 @@ private:
       cachedPushButtonMillis = millis();
 
       checkMode = static_cast<CheckMode>((static_cast<int>(checkMode) + 1) % static_cast<int>(CheckMode::MaxCheckMode));
-      int checkModeInt = static_cast<uint8_t>(checkMode);
+      int checkModeInt = static_cast<int>(checkMode);
+      Serial.println(checkModeInt);
       preferences.putInt("check_mode", checkModeInt);
 
-      drawModeMillis = millis();
-      changeMode();
+      chageCheckModeFlag = true;
+      changeModeReset();
     }
 
     const int checkFlag{button2Status.check()};
@@ -197,24 +203,23 @@ public:
     button1Status.init(PUSH_BUTTON1);
     button2Status.init(PUSH_BUTTON2);
 
-    preferences.begin("torque_checker_app", false);
-    int checkModeInt = preferences.getInt("check_mode", 0);
-
+    preferences.begin("torque_checker", false);
+    const int checkModeInt = preferences.getInt("check_mode", 1);
     checkMode = static_cast<CheckMode>(checkModeInt);  // EEPROM.read(MODE_ADDRESS));
-    drawAdafruit.clearDisplay();
-    drawMode();
-    drawAdafruit.display();
-    delay(500);
-    drawAdafruit.clearDisplay();
+    Serial.println(checkModeInt);
 
     unsigned long iOffset = calibI();
-    freeCheckParam.iOffsetVoltage = voltageMapping.getVoltage(iOffset) * 0.5f;
-    torqueCheckParam.iOffsetVoltage = voltageMapping.getVoltage(iOffset) * 0.5f;
-    runSimCheckParam.iOffsetVoltage = voltageMapping.getVoltage(iOffset) * 0.5f;
-    changeMode();
+    const float offsetVoltage{voltageMapping.getVoltage(iOffset) * 0.5f};
+    {
+      freeCheckParam.iOffsetVoltage = offsetVoltage;
+      torqueCheckParam.iOffsetVoltage = offsetVoltage;
+      runSimCheckParam.iOffsetVoltage = offsetVoltage;
+    }
+    changeModeReset();
   };
 
   void loopWhile() {
+
     loopMain();
 
     const unsigned long tempMillis{ millis() };
@@ -223,25 +228,31 @@ public:
       loopSubMillis = tempMillis;
     }
 
-    if (!(tempMillis - drawModeMillis > 1000))
+    if (chageCheckModeFlag || !(tempMillis - drawModeMillis > 1000))
     {
-      drawMode();
-      drawAdafruit.display();
+      if (chageCheckModeFlag)
+      {
+        chageCheckModeFlag = false;
+        drawModeMillis = millis();
+        drawMode();
+        drawAdafruit.display();
+      }
+
+      // drawAdafruit.clearDisplay();
+      // drawAdafruit.adaDisplay.setTextSize(1);
     }
-    else
-    {
+    else {
+
       if (checkMode == CheckMode::FreeCheckMode) {
         // const float rpmMisslisDiff{millis() - freeCheckParam.rpmMillisBuf};
         if (freeCheckParam.evalBTiming.isExecute(millis())) {
           freeCheckParam.rotateCounter.sleep(millis());
           freeCheckParam.execB();
-
           freeCheckParam.rotateCounter.start(millis());
         }
 
         if (freeCheckParam.evalATiming.isExecute(millis())) {
           freeCheckParam.rotateCounter.sleep(millis());
-
           freeCheckParam.execA();
           drawAdafruit.display();
 
@@ -251,14 +262,12 @@ public:
 
         if (torqueCheckParam.evalBTiming.isExecute(millis())) {
           torqueCheckParam.rotateCounter.sleep(millis());
-
           torqueCheckParam.execB();
           torqueCheckParam.rotateCounter.start(millis());
         }
 
         if (torqueCheckParam.evalATiming.isExecute(millis())) {
           torqueCheckParam.rotateCounter.sleep(millis());
-
           torqueCheckParam.execA();
           drawAdafruit.display();
 
@@ -268,22 +277,18 @@ public:
 
         if (runSimCheckParam.evalBTiming.isExecute(millis())) {
           runSimCheckParam.rotateCounter.sleep(millis());
-
           runSimCheckParam.execB();
           runSimCheckParam.rotateCounter.start(millis());
         }
 
         if (runSimCheckParam.evalATiming.isExecute(millis())) {
           runSimCheckParam.rotateCounter.sleep(millis());
-
           runSimCheckParam.execA();
           drawAdafruit.display();
 
           runSimCheckParam.rotateCounter.start(millis());
         }
       }
-
-
     }
   };
 };
@@ -292,14 +297,10 @@ Controller controller;
 
 void setup() {
 
-  delay(500);
-
   Serial.begin(115200);
   Serial.printf("start\r\n");
 
   drawAdafruit.setupDisplay();
-
-  drawAdafruit.clearDisplay();
 
   controller.setup();
 }

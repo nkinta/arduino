@@ -328,9 +328,9 @@ struct RunSimCheckParam : public BaseCheckParam {
   static constexpr float KIRO_RATE{METER_RATE / 1000.f};
 
   std::vector<RunProfile> runProfiles{
-    {String("P0"), {{0.f, 6}, {2.f, 1}, {10.f, 3}, {25.f, 1}}},
-    {String("P1"), {{0.f, 6}, {2.f, 2}, {10.f, 4}, {25.f, 2}}},
-    {String("P2"), {{0.f, 4}, {3.f, 1}, {16.f, 6}, {18.f, 2}, {26.f, 6}, {28.f, 1}, {30.f, 2}}},
+    {String("P0"), {{0.f, 6}, {2.f, 1}, {10.f, 3}, {25.f, 2}}},
+    {String("P1"), {{0.f, 6}, {2.f, 2}, {10.f, 4}, {25.f, 3}}},
+    {String("P2"), {{0.f, 5}, {3.f, 2}, {16.f, 6}, {18.f, 2}, {26.f, 6}, {28.f, 1}, {30.f, 3}}},
     {String("T0"), {{0.f, 0}}},
     {String("T1"), {{0.f, 1}}},
     {String("T2"), {{0.f, 2}}},
@@ -439,9 +439,9 @@ private:
   };
 
   void display() {
-
     static String sleepStr{"sleep"};
     static String RunStr{"run  "};
+
     if (currentMode == StateMode::RunMode) {
       drawAdafruit.drawString(RunStr, 0, 0);
 
