@@ -255,55 +255,6 @@ public:
         currentCheckParam.rotateCounter.start(millis());
       }
 
-
-      /*
-      if (checkMode == CheckMode::FreeCheckMode) {
-        // const float rpmMisslisDiff{millis() - freeCheckParam.rpmMillisBuf};
-        if (freeCheckParam.evalBTiming.isExecute(millis())) {
-          freeCheckParam.rotateCounter.sleep(millis());
-          freeCheckParam.execB();
-          freeCheckParam.rotateCounter.start(millis());
-        }
-
-        if (freeCheckParam.evalATiming.isExecute(millis())) {
-          freeCheckParam.rotateCounter.sleep(millis());
-          freeCheckParam.execA();
-          drawAdafruit.display();
-
-          freeCheckParam.rotateCounter.start(millis());
-        }
-      } else if (checkMode == CheckMode::TorqueCheckMode) {
-
-        if (torqueCheckParam.evalBTiming.isExecute(millis())) {
-          torqueCheckParam.rotateCounter.sleep(millis());
-          torqueCheckParam.execB();
-          torqueCheckParam.rotateCounter.start(millis());
-        }
-
-        if (torqueCheckParam.evalATiming.isExecute(millis())) {
-          torqueCheckParam.rotateCounter.sleep(millis());
-          torqueCheckParam.execA();
-          drawAdafruit.display();
-
-          torqueCheckParam.rotateCounter.start(millis());
-        }
-      } else if (checkMode == CheckMode::RunSimCheckMode) {
-
-        if (runSimCheckParam.evalBTiming.isExecute(millis())) {
-          runSimCheckParam.rotateCounter.sleep(millis());
-          runSimCheckParam.execB();
-          runSimCheckParam.rotateCounter.start(millis());
-        }
-
-        if (runSimCheckParam.evalATiming.isExecute(millis())) {
-          runSimCheckParam.rotateCounter.sleep(millis());
-          runSimCheckParam.execA();
-          drawAdafruit.display();
-
-          runSimCheckParam.rotateCounter.start(millis());
-        }
-      }
-      */
     }
   };
 };

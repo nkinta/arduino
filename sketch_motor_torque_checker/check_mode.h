@@ -611,8 +611,6 @@ struct TorqueCheckParam : public BaseCheckParam {
 
   StateMode currentMode{ StateMode::SleepMode };
 
-  float iOffsetVoltage{ 0.f };
-
   virtual void reset() override {
     for (int i = 0; i < CALC_COUNT; ++i) {
       calcCaches[i].reset();
