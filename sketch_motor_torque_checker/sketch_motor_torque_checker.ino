@@ -37,7 +37,6 @@ private:
 
   unsigned long loopSubMillis{ 0 };
   unsigned long drawModeMillis{ 0 };
-  unsigned long cachedPushButtonMillis{ 0 };
 
   FreeCheckParam freeCheckParam{};
   TorqueCheckParam torqueCheckParam{};
@@ -125,6 +124,17 @@ private:
     }
   }
 
+  void IncrementMode()
+  {
+    checkMode = static_cast<CheckMode>((static_cast<int>(checkMode) + 1) % static_cast<int>(CheckMode::MaxCheckMode));
+    const int checkModeInt = static_cast<int>(checkMode);
+    Serial.println(checkModeInt);
+    preferences.putInt("check_mode", checkModeInt);
+
+    chageCheckModeFlag = true;
+    changeModeReset();
+  }
+
   unsigned long calibI() {
     ValueCounter iValue{};
 
@@ -139,21 +149,22 @@ private:
 
   void loopSub() {
 
-    if (button1Status.check() == 1) {
-      cachedPushButtonMillis = millis();
-
-      checkMode = static_cast<CheckMode>((static_cast<int>(checkMode) + 1) % static_cast<int>(CheckMode::MaxCheckMode));
-      int checkModeInt = static_cast<int>(checkMode);
-      Serial.println(checkModeInt);
-      preferences.putInt("check_mode", checkModeInt);
-
-      chageCheckModeFlag = true;
-      changeModeReset();
+    const int check1Flag{button1Status.check()};
+    if (check1Flag == 1) {
+      if (checkMode == CheckMode::FreeCheckMode) {
+        freeCheckParam.pushButton1();
+      } else if (checkMode == CheckMode::TorqueCheckMode) {
+        torqueCheckParam.pushButton1();
+      } else if (checkMode == CheckMode::RunSimCheckMode) {
+        runSimCheckParam.pushButton1();
+      }
+    }
+    else if (check1Flag == 2) {
+      IncrementMode();
     }
 
-    const int checkFlag{button2Status.check()};
-    if (checkFlag == 1) {
-      cachedPushButtonMillis = millis();
+    const int check2Flag{button2Status.check()};
+    if (check2Flag == 1) {
 
       if (checkMode == CheckMode::FreeCheckMode) {
         freeCheckParam.pushButton2();
@@ -163,10 +174,8 @@ private:
         runSimCheckParam.pushButton2();
       }
     }
-    else if (checkFlag == 2) {
-      if (checkMode == CheckMode::RunSimCheckMode) {
-        runSimCheckParam.pushButtonLong2();
-      }
+    else if (check2Flag == 2) {
+
     }
   }
 

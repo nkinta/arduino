@@ -269,6 +269,10 @@ struct FreeCheckParam : public BaseCheckParam {
     powerNum = 0;
   };
 
+  void pushButton1() {
+    
+  };
+
   void pushButton2() {
     nextFlag = true;
   };
@@ -372,13 +376,13 @@ struct RunSimCheckParam : public BaseCheckParam {
     currentProfileIndex = 0;
   }
 
+  void pushButton1() {
+    onStartFlag = true;
+  }  
+
   void pushButton2() {
     onChangeFlag = true;
   }
-
-  void pushButtonLong2() {
-    onStartFlag = true;
-  }  
 
   void execA() {
     loop();
@@ -570,22 +574,45 @@ struct TorqueCheckParam : public BaseCheckParam {
   int tableIndex{ 0 };
   static constexpr int TABLE[] = { 0, 3, 6 };
   static constexpr int TABLE_COUNT{ sizeof(TABLE) / sizeof(int) };
+  static constexpr int CALC_COUNT{ 4 };
 
-  RPMCache rpmCaches[TABLE_COUNT]{};
+  int currentCalcCount{0};
+
+  struct CalcCache
+  {
+    RPMCache rpmCaches[TABLE_COUNT]{};
+
+    void reset()
+    {
+      for (int i = 0; i < TABLE_COUNT; ++i) {
+        rpmCaches[i].reset();
+      }
+    }
+  };
+
+  CalcCache calcCaches[CALC_COUNT]{};
+
+  // RPMCache rpmCaches[TABLE_COUNT]{};
 
   StateMode currentMode{ StateMode::SleepMode };
 
   float iOffsetVoltage{ 0.f };
 
   void reset() {
-    for (int i = 0; i < TABLE_COUNT; ++i) {
-      rpmCaches[i].reset();
+    for (int i = 0; i < CALC_COUNT; ++i) {
+      calcCaches[i].reset();
     }
+
     tableIndex = 0;
+    currentCalcCount = 0;
+  }
+
+  void pushButton1() {
+    onFlag = true;
   }
 
   void pushButton2() {
-    onFlag = true;
+    currentCalcCount = (currentCalcCount + 1) % CALC_COUNT;
   }
 
   void execA() {
@@ -605,9 +632,7 @@ private:
     currentMode = StateMode::WaitMode;
     tableIndex = 0;
 
-    for (int i = 0; i < TABLE_COUNT; ++i) {
-      rpmCaches[i].reset();
-    }
+    calcCaches[currentCalcCount].reset();
   }
 
   void loop() {
@@ -623,13 +648,16 @@ private:
   }
 
   void next() {
+
+    CalcCache& currentCalcCache{calcCaches[currentCalcCount]};
+
     if (currentMode == StateMode::WaitMode) {
       rotateCounter.reset();
       vValueCounter.reset();
       iValueCounter.reset();
       currentMode = StateMode::CalcMode;
     } else if (currentMode == StateMode::CalcMode) {
-      RPMCache& currentCache = rpmCaches[tableIndex];
+      RPMCache& currentCache = currentCalcCache.rpmCaches[tableIndex];
       currentCache.rpm = rotateCounter.calcRPM();
       currentCache.vValue = calcVValue(vValueCounter.calcValue());
       currentCache.iValue = calcIValue(iValueCounter.calcValue(), iOffsetVoltage);
@@ -658,12 +686,18 @@ private:
       drawAdafruit.drawString(sleepStr, 0, 0);
     }
 
+    static String modeStr{"m"};
+    drawAdafruit.drawString(modeStr, 10, 0);
+    drawAdafruit.drawInt(currentCalcCount, 11, 0);
+
     static const int OFFSET{ 1 };
     static const int ROW_NUM{ 2 };
 
-    float baseRpm = rpmCaches[0].rpm;
+    CalcCache& currentCalcCache{calcCaches[currentCalcCount]};
+
+    float baseRpm = currentCalcCache.rpmCaches[0].rpm;
     for (int i = 0; i < TABLE_COUNT; ++i) {
-      const RPMCache& rpmCache{rpmCaches[i]};
+      const RPMCache& rpmCache{currentCalcCache.rpmCaches[i]};
       int rpmRate{100};
       if (baseRpm > 10.f)
       {
@@ -683,10 +717,11 @@ private:
       if (currentMode == StateMode::SleepMode)
       {
         drawAdafruit.drawIntR(rpmRate, 3, colIndex);
+        drawAdafruit.drawChar("%", 3, colIndex, 1);
       }
       else
       {
-        drawAdafruit.drawChar("   ", 0, colIndex, 3);
+        drawAdafruit.drawChar("    ", 0, colIndex, 4);
       }
 
       if (currentMode != StateMode::SleepMode && i == tableIndex)
