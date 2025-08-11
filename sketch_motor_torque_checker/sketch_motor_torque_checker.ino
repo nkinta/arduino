@@ -21,7 +21,7 @@ class Controller {
 
 private:
 
-  enum class CheckMode {
+  enum class CheckMode : int {
     FreeCheckMode = 0,
     TorqueCheckMode,
     RunSimCheckMode,
@@ -41,6 +41,8 @@ private:
   FreeCheckParam freeCheckParam{};
   TorqueCheckParam torqueCheckParam{};
   RunSimCheckParam runSimCheckParam{};
+
+  BaseCheckParam* CheckParams[3] = {&freeCheckParam, &torqueCheckParam, &runSimCheckParam};
 
   int buttonCount{ 0 };
 
@@ -115,13 +117,9 @@ private:
   }
 
   void changeModeReset() {
-    if (checkMode == CheckMode::FreeCheckMode) {
-      freeCheckParam.reset();
-    } else if (checkMode == CheckMode::TorqueCheckMode) {
-      torqueCheckParam.reset();
-    } else if (checkMode == CheckMode::RunSimCheckMode) {
-      runSimCheckParam.reset();
-    }
+    int checkModeInt{static_cast<int>(checkMode)};
+    BaseCheckParam& currentCheckParam{*CheckParams[checkModeInt]};
+    currentCheckParam.reset();
   }
 
   void IncrementMode()
@@ -151,13 +149,9 @@ private:
 
     const int check1Flag{button1Status.check()};
     if (check1Flag == 1) {
-      if (checkMode == CheckMode::FreeCheckMode) {
-        freeCheckParam.pushButton1();
-      } else if (checkMode == CheckMode::TorqueCheckMode) {
-        torqueCheckParam.pushButton1();
-      } else if (checkMode == CheckMode::RunSimCheckMode) {
-        runSimCheckParam.pushButton1();
-      }
+      int checkModeInt{static_cast<int>(checkMode)};
+      BaseCheckParam& currentCheckParam{*CheckParams[checkModeInt]};
+      currentCheckParam.pushButton1();
     }
     else if (check1Flag == 2) {
       IncrementMode();
@@ -165,14 +159,9 @@ private:
 
     const int check2Flag{button2Status.check()};
     if (check2Flag == 1) {
-
-      if (checkMode == CheckMode::FreeCheckMode) {
-        freeCheckParam.pushButton2();
-      } else if (checkMode == CheckMode::TorqueCheckMode) {
-        torqueCheckParam.pushButton2();
-      } else if (checkMode == CheckMode::RunSimCheckMode) {
-        runSimCheckParam.pushButton2();
-      }
+      int checkModeInt{static_cast<int>(checkMode)};
+      BaseCheckParam& currentCheckParam{*CheckParams[checkModeInt]};
+      currentCheckParam.pushButton2();
     }
     else if (check2Flag == 2) {
 
@@ -183,19 +172,11 @@ private:
     int volt{ analogRead(READ_PIN) };
     int vVolt{ analogRead(V_READ_PIN) };
     int iVolt{ analogRead(I_READ_PIN) };
-    if (checkMode == CheckMode::FreeCheckMode) {
-      freeCheckParam.rotateCounter.readVolt(volt);
-      freeCheckParam.vValueCounter.readVolt(vVolt);
-      freeCheckParam.iValueCounter.readVolt(iVolt);
-    } else if (checkMode == CheckMode::TorqueCheckMode) {
-      torqueCheckParam.rotateCounter.readVolt(volt);
-      torqueCheckParam.vValueCounter.readVolt(vVolt);
-      torqueCheckParam.iValueCounter.readVolt(iVolt);
-    } else if (checkMode == CheckMode::RunSimCheckMode) {
-      runSimCheckParam.rotateCounter.readVolt(volt);
-      runSimCheckParam.vValueCounter.readVolt(vVolt);
-      runSimCheckParam.iValueCounter.readVolt(iVolt);
-    }
+    int checkModeInt{static_cast<int>(checkMode)};
+    BaseCheckParam& currentCheckParam{*CheckParams[checkModeInt]};
+    currentCheckParam.rotateCounter.readVolt(volt);
+    currentCheckParam.vValueCounter.readVolt(vVolt);
+    currentCheckParam.iValueCounter.readVolt(iVolt);
   };
 
 public:
@@ -220,9 +201,15 @@ public:
     unsigned long iOffset = calibI();
     const float offsetVoltage{voltageMapping.getVoltage(iOffset) * 0.5f};
     {
+      for (int i = 0; i < static_cast<int>(CheckMode::MaxCheckMode); ++i)
+      {
+        CheckParams[i]->iOffsetVoltage = offsetVoltage;
+      }
+      /*
       freeCheckParam.iOffsetVoltage = offsetVoltage;
       torqueCheckParam.iOffsetVoltage = offsetVoltage;
       runSimCheckParam.iOffsetVoltage = offsetVoltage;
+      */
     }
     changeModeReset();
   };
@@ -251,7 +238,25 @@ public:
       // drawAdafruit.adaDisplay.setTextSize(1);
     }
     else {
+      int checkModeInt{static_cast<int>(checkMode)};
+      BaseCheckParam& currentCheckParam{*CheckParams[checkModeInt]};
+      if (currentCheckParam.evalBTiming.isExecute(millis()))
+      {
+        currentCheckParam.rotateCounter.sleep(millis());
+        currentCheckParam.execB();
+        currentCheckParam.rotateCounter.start(millis());
+      }
 
+      if (currentCheckParam.evalATiming.isExecute(millis())) {
+        currentCheckParam.rotateCounter.sleep(millis());
+        currentCheckParam.execA();
+        drawAdafruit.display();
+
+        currentCheckParam.rotateCounter.start(millis());
+      }
+
+
+      /*
       if (checkMode == CheckMode::FreeCheckMode) {
         // const float rpmMisslisDiff{millis() - freeCheckParam.rpmMillisBuf};
         if (freeCheckParam.evalBTiming.isExecute(millis())) {
@@ -298,6 +303,7 @@ public:
           runSimCheckParam.rotateCounter.start(millis());
         }
       }
+      */
     }
   };
 };

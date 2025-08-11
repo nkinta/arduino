@@ -104,10 +104,6 @@ struct RunSimCache {
 
 struct EvalTiming{
 
-  EvalTiming(float timingDiff){
-    nextDiff = timingDiff;
-  };
-
 public:
   bool isExecute(float millis) {
     const float diff{ millis - oldMillis };
@@ -119,9 +115,13 @@ public:
     }
   }
 
-  float nextDiff{0.f};
+  void setTiming(float timingDiff)
+  {
+    nextDiff = timingDiff;
+  }
 
 private:
+  float nextDiff{1000000.f};
   float oldMillis{0.f};
 };
 
@@ -234,6 +234,15 @@ struct BaseCheckParam {
 
   float iOffsetVoltage{ 0.f };
 
+  virtual void execA() = 0;
+  virtual void execB() = 0;
+  virtual void pushButton1() = 0;
+  virtual void pushButton2() = 0;
+  virtual void reset() = 0;
+
+  EvalTiming evalATiming{};
+  EvalTiming evalBTiming{};
+
   static void drawRpm(int OFFSET, int lineIndex, const RPMCache& rpmCache)
   {
       drawAdafruit.drawFillLine(2 * lineIndex + OFFSET);
@@ -255,29 +264,31 @@ struct FreeCheckParam : public BaseCheckParam {
 
   bool nextFlag{ false };
 
-  EvalTiming evalATiming{ONE_FRAME_MS};
-  EvalTiming evalBTiming{SEC};
-
   static constexpr int RPM_CACHE_COUNT{ 2 };
 
   RPMCache rpmCaches[RPM_CACHE_COUNT]{};
 
-  void reset() {
+  FreeCheckParam() {
+    evalATiming.setTiming(ONE_FRAME_MS);
+    evalBTiming.setTiming(SEC);
+  }
+
+  virtual void reset() override {
     for (int i = 0; i < RPM_CACHE_COUNT; ++i) {
       rpmCaches[i].reset();
     }
     powerNum = 0;
   };
 
-  void pushButton1() {
+  virtual void pushButton1() override {
     
   };
 
-  void pushButton2() {
+  virtual void pushButton2() override {
     nextFlag = true;
   };
 
-  void execB() {
+  virtual void execB() override {
     RPMCache& currentCache{ rpmCaches[0] };
     currentCache.rpm = rotateCounter.calcRPM();
     currentCache.vValue = calcVValue(vValueCounter.calcValue());
@@ -295,7 +306,7 @@ struct FreeCheckParam : public BaseCheckParam {
     }
   };
 
-  void execA() {
+  virtual void execA() override {
     next();
     drawAdafruit.drawChar("T", 0, 0, 1);
     drawAdafruit.drawInt(powerNum, 1, 0);
@@ -360,15 +371,17 @@ struct RunSimCheckParam : public BaseCheckParam {
   bool onStartFlag{ false };
   bool onChangeFlag{ false };
 
-  EvalTiming evalATiming{ONE_FRAME_MS};
-  EvalTiming evalBTiming{2 * SEC};
+  RunSimCheckParam() {
+    evalATiming.setTiming(ONE_FRAME_MS);
+    evalBTiming.setTiming(2 * SEC);
+  }
 
   StateMode currentMode{ StateMode::SleepMode };
 
   RunSimCache runSimCache{};
   RPMCache currentCache{};
 
-  void reset() {
+  virtual void reset() override {
     runSimCache.reset();
     currentCache.reset();
     currentMode = StateMode::SleepMode;
@@ -376,21 +389,21 @@ struct RunSimCheckParam : public BaseCheckParam {
     currentProfileIndex = 0;
   }
 
-  void pushButton1() {
+  virtual void pushButton1() override {
     onStartFlag = true;
   }  
 
-  void pushButton2() {
+  virtual void pushButton2() override {
     onChangeFlag = true;
   }
 
-  void execA() {
+  virtual void execA() override {
     loop();
     display();
     analogWrite(WRITE_POWER_PIN, getPower());
   }
 
-  void execB() {
+  virtual void execB() override {
 
   }
 
@@ -568,8 +581,10 @@ struct TorqueCheckParam : public BaseCheckParam {
   bool onFlag{ false };
   bool blinkFlag{ false };
 
-  EvalTiming evalATiming{ONE_FRAME_MS};
-  EvalTiming evalBTiming{2 * SEC};
+  TorqueCheckParam() {
+    evalATiming.setTiming(ONE_FRAME_MS);
+    evalBTiming.setTiming(2 * SEC);
+  }
 
   int tableIndex{ 0 };
   static constexpr int TABLE[] = { 0, 3, 6 };
@@ -598,7 +613,7 @@ struct TorqueCheckParam : public BaseCheckParam {
 
   float iOffsetVoltage{ 0.f };
 
-  void reset() {
+  virtual void reset() override {
     for (int i = 0; i < CALC_COUNT; ++i) {
       calcCaches[i].reset();
     }
@@ -607,21 +622,21 @@ struct TorqueCheckParam : public BaseCheckParam {
     currentCalcCount = 0;
   }
 
-  void pushButton1() {
+  virtual void pushButton1() override {
     onFlag = true;
   }
 
-  void pushButton2() {
+  virtual void pushButton2() override {
     currentCalcCount = (currentCalcCount + 1) % CALC_COUNT;
   }
 
-  void execA() {
+  virtual void execA() override {
     loop();
     display();
     analogWrite(WRITE_POWER_PIN, getPower());
   }
 
-  void execB() {
+  virtual void execB() override {
     next();
   }
 
