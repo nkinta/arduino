@@ -209,11 +209,6 @@ public:
       {
         CheckParams[i]->iOffsetVoltage = offsetVoltage;
       }
-      /*
-      freeCheckParam.iOffsetVoltage = offsetVoltage;
-      torqueCheckParam.iOffsetVoltage = offsetVoltage;
-      runSimCheckParam.iOffsetVoltage = offsetVoltage;
-      */
     }
     changeModeReset();
   };

@@ -35,7 +35,7 @@ public:
     // the library initializes this with an Adafruit splash screen.
 
     // Clear the buffer
-    // adaDisplay.clearDisplay();
+    adaDisplay.clearDisplay();
     adaDisplay.display();
     adaDisplay.setTextSize(TEXT_SIZE);
     adaDisplay.setTextColor(SSD1306_WHITE);
