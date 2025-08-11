@@ -88,6 +88,15 @@ public:
     adaDisplay.print(chr);
   }
 
+  void drawKm(float value, float offsetX, float offsetY)
+  {
+     const char chr[]{"km/h"};
+    const int floatSize{4};
+    drawFloat(value, offsetX, offsetY);
+    adaDisplay.setCursor(CHARSIZEX * (offsetX + floatSize) + UNIT_OFFSET, CHARSIZEY * offsetY);
+    adaDisplay.print(chr);   
+  }
+
   void drawI(float value, float offsetX, float offsetY)
   {
     const char chr[]{"a"};

@@ -11,6 +11,8 @@ static constexpr float SEC_TO_RPM{ 60.f };
 static constexpr float TIRE_DIA{23.f};
 static constexpr float GEAR_RATE{1.f / 4.f};
 
+static constexpr float BMOTOR_DIA{17.8f};
+
 static constexpr float FPS{ 15.f };
 static constexpr float SEC{ 1000.f };
 static constexpr float ONE_FRAME_MS{ (1.f / FPS) * SEC };
@@ -161,6 +163,7 @@ private:
   static constexpr int ROT_RATE{ POLE / 2 };
   static constexpr int GENE_GEAR_RATE{ 24 / 8 };
   static constexpr float PULSE_RATE{ static_cast<float>(GENE_GEAR_RATE) / static_cast<float>(ROT_RATE) };
+  static constexpr float WHEEL_PULSE_RATE{ 1.f / static_cast<float>(ROT_RATE) };
 
   unsigned long oldMillis{ 0 };
   unsigned long totalDiffMillis{ 0 };
@@ -197,6 +200,18 @@ public:
 
   void start(unsigned long millis) {
     oldMillis = millis;
+  }
+
+  float calcWheelRPM()
+  {
+    float result{0};
+    if (totalDiffMillis > 0)
+    {
+      result = count * WHEEL_PULSE_RATE * SEC_TO_RPM * (SEC / static_cast<float>(totalDiffMillis));
+    }
+    reset();
+
+    return result;
   }
 
   float calcRPM() {
@@ -252,6 +267,15 @@ struct BaseCheckParam {
       drawAdafruit.drawV(rpmCache.vValue, 8, 2 * lineIndex + OFFSET + 1);
       drawAdafruit.drawI(max(rpmCache.iValue, 0.f), 15, 2 * lineIndex + OFFSET + 1);
   };
+
+  static void drawKm(int OFFSET, int lineIndex, const RPMCache& rpmCache)
+  {
+      const static float TO_KM = BMOTOR_DIA * PI * 60.f * (1.f / 1000.f) * (1.f / 1000.f);
+      drawAdafruit.drawFillLine(2 * lineIndex + OFFSET);
+      drawAdafruit.drawKm(rpmCache.rpm * TO_KM, 10, 2 * lineIndex + OFFSET);
+
+      drawAdafruit.drawFillLine(2 * lineIndex + OFFSET + 1);
+  };  
 
 };
 
@@ -330,6 +354,81 @@ private:
     }
   };
 };
+
+struct SpeedCheckParam : public BaseCheckParam {
+
+  static constexpr int TABLE[] = { 0, 1, 2, 3, 4, 5, 6};
+  static constexpr int TABLE_COUNT{ sizeof(TABLE) / sizeof(int) };
+
+  int powerNum{ 0 };
+
+  bool nextFlag{ false };
+
+  static constexpr int RPM_CACHE_COUNT{ 2 };
+
+  RPMCache rpmCaches[RPM_CACHE_COUNT]{};
+
+  SpeedCheckParam() {
+    evalATiming.setTiming(ONE_FRAME_MS);
+    evalBTiming.setTiming(SEC);
+  }
+
+  virtual void reset() override {
+    for (int i = 0; i < RPM_CACHE_COUNT; ++i) {
+      rpmCaches[i].reset();
+    }
+    powerNum = 0;
+  };
+
+  virtual void pushButton1() override {
+    
+  };
+
+  virtual void pushButton2() override {
+    nextFlag = true;
+  };
+
+  virtual void execB() override {
+    RPMCache& currentCache{ rpmCaches[0] };
+    currentCache.rpm = rotateCounter.calcWheelRPM();
+
+    RPMCache& maxCache{ rpmCaches[1] };
+    if (currentCache.rpm > maxCache.rpm) {
+      maxCache = currentCache;
+    }
+
+    static const int OFFSET{ 1 };
+    static const int ROW_INDEX{ 2 };
+    for (int i = 0; i < RPM_CACHE_COUNT; ++i) {
+      drawKm(OFFSET, i, rpmCaches[i]);
+    }
+  };
+
+  virtual void execA() override {
+    next();
+    drawAdafruit.drawChar("T", 0, 0, 1);
+    drawAdafruit.drawInt(powerNum, 1, 0);
+    analogWrite(WRITE_POWER_PIN, getPower());
+  };
+
+private:
+
+  int getPower() {
+    int power = constrain(POWER_MAP[TABLE[powerNum]], 0, 255);
+    return power;
+  };
+
+  void next() {
+    if (nextFlag) {
+      powerNum = (powerNum + 1) % TABLE_COUNT;
+      for (int i = 0; i < RPM_CACHE_COUNT; ++i) {
+        rpmCaches[i].reset();
+      }
+      nextFlag = false;
+    }
+  };
+};
+
 
 struct RunSimCheckParam : public BaseCheckParam {
   enum class StateMode {

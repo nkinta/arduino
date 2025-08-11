@@ -25,6 +25,7 @@ private:
     FreeCheckMode = 0,
     TorqueCheckMode,
     RunSimCheckMode,
+    SpeedCheckMode,
     MaxCheckMode
   };
 
@@ -41,8 +42,9 @@ private:
   FreeCheckParam freeCheckParam{};
   TorqueCheckParam torqueCheckParam{};
   RunSimCheckParam runSimCheckParam{};
+  SpeedCheckParam speedCheckParam{};
 
-  BaseCheckParam* CheckParams[3] = {&freeCheckParam, &torqueCheckParam, &runSimCheckParam};
+  BaseCheckParam* CheckParams[4] = {&freeCheckParam, &torqueCheckParam, &runSimCheckParam, &speedCheckParam};
 
   int buttonCount{ 0 };
 
@@ -108,6 +110,8 @@ private:
       modeName = String("mode2");
     } else if (checkMode == CheckMode::RunSimCheckMode) {
       modeName = String("mode3");
+    } else if (checkMode == CheckMode::SpeedCheckMode) {
+      modeName = String("mode4");
     } else {
       modeName = String("no mode");
     }
