@@ -253,6 +253,7 @@ struct BaseCheckParam {
   virtual void execB() = 0;
   virtual void pushButton1() = 0;
   virtual void pushButton2() = 0;
+  virtual void pushButtonLong2() = 0;
   virtual void reset() = 0;
 
   EvalTiming evalATiming{};
@@ -261,18 +262,18 @@ struct BaseCheckParam {
   static void drawRpm(int OFFSET, int lineIndex, const RPMCache& rpmCache)
   {
       drawAdafruit.drawFillLine(2 * lineIndex + OFFSET);
-      drawAdafruit.drawRPM(rpmCache.rpm, 10, 2 * lineIndex + OFFSET);
+      drawAdafruit.drawRPM(rpmCache.rpm, 12, 2 * lineIndex + OFFSET);
 
       drawAdafruit.drawFillLine(2 * lineIndex + OFFSET + 1);
-      drawAdafruit.drawV(rpmCache.vValue, 8, 2 * lineIndex + OFFSET + 1);
-      drawAdafruit.drawI(max(rpmCache.iValue, 0.f), 15, 2 * lineIndex + OFFSET + 1);
+      drawAdafruit.drawV(rpmCache.vValue, 12, 2 * lineIndex + OFFSET + 1);
+      drawAdafruit.drawI(max(rpmCache.iValue, 0.f), 19, 2 * lineIndex + OFFSET + 1);
   };
 
   static void drawKm(int OFFSET, int lineIndex, const RPMCache& rpmCache)
   {
       const static float TO_KM = BMOTOR_DIA * PI * 60.f * (1.f / 1000.f) * (1.f / 1000.f);
       drawAdafruit.drawFillLine(2 * lineIndex + OFFSET);
-      drawAdafruit.drawKm(rpmCache.rpm * TO_KM, 10, 2 * lineIndex + OFFSET);
+      drawAdafruit.drawKm(rpmCache.rpm * TO_KM, 12, 2 * lineIndex + OFFSET);
 
       drawAdafruit.drawFillLine(2 * lineIndex + OFFSET + 1);
   };  
@@ -305,11 +306,13 @@ struct FreeCheckParam : public BaseCheckParam {
   };
 
   virtual void pushButton1() override {
-    
   };
 
   virtual void pushButton2() override {
     nextFlag = true;
+  };
+
+  virtual void pushButtonLong2() override {
   };
 
   virtual void execB() override {
@@ -381,11 +384,13 @@ struct SpeedCheckParam : public BaseCheckParam {
   };
 
   virtual void pushButton1() override {
-    
   };
 
   virtual void pushButton2() override {
     nextFlag = true;
+  };
+
+  virtual void pushButtonLong2() override {
   };
 
   virtual void execB() override {
@@ -489,12 +494,16 @@ struct RunSimCheckParam : public BaseCheckParam {
   }
 
   virtual void pushButton1() override {
-    onStartFlag = true;
+    currentProfileIndex = (runProfiles.size() + currentProfileIndex - 1) % runProfiles.size();
   }  
 
   virtual void pushButton2() override {
-    onChangeFlag = true;
+    currentProfileIndex = (runProfiles.size() + currentProfileIndex + 1) % runProfiles.size();
   }
+
+  virtual void pushButtonLong2() override {
+    onStartFlag = true;
+  };
 
   virtual void execA() override {
     loop();
@@ -522,6 +531,7 @@ private:
       return;
     }
 
+    /*
     if (onChangeFlag)
     {
       currentProfileIndex = (currentProfileIndex + 1) % runProfiles.size();
@@ -529,6 +539,7 @@ private:
       onChangeFlag = false;
       return;
     }
+    */
 
 
     currentCache.rpm = rotateCounter.calcRPS();
@@ -585,53 +596,62 @@ private:
       drawAdafruit.drawString(runProfiles[currentProfileIndex].name, 7, 0);
     }
 
-    const int meterDrawRow{1};
-    static float WATT_TO_MAH{(1.f / 2.4f) * 1000.f};
+    int drawRow{1};
+    {
+      drawAdafruit.drawFillLine(drawRow);
+      drawAdafruit.drawFloatUnit("m", runSimCache.meter, 6, drawRow);
+      drawAdafruit.drawFloatUnit("s", runSimCache.sec, 16, drawRow);
+    }
 
-    drawAdafruit.drawFloatR(runSimCache.meter, 5, meterDrawRow, 5, 1);
-    drawAdafruit.drawChar("m", 5, meterDrawRow, 1);
-
-    drawAdafruit.drawFloatR(runSimCache.sec, 11, meterDrawRow, 5, 1);
-    drawAdafruit.drawChar("s", 11, meterDrawRow, 1);
-
-    const float milliAmpHour{runSimCache.watt * WATT_TO_MAH}; 
-    drawAdafruit.drawFloatR(milliAmpHour, 17, meterDrawRow, 5, 1);
-    drawAdafruit.drawChar("mah", 17, meterDrawRow, 3);
-
-    const int rpmDrawRow{2};
+    drawRow = 2;
+    const static float WATT_TO_MAH{(1.f / 2.4f) * 1000.f};
+    const float milliAmpHour{runSimCache.watt * WATT_TO_MAH};
     const float kiroMeter = currentCache.rpm * ((SEC_TO_RPM * 60.f) * KIRO_RATE);
-    drawAdafruit.drawFloatR(kiroMeter, 4, rpmDrawRow, 4, 1);
-    drawAdafruit.drawChar("km/h", 4, rpmDrawRow, 3);
-    drawAdafruit.drawFloatR(currentCache.vValue, 13, rpmDrawRow, 4, 2);
-    drawAdafruit.drawChar("v", 13, rpmDrawRow, 1);
+    { 
+      drawAdafruit.drawFillLine(drawRow);
+      drawAdafruit.drawFloatUnit("mah", milliAmpHour, 6, drawRow);
+      drawAdafruit.drawFloatUnit("km/h", kiroMeter, 16, drawRow);
+    }
 
-    drawAdafruit.drawFloatR(max(currentCache.iValue, 0.f), 19, rpmDrawRow, 3, 1);
-    drawAdafruit.drawChar("a", 19, rpmDrawRow, 1);
+    drawRow = 3;
+    { 
+      drawAdafruit.drawFillLine(drawRow);
+      drawAdafruit.drawFloatUnit("v", currentCache.vValue, 6, drawRow);
+      drawAdafruit.drawFloatUnit("a", max(currentCache.iValue, 0.f), 16, drawRow);
+    }
 
-    const int rpmResultRow{3};
+    drawRow = 4;
     const float runMeter{oneCycleMeter * cycleNumber};
     if (currentMode == StateMode::RunMode) {
-      drawAdafruit.drawClear(rpmResultRow);
+        drawAdafruit.drawFillLine(drawRow);
+        drawAdafruit.drawFillLine(drawRow + 1);
     } else if (currentMode == StateMode::SleepMode) {
       if (runSimCache.meter < runMeter)
       {
-        drawAdafruit.drawClear(rpmResultRow);
+        drawAdafruit.drawFillLine(drawRow);
+        drawAdafruit.drawFillLine(drawRow + 1);
       }
       else
       {
         static float AVE_KIROMETER_RATE{60.f * 60.f * (1.f / 1000.f)};
         const float averageMilliSec{runSimCache.meter / runSimCache.sec};
         const float averagekiroMeter{AVE_KIROMETER_RATE * averageMilliSec};
-        drawAdafruit.drawFloatR(averagekiroMeter, 4, rpmResultRow, 4, 1);
-        drawAdafruit.drawChar("km/h", 4, rpmResultRow, 3);
-
-        drawAdafruit.drawFloatR(averageMilliSec, 12, rpmResultRow, 4, 1);
-        drawAdafruit.drawChar("m/s", 12, rpmResultRow, 4);
-
         static float AVE_AMP{60.f * 60.f * (1.f / 1000.f)};
         const float averageAmp{AVE_AMP * (milliAmpHour / runSimCache.sec)};
-        drawAdafruit.drawFloatR(averageAmp, 19, rpmResultRow, 3, 1);
-        drawAdafruit.drawChar("a", 19, rpmResultRow, 1);
+
+        drawRow = 4;
+        {
+          drawAdafruit.drawFillLine(drawRow);
+
+          drawAdafruit.drawKm(averagekiroMeter, 6, drawRow);
+          drawAdafruit.drawFloatUnit("m/s", averageMilliSec, 16, drawRow);
+        }
+
+        {
+          drawAdafruit.drawFillLine(drawRow + 1);
+          drawAdafruit.drawFloatUnit("a", averageAmp, 16, drawRow + 1);
+        }
+
       }
     }
 
@@ -688,7 +708,7 @@ struct TorqueCheckParam : public BaseCheckParam {
   int tableIndex{ 0 };
   static constexpr int TABLE[] = { 0, 3, 6 };
   static constexpr int TABLE_COUNT{ sizeof(TABLE) / sizeof(int) };
-  static constexpr int CALC_COUNT{ 4 };
+  static constexpr int CALC_COUNT{ 10 };
 
   int currentCalcCount{0};
 
@@ -720,12 +740,16 @@ struct TorqueCheckParam : public BaseCheckParam {
   }
 
   virtual void pushButton1() override {
-    onFlag = true;
+    currentCalcCount = (CALC_COUNT + currentCalcCount - 1) % CALC_COUNT;
   }
 
   virtual void pushButton2() override {
-    currentCalcCount = (currentCalcCount + 1) % CALC_COUNT;
+    currentCalcCount = (CALC_COUNT + currentCalcCount + 1) % CALC_COUNT;
   }
+
+  virtual void pushButtonLong2() override {
+    onFlag = true;
+  };
 
   virtual void execA() override {
     loop();

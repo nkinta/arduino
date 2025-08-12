@@ -48,8 +48,10 @@ public:
     adaDisplay.setTextColor(SSD1306_WHITE);
   }
 
-  void drawClear(int offsetY) {
-    adaDisplay.fillRect(0, CHARSIZEY * offsetY, SCREEN_WIDTH, CHARSIZEY * 1, BLACK);
+  void drawFillLine(int line)
+  {
+    adaDisplay.fillRect(0, CHARSIZEY * line, SCREEN_WIDTH, CHARSIZEY, BLACK);
+    // adaDisplay.drawFastHLine(0, CHARSIZEY + 5, 128, BLACK);
   }
 
   void drawString(const String& string, int offsetX, int offsetY) {
@@ -71,38 +73,49 @@ public:
     adaDisplay.print(value);
   }
 
+  void drawFloatUnit(const char* chr, float value, float offsetX, float offsetY)
+  {
+    drawFloatR(value, offsetX, offsetY);
+    adaDisplay.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
+    adaDisplay.print(chr);   
+  }
+
+  void drawIntUnit(const char* chr, int value, float offsetX, float offsetY)
+  {
+    drawIntR(value, offsetX, offsetY);
+    adaDisplay.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
+    adaDisplay.print(chr);   
+  }
+
   void drawRPM(int value, float offsetX, float offsetY)
   {
     const char chr[]{"rpm"};
     drawIntR(value, offsetX, offsetY);
-    adaDisplay.setCursor(CHARSIZEX * (offsetX) + UNIT_OFFSET, CHARSIZEY * offsetY);
+    adaDisplay.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
     adaDisplay.print(chr);
   }
 
   void drawV(float value, float offsetX, float offsetY)
   {
     const char chr[]{"v"};
-    const int floatSize{4};
-    drawFloat(value, offsetX, offsetY);
-    adaDisplay.setCursor(CHARSIZEX * (offsetX + floatSize) + UNIT_OFFSET, CHARSIZEY * offsetY);
+    drawFloatR(value, offsetX, offsetY);
+    adaDisplay.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
     adaDisplay.print(chr);
   }
 
   void drawKm(float value, float offsetX, float offsetY)
   {
      const char chr[]{"km/h"};
-    const int floatSize{4};
-    drawFloat(value, offsetX, offsetY);
-    adaDisplay.setCursor(CHARSIZEX * (offsetX + floatSize) + UNIT_OFFSET, CHARSIZEY * offsetY);
+    drawFloatR(value, offsetX, offsetY);
+    adaDisplay.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
     adaDisplay.print(chr);   
   }
-
+  
   void drawI(float value, float offsetX, float offsetY)
   {
     const char chr[]{"a"};
-    const int floatSize{4};
-    drawFloat(value, offsetX, offsetY);
-    adaDisplay.setCursor(CHARSIZEX * (offsetX + floatSize) + UNIT_OFFSET, CHARSIZEY * offsetY);
+    drawFloatR(value, offsetX, offsetY);
+    adaDisplay.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
     adaDisplay.print(chr);
   }
 
@@ -130,12 +143,6 @@ public:
     adaDisplay.setCursor(CHARSIZEX * (offsetX + numOffset), CHARSIZEY * offsetY);
     // std::cout << std::setw(10) << std::right << num << std::endl;
     adaDisplay.print(value);
-  }
-
-  void drawFillLine(int line)
-  {
-    adaDisplay.fillRect(0, CHARSIZEY * line, 128, CHARSIZEY, BLACK);
-    // adaDisplay.drawFastHLine(0, CHARSIZEY + 5, 128, BLACK);
   }
 
   void drawIntR(int value, float offsetX, float offsetY) {

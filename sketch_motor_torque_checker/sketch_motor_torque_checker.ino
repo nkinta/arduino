@@ -168,7 +168,9 @@ private:
       currentCheckParam.pushButton2();
     }
     else if (check2Flag == 2) {
-
+      int checkModeInt{static_cast<int>(checkMode)};
+      BaseCheckParam& currentCheckParam{*CheckParams[checkModeInt]};
+      currentCheckParam.pushButtonLong2();
     }
   }
 
