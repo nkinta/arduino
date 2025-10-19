@@ -57,12 +57,53 @@ struct VoltageMapping {
 
 static VoltageMapping voltageMapping;
 
-struct BattreyStatus
+enum class DisChargeMode {
+  DisplayMode,
+  DischargeMode,
+  DischargeStopMode,
+};
+
+struct BatteryStatus
 {
+  public:
+  BatteryStatus(uint8_t inReadPin, uint8_t inWritePin, uint8_t inBatteryIndex) : readPin{inReadPin}, writePin{inWritePin}, batteryIndex{inBatteryIndex} {};
+
+  void read() {
+    const int volt{ analogRead(readPin) };
+    valueCounter.readVolt(volt);
+  };
+
+  void write() {
+    // analogWrite(writePin, 50);
+  }; 
+
+  void setup()
+  {
+    pinMode(readPin, INPUT);
+    pinMode(writePin, OUTPUT);
+  };
+
+  void display()
+  {
+    unsigned long v1Value{valueCounter.calcValue()};
+    if (activeFlag)
+    {
+      drawAdafruit.drawString(">", 5 * batteryIndex, 0);
+    }
+    drawAdafruit.drawFloatR(voltageMapping.getVoltage(v1Value), 5 * (batteryIndex + 1), 0, 4, 2);
+  };
+
+  ValueCounter valueCounter{};
+
+  bool activeFlag{false};
+  uint8_t batteryIndex;
+  uint8_t readPin{0};
+  uint8_t writePin{0};
   float currentV{0.f};
   float currentDischargeI{0.f};
   float targetV{0.f};
-  float targetDischrgeI{0.f};
+  float targetDischargeI{0.f};
+  DisChargeMode Mode;
 };
 
 struct ButtonStatus{
@@ -125,8 +166,13 @@ class BatteryController {
 
   static constexpr uint8_t READ1_PIN{ 0 };
   static constexpr uint8_t READ2_PIN{ 1 };
-  static constexpr uint8_t READ3_PIN{ 7 };
-  static constexpr uint8_t READ4_PIN{ 6 };
+  static constexpr uint8_t READ3_PIN{ 6 };
+  static constexpr uint8_t READ4_PIN{ 7 };
+
+  static constexpr uint8_t WRITE1_PIN{ 3 };
+  static constexpr uint8_t WRITE2_PIN{ 4 };
+  static constexpr uint8_t WRITE3_PIN{ 9 };
+  static constexpr uint8_t WRITE4_PIN{ 10 };
 
   static constexpr int PUSH_BUTTON1{ 15 };
   static constexpr int PUSH_BUTTON2{ 14 };
@@ -134,20 +180,27 @@ class BatteryController {
   static constexpr int PUSH_BUTTON4{ 12 };
   static constexpr int PUSH_BUTTON5{ 11 };
 
-  ButtonStatus button1Status{};
-  ButtonStatus button2Status{};
-  ButtonStatus button3Status{};
-  ButtonStatus button4Status{};
-  ButtonStatus button5Status{};
+  ButtonStatus buttonLStatus{};
+  ButtonStatus buttonRStatus{};
+  ButtonStatus buttonUStatus{};
+  ButtonStatus buttonDStatus{};
+  ButtonStatus buttonCStatus{};
 
-  ValueCounter v1ValueCounter{};
-  ValueCounter v2ValueCounter{};
-
-  int readVolt{0};
+  std::vector<BatteryStatus> batteryStatuses{
+  BatteryStatus{READ1_PIN, WRITE1_PIN, 0},
+  BatteryStatus{READ2_PIN, WRITE2_PIN, 1},
+  BatteryStatus{READ3_PIN, WRITE3_PIN, 2},
+  BatteryStatus{READ4_PIN, WRITE4_PIN, 3}};
 
   unsigned long loopSubMillis{ 0 };
 
+  size_t currentBatteryIndex{0};
+
 public:
+  BatteryController() {
+    batteryStatuses[currentBatteryIndex].activeFlag = true;
+  };
+
   void setup() {
     pinMode(PUSH_BUTTON1, INPUT);
     pinMode(PUSH_BUTTON2, INPUT);
@@ -155,62 +208,89 @@ public:
     pinMode(PUSH_BUTTON4, INPUT);
     pinMode(PUSH_BUTTON5, INPUT);
 
-    pinMode(READ1_PIN, INPUT);
-    pinMode(READ2_PIN, INPUT);
+    buttonLStatus.init(PUSH_BUTTON1);
+    buttonRStatus.init(PUSH_BUTTON4);
+    buttonUStatus.init(PUSH_BUTTON3);
+    buttonDStatus.init(PUSH_BUTTON2);
+    buttonCStatus.init(PUSH_BUTTON5);
 
-    button1Status.init(PUSH_BUTTON1);
-    button2Status.init(PUSH_BUTTON2);
-    button3Status.init(PUSH_BUTTON3);
-    button4Status.init(PUSH_BUTTON4);
-    button5Status.init(PUSH_BUTTON5);
+    for (auto& batteryStatus : batteryStatuses)
+    {
+      batteryStatus.setup();
+    }
   }
 
   void loopMain() {
-    int volt1{ analogRead(READ1_PIN) };
-    v1ValueCounter.readVolt(volt1);
-    int volt2{ analogRead(READ2_PIN) };
-    v2ValueCounter.readVolt(volt2);
-
+    for (auto& batteryStatus : batteryStatuses)
+    {
+      batteryStatus.read();
+    }
   };
+
+  void display() {
+
+    drawAdafruit.drawFillLine(0);
+    for (auto& batteryStatus : batteryStatuses)
+    {
+      batteryStatus.display();
+    }
+  }
+
+  void changeTargetBattery(int shift) {
+    currentBatteryIndex = (currentBatteryIndex + shift) % batteryStatuses.size();
+
+    for (size_t index{0}; index < batteryStatuses.size(); ++index)
+    {
+      if (index== currentBatteryIndex)
+      {
+        batteryStatuses[index].activeFlag = true;
+      }
+      else
+      {
+        batteryStatuses[index].activeFlag = false;
+      }
+    }
+  }
 
   void loopSub() {
 
-    // Serial.print("-\n");
-    unsigned long v1Value{v1ValueCounter.calcValue()};
-    drawAdafruit.drawFillLine(3);
-    drawAdafruit.drawFloatR(voltageMapping.getVoltage(v1Value), 10, 3, 4, 3);
+    display();
+
+    for (auto& batteryStatus : batteryStatuses)
+    {
+      batteryStatus.write();
+    }
 
     //drawAdafruit.drawIntR(12341, 0, 0);
     //drawAdafruit.drawIntR(12342, 0, 1);
     //drawAdafruit.drawIntR(12343, 0, 3);
     drawAdafruit.display();
 
-    const int check1Flag{button1Status.check()};
-    if (check1Flag == 1) {
-      drawAdafruit.drawString("push1", 0, 1);
-      Serial.print("push1\n");
+    int checkFlag{0};
+    checkFlag = buttonLStatus.check();
+    if (checkFlag == 1) {
+      changeTargetBattery(-1);
     }
 
-    const int check2Flag{button2Status.check()};
-    if (check2Flag == 1) {
-      drawAdafruit.drawString("push2", 0, 1);
-      Serial.print("push2\n");
+    checkFlag = buttonRStatus.check();
+    if (checkFlag == 1) {
+      changeTargetBattery(1);
     }
 
-    const int check3Flag{button3Status.check()};
-    if (check3Flag == 1) {
+    checkFlag = buttonUStatus.check();
+    if (checkFlag == 1) {
       drawAdafruit.drawString("push3", 0, 1);
       Serial.print("push3\n");
     }
 
-    const int check4Flag{button4Status.check()};
-    if (check4Flag == 1) {
+    checkFlag = buttonDStatus.check();
+    if (checkFlag == 1) {
       drawAdafruit.drawString("push4", 0, 1);
       Serial.print("push4\n");
     }
 
-    const int check5Flag{button5Status.check()};
-    if (check5Flag == 1) {
+    checkFlag = buttonCStatus.check();
+    if (checkFlag == 1) {
       drawAdafruit.drawString("push5", 0, 1);
       Serial.print("push5\n");
     }
