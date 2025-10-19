@@ -16,6 +16,8 @@ const float ACTIVE_FRAME = 270.f;
 const float SUSPEND_FRAME = 30.f;
 const float ACTIVE_RATE = ACTIVE_FRAME /(ACTIVE_FRAME + SUSPEND_FRAME);
 
+
+
 int PWM_OUT = 6;
 
 int BUTTON_L = 8;

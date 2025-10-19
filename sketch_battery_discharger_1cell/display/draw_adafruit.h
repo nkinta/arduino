@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
@@ -9,7 +10,7 @@ class DrawAdafruit
   static constexpr uint8_t SCREEN_HEIGHT{64};
 
   // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
-  static const uint8_t OLED_RESET{4}; // Reset pin # (or -1 if sharing Arduino reset pin)
+  static const uint8_t OLED_RESET{-1}; // Reset pin # (or -1 if sharing Arduino reset pin)
 
   static const uint8_t CHARSIZEX{6};
   static const uint8_t CHARSIZEY{9};
@@ -18,7 +19,7 @@ class DrawAdafruit
 
   // static const uint8_t LINE_OFFSET{2};
 
-  Adafruit_SSD1306 adaDisplay{SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET};
+  Adafruit_SSD1306 adaDisplay{SCREEN_WIDTH, SCREEN_HEIGHT};
 
 public:
 
