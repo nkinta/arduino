@@ -57,16 +57,39 @@ struct VoltageMapping {
 
 static VoltageMapping voltageMapping;
 
-enum class DisChargeMode {
-  DisplayMode,
-  DischargeMode,
-  DischargeStopMode,
+enum class DisChargeMode : uint8_t {
+  DisplayNone,
+  DischargeNormal,
+  DischargeStop,
+  Max,
+};
+
+enum class DisplaySettingMode : uint8_t {
+  Display,
+  ModeChangeSetting,
+  DischargeVSetting,
+  DischargeISetting,
+  Max,
 };
 
 struct BatteryStatus
 {
+  static constexpr int START_LINE{1};
+
   public:
+
   BatteryStatus(uint8_t inReadPin, uint8_t inWritePin, uint8_t inBatteryIndex) : readPin{inReadPin}, writePin{inWritePin}, batteryIndex{inBatteryIndex} {};
+
+  static int calcPWMValue(float ampere)
+  {
+    static const float REG{0.1f};
+    static const float REG_RATE{ (5.1f + 5.1f + 1.f) / 1.f };
+    static const float VOLT3_3{3.3f};
+    const float volt{ampere * REG * REG_RATE};
+    const float voltRate{volt / VOLT3_3};
+
+    return std::clamp(static_cast<int>(255.f * voltRate), 0, 255);
+  };
 
   void read() {
     const int volt{ analogRead(readPin) };
@@ -74,7 +97,40 @@ struct BatteryStatus
   };
 
   void write() {
-    // analogWrite(writePin, 50);
+    if (disChargeMode == DisChargeMode::DisplayNone)
+    {
+      analogWrite(writePin, 0);
+    }
+    else if (disChargeMode == DisChargeMode::DischargeNormal)
+    {
+      if (V > targetV)
+      {
+        I = targetI;
+        int intValue = calcPWMValue(I);
+        analogWrite(writePin, intValue);
+      }
+      else
+      {
+        I = 0.f;
+        int intValue = calcPWMValue(I);
+        analogWrite(writePin, intValue);
+      }
+    }
+    else if (disChargeMode == DisChargeMode::DischargeStop)
+    {
+      if (V > targetV)
+      {
+        I = targetI;
+        int intValue = calcPWMValue(I);
+        analogWrite(writePin, intValue);
+      }
+      else
+      {
+        I = 0.f;
+        int intValue = calcPWMValue(I);
+        analogWrite(writePin, intValue);
+      }
+    }
   }; 
 
   void setup()
@@ -83,15 +139,209 @@ struct BatteryStatus
     pinMode(writePin, OUTPUT);
   };
 
-  void display()
+  void display(DisplaySettingMode displaySettingMode)
   {
     unsigned long v1Value{valueCounter.calcValue()};
+    V = voltageMapping.getVoltage(v1Value);
+
     if (activeFlag)
     {
       drawAdafruit.drawString(">", 5 * batteryIndex, 0);
     }
-    drawAdafruit.drawFloatR(voltageMapping.getVoltage(v1Value), 5 * (batteryIndex + 1), 0, 4, 2);
+    drawAdafruit.drawFloatR(V, 5 * (batteryIndex + 1), 0, 4, 2);
+
+    if (activeFlag)
+    {
+      if (displaySettingMode == DisplaySettingMode::Display)
+      {
+        displayDetail();
+      }
+      else if (displaySettingMode == DisplaySettingMode::ModeChangeSetting)
+      {
+        displayModeChangeSetting();
+      }
+      else if (displaySettingMode == DisplaySettingMode::DischargeVSetting)
+      {
+        displayDischargeV();
+      }
+      else if (displaySettingMode == DisplaySettingMode::DischargeISetting)
+      {
+        displayDischargeI();
+      }
+      else
+      {
+        displayNone();
+      }
+
+    }
   };
+
+  void shiftParam(DisplaySettingMode displaySettingMode, int shift)
+  {
+    if (displaySettingMode == DisplaySettingMode::ModeChangeSetting)
+    {
+      const int nextModeIndex{(static_cast<int>(disChargeMode) + shift) % static_cast<int>(DisChargeMode::Max)};
+      disChargeMode = static_cast<DisChargeMode>(nextModeIndex);
+    }
+    else if (displaySettingMode == DisplaySettingMode::DischargeVSetting)
+    {
+      targetV += 0.01f * static_cast<float>(shift);
+    }
+    else if (displaySettingMode == DisplaySettingMode::DischargeISetting)
+    {
+      targetI += 0.1f * static_cast<float>(shift);
+    }
+  }
+
+  void displayNone()
+  {
+    int line{START_LINE};
+    drawAdafruit.drawFillLine(line);
+    ++line;
+    drawAdafruit.drawFillLine(line);
+    ++line;
+    drawAdafruit.drawFillLine(line);
+    ++line;
+    drawAdafruit.drawFillLine(line);
+  }
+
+  void displayModeChangeSetting()
+  {
+    constexpr int START_COL{5};
+    int vir_offset{0};
+    int line{START_LINE};
+    static std::vector<String> modeNames{String("None"), String("DiscA"), String("DiscB")};
+    String modeName;
+    drawAdafruit.drawFillLine(line);
+    vir_offset = START_COL;
+    drawAdafruit.drawString("   |     ", vir_offset, line);
+
+    ++line;
+    drawAdafruit.drawFillLine(line);
+    vir_offset = START_COL;
+    drawAdafruit.drawString(modeNames[(uint8_t)disChargeMode], START_COL + 1, line);
+
+    ++line;
+    drawAdafruit.drawFillLine(line);
+    vir_offset = START_COL;
+    drawAdafruit.drawString("   |     ", vir_offset, line);
+
+    ++line;
+    drawAdafruit.drawFillLine(line);
+    ++line;
+    drawAdafruit.drawFillLine(line);
+  }
+
+  void displayDischargeI()
+  {
+    constexpr int START_COL{5};
+    constexpr int OFFSET_COL{5};
+
+    int vir_offset{0};
+    int line{START_LINE};
+    drawAdafruit.drawFillLine(line);
+    vir_offset = START_COL;
+    drawAdafruit.drawString("   |     ", vir_offset, line);
+
+    ++line;
+    drawAdafruit.drawFillLine(line);
+    vir_offset = START_COL;
+    vir_offset += OFFSET_COL;
+    drawAdafruit.drawFloatR(targetI, vir_offset, line, OFFSET_COL, 3);
+    drawAdafruit.drawString("A", vir_offset, line);
+
+    ++line;
+    drawAdafruit.drawFillLine(line);
+    vir_offset = START_COL;
+    drawAdafruit.drawString("   |     ", vir_offset, line);
+
+    ++line;
+    drawAdafruit.drawFillLine(line);
+    ++line;
+    drawAdafruit.drawFillLine(line);
+  }
+
+  void displayDischargeV()
+  {
+    constexpr int START_COL{5};
+    constexpr int OFFSET_COL{5};
+
+    int vir_offset{0};
+    int line{START_LINE};
+    drawAdafruit.drawFillLine(line);
+    vir_offset = START_COL;
+    drawAdafruit.drawString("   |     ", vir_offset, line);
+
+    ++line;
+    drawAdafruit.drawFillLine(line);
+    vir_offset = START_COL;
+    vir_offset += OFFSET_COL;
+    drawAdafruit.drawFloatR(targetV, vir_offset, line, OFFSET_COL, 3);
+    drawAdafruit.drawString("V", vir_offset, line);
+
+    ++line;
+    drawAdafruit.drawFillLine(line);
+    vir_offset = START_COL;
+    drawAdafruit.drawString("   |     ", vir_offset, line);
+
+    ++line;
+    drawAdafruit.drawFillLine(line);
+    ++line;
+    drawAdafruit.drawFillLine(line);
+  }
+
+  void displayDetail()
+  {
+    constexpr int START_COL{1};
+    constexpr int OFFSET_COL{5};
+
+    int vir_offset{0};
+    int line{START_LINE};
+    static std::vector<String> modeNames{String("None"), String("DiscA"), String("DiscB")};
+    String modeName;
+    drawAdafruit.drawFillLine(line);
+
+    drawAdafruit.drawString(modeNames[(uint8_t)disChargeMode], START_COL + 5, line);
+
+    ++line;
+    drawAdafruit.drawFillLine(line);
+    vir_offset = START_COL;
+    vir_offset += OFFSET_COL;
+    drawAdafruit.drawFloatR(V, vir_offset, line, OFFSET_COL, 3);
+    drawAdafruit.drawString("V", vir_offset, line);
+
+    vir_offset += 2;
+    drawAdafruit.drawString("=>", vir_offset, line);
+
+    vir_offset += 3;
+    vir_offset += OFFSET_COL;
+    drawAdafruit.drawFloatR(targetV, vir_offset, line, OFFSET_COL, 3);
+    drawAdafruit.drawString("V", vir_offset, line);
+
+    ++line;
+    drawAdafruit.drawFillLine(line);
+    vir_offset = START_COL;
+    vir_offset += OFFSET_COL;
+    drawAdafruit.drawFloatR(I, vir_offset, line, OFFSET_COL, 3);
+    drawAdafruit.drawString("A", vir_offset, line);
+
+    vir_offset += 2;
+    drawAdafruit.drawString("=>", vir_offset, line);
+
+    vir_offset += 3;
+    vir_offset += OFFSET_COL;
+    drawAdafruit.drawFloatR(targetI, vir_offset, line, OFFSET_COL, 3);
+    drawAdafruit.drawString("A", vir_offset, line);
+
+    ++line;
+    drawAdafruit.drawFillLine(line);
+    if (0)
+    {
+      drawAdafruit.drawInt(calcPWMValue(targetI), START_COL, line);
+      drawAdafruit.drawString("PWM", START_COL + OFFSET_COL, line);
+    }
+
+  }
 
   ValueCounter valueCounter{};
 
@@ -99,11 +349,13 @@ struct BatteryStatus
   uint8_t batteryIndex;
   uint8_t readPin{0};
   uint8_t writePin{0};
-  float currentV{0.f};
-  float currentDischargeI{0.f};
-  float targetV{0.f};
-  float targetDischargeI{0.f};
-  DisChargeMode Mode;
+
+  float V{0.f};
+  float targetV{1.35f};
+  float I{0.0f};
+  float targetI{0.2f};
+
+  DisChargeMode disChargeMode{DisChargeMode::DisplayNone};
 };
 
 struct ButtonStatus{
@@ -169,10 +421,10 @@ class BatteryController {
   static constexpr uint8_t READ3_PIN{ 6 };
   static constexpr uint8_t READ4_PIN{ 7 };
 
-  static constexpr uint8_t WRITE1_PIN{ 3 };
-  static constexpr uint8_t WRITE2_PIN{ 4 };
-  static constexpr uint8_t WRITE3_PIN{ 9 };
-  static constexpr uint8_t WRITE4_PIN{ 10 };
+  static constexpr uint8_t WRITE1_PIN{ 2 };
+  static constexpr uint8_t WRITE2_PIN{ 3 };
+  static constexpr uint8_t WRITE3_PIN{ 8 };
+  static constexpr uint8_t WRITE4_PIN{ 9 };
 
   static constexpr int PUSH_BUTTON1{ 15 };
   static constexpr int PUSH_BUTTON2{ 14 };
@@ -191,6 +443,8 @@ class BatteryController {
   BatteryStatus{READ2_PIN, WRITE2_PIN, 1},
   BatteryStatus{READ3_PIN, WRITE3_PIN, 2},
   BatteryStatus{READ4_PIN, WRITE4_PIN, 3}};
+
+  DisplaySettingMode displaySettingMode{DisplaySettingMode::Display};
 
   unsigned long loopSubMillis{ 0 };
 
@@ -232,11 +486,12 @@ public:
     drawAdafruit.drawFillLine(0);
     for (auto& batteryStatus : batteryStatuses)
     {
-      batteryStatus.display();
+      batteryStatus.display(displaySettingMode);
     }
   }
 
-  void changeTargetBattery(int shift) {
+  void changeTargetBattery(int shift)
+  {
     currentBatteryIndex = (currentBatteryIndex + shift) % batteryStatuses.size();
 
     for (size_t index{0}; index < batteryStatuses.size(); ++index)
@@ -250,6 +505,18 @@ public:
         batteryStatuses[index].activeFlag = false;
       }
     }
+  }
+
+  void changeDisplayMode(int shift)
+  {
+    const int nextModeIndex{(static_cast<int>(displaySettingMode) + shift) % static_cast<int>(DisplaySettingMode::Max)};
+
+    displaySettingMode = static_cast<DisplaySettingMode>(nextModeIndex);
+  }
+
+  void shiftParam(int shift)
+  {
+    batteryStatuses[currentBatteryIndex].shiftParam(displaySettingMode, shift);
   }
 
   void loopSub() {
@@ -279,20 +546,17 @@ public:
 
     checkFlag = buttonUStatus.check();
     if (checkFlag == 1) {
-      drawAdafruit.drawString("push3", 0, 1);
-      Serial.print("push3\n");
+      shiftParam(1);
     }
 
     checkFlag = buttonDStatus.check();
     if (checkFlag == 1) {
-      drawAdafruit.drawString("push4", 0, 1);
-      Serial.print("push4\n");
+      shiftParam(-1);
     }
 
     checkFlag = buttonCStatus.check();
     if (checkFlag == 1) {
-      drawAdafruit.drawString("push5", 0, 1);
-      Serial.print("push5\n");
+      changeDisplayMode(1);
     }
 
 
