@@ -1,6 +1,7 @@
 #include <SPI.h>
 #include <Wire.h>
 #include <vector>
+#include <EEPROM.h>
 
 #include "display/draw_adafruit.h"
 
@@ -58,7 +59,7 @@ struct VoltageMapping {
 static VoltageMapping voltageMapping;
 
 enum class DisChargeMode : uint8_t {
-  DisplayNone,
+  DischargeNone,
   DischargeNormal,
   DischargeStop,
   Max,
@@ -72,16 +73,25 @@ enum class DisplaySettingMode : uint8_t {
   Max,
 };
 
-enum class ActiveOrSleep : uint8_t {
-  None,
-  Active,
-  Sleep,
-  SleepDelRead,
-  SleepHoldRead,
+enum class TimeStatus : uint8_t {
+  None = 0,
+  Active = 1,
+  SleepStart = 2,
+  SleepStartRead = 3,
+  SleepEnd = 4,
   Max,
 };
 
-struct BatteryStatus
+enum class BatteryStatus : uint8_t {
+  None,
+  Active,
+  Sleep,
+  Stop,
+  NoBat,
+  Max,
+};
+
+struct BatteryInfo
 {
   static constexpr int START_LINE{1};
   static constexpr int SETTING_MENU_START_COL{7};
@@ -89,70 +99,76 @@ struct BatteryStatus
 
   static constexpr int abc[]{10};
 
-  static constexpr ActiveOrSleep READ_MODE_LOOPS[] = {
-    ActiveOrSleep::Active, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None,
-    ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None,
-    ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None,
+  static constexpr int8_t DISCHARGE_MODE_LOOPS[] = {
+    2, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    3, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
-    ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None,
-    ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None,
-    ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None,
+    4, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
-    ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None,
-    ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None,
-    ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
-    ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None,
-    ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None,
-    ActiveOrSleep::Sleep,ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::SleepDelRead, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::None, ActiveOrSleep::SleepHoldRead
-  };
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+ };
 
-  static constexpr int32_t sizeOfMode{sizeof(READ_MODE_LOOPS)};
+  static constexpr float ACTIVE_RATE{3.f / 4.f};
+
+  static constexpr int8_t NONE_MODE_LOOPS[] = {
+    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+
+    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+
+    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+
+    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+ };
 
   unsigned long loopCount{ 0 };
+  unsigned long displayCount{ 0 };
 
-  ActiveOrSleep currentActiveOrSleep{ActiveOrSleep::Active};
+  TimeStatus currentTimeStatus{TimeStatus::Active};
 
-  void write() {
-    if (disChargeMode == DisChargeMode::DisplayNone)
-    {
-      analogWrite(writePin, 0);
-    }
-    else if (disChargeMode == DisChargeMode::DischargeNormal)
+  static float calcI(const float targetI, const float V, const float targetV, const DisChargeMode disChargeMode) {
+    float resultI{0};
+    if (disChargeMode == DisChargeMode::DischargeNormal)
     {
       if (V > targetV)
       {
-        I = targetI;
-        int intValue = calcPWMValue(I);
-        analogWrite(writePin, intValue);
+        resultI = targetI;
       }
       else
       {
-        I = 0.f;
-        int intValue = calcPWMValue(I);
-        analogWrite(writePin, intValue);
+        resultI = 0.f;
       }
     }
     else if (disChargeMode == DisChargeMode::DischargeStop)
     {
       if (V > targetV)
       {
-        I = targetI;
-        int intValue = calcPWMValue(I);
-        analogWrite(writePin, intValue);
+        resultI = targetI;
       }
       else
       {
-        I = 0.f;
-        int intValue = calcPWMValue(I);
-        analogWrite(writePin, intValue);
+        resultI = 0.f;
       }
     }
+
+    return resultI;
   }; 
-
-  public:
-
-  BatteryStatus(uint8_t inReadPin, uint8_t inWritePin, uint8_t inBatteryIndex) : readPin{inReadPin}, writePin{inWritePin}, batteryIndex{inBatteryIndex} {};
 
   static int calcPWMValue(float ampere)
   {
@@ -162,8 +178,14 @@ struct BatteryStatus
     const float volt{ampere * REG * REG_RATE};
     const float voltRate{volt / VOLT3_3};
 
-    return std::clamp(static_cast<int>(255.f * voltRate), 0, 255);
+    return std::clamp(static_cast<int>(255.f * voltRate * (1 / ACTIVE_RATE)), 0, 255);
   };
+
+  std::vector<String> modeNames{String("  None  "), String(" DiscNorm"), String(" DiscStop")};
+
+  public:
+
+  BatteryInfo(uint8_t inReadPin, uint8_t inWritePin, uint8_t inBatteryIndex) : readPin{inReadPin}, writePin{inWritePin}, batteryIndex{inBatteryIndex} {};
 
   void read() {
     const int volt{ analogRead(readPin) };
@@ -178,24 +200,113 @@ struct BatteryStatus
 
   void loopSub()
   {
-    ActiveOrSleep tempActiveOrSleep{READ_MODE_LOOPS[(++loopCount) % sizeOfMode]};
-    if (currentActiveOrSleep != ActiveOrSleep::None)
+
+    if (nextBatteryStatus != currentBatteryStatus)
     {
-      currentActiveOrSleep = tempActiveOrSleep;
+      reset();
+      currentBatteryStatus = nextBatteryStatus;
     }
 
-  }
+
+    if (disChargeMode == DisChargeMode::DischargeNone)
+    {
+      currentTimeStatus = static_cast<TimeStatus>(NONE_MODE_LOOPS[(++loopCount) % sizeof(NONE_MODE_LOOPS)]);
+      unsigned long temp{valueCounter.calcValue()};
+      sleepV = voltageMapping.getVoltage(temp);
+      V = sleepV;
+      tunedI = 0;
+      I = 0;
+    }
+    else
+    {
+      currentTimeStatus = static_cast<TimeStatus>(DISCHARGE_MODE_LOOPS[(++loopCount) % sizeof(DISCHARGE_MODE_LOOPS)]);
+
+      if (currentTimeStatus == TimeStatus::None)
+      {
+
+      }
+      else if (currentTimeStatus == TimeStatus::Active)
+      {
+        unsigned long temp{valueCounter.calcValue()};
+        V = voltageMapping.getVoltage(temp);
+        I = std::max(0.f, tunedI);
+      }
+      else if (currentTimeStatus == TimeStatus::SleepStart)
+      {
+        unsigned long temp{valueCounter.calcValue()};
+        V = voltageMapping.getVoltage(temp);
+        I = 0;
+      }
+      else if (currentTimeStatus == TimeStatus::SleepStartRead)
+      {
+        unsigned long temp{valueCounter.calcValue()};
+        I = 0;
+      }
+      else if (currentTimeStatus == TimeStatus::SleepEnd)
+      {
+        unsigned long temp{valueCounter.calcValue()};
+        sleepV = voltageMapping.getVoltage(temp);
+        if (currentBatteryStatus == BatteryStatus::Stop && disChargeMode == DisChargeMode::DischargeStop)
+        {
+          tunedI = 0;
+        }
+        else
+        {
+          tunedI = calcI(targetI, sleepV, targetV, disChargeMode);
+        }
+        I = std::max(0.f, tunedI);
+      }
+    }
+
+
+    if (currentBatteryStatus == BatteryStatus::Active || currentBatteryStatus == BatteryStatus::Stop || currentBatteryStatus == BatteryStatus::None)
+    {
+      if (V > 0.1f)
+      {
+        if (tunedI > 0)
+        {
+          nextBatteryStatus = BatteryStatus::Active;
+        }
+        else if (tunedI == 0)
+        {
+          nextBatteryStatus = BatteryStatus::Stop;
+        }
+      }
+      else
+      {
+        nextBatteryStatus = BatteryStatus::NoBat;
+      }
+    }
+    else if (currentBatteryStatus == BatteryStatus::NoBat)
+    {
+      if (V > 0.1f)
+      {
+        nextBatteryStatus = BatteryStatus::Active;
+        startTime = millis();
+      }
+    }
+
+    int intValue = calcPWMValue(I);
+    analogWrite(writePin, intValue);
+
+  };
+
+  void reset()
+  {
+    tunedI = -1;
+    loopCount = 0;
+  };
 
   void display(DisplaySettingMode displaySettingMode)
   {
-    unsigned long v1Value{valueCounter.calcValue()};
-    V = voltageMapping.getVoltage(v1Value);
+
+    ++displayCount;
 
     if (settingFlag)
     {
       drawAdafruit.drawString(">", 5 * batteryIndex, 0);
     }
-    drawAdafruit.drawFloatR(V, 5 * (batteryIndex + 1), 0, 4, 2);
+    drawAdafruit.drawFloatR(sleepV, 5 * (batteryIndex + 1), 0, 4, 2);
 
     if (settingFlag)
     {
@@ -227,8 +338,9 @@ struct BatteryStatus
   {
     if (displaySettingMode == DisplaySettingMode::ModeChangeSetting)
     {
-      const int nextModeIndex{(static_cast<int>(disChargeMode) + shift) % static_cast<int>(DisChargeMode::Max)};
+      const int nextModeIndex{(static_cast<int>(DisChargeMode::Max) + static_cast<int>(disChargeMode) + shift) % static_cast<int>(DisChargeMode::Max)};
       disChargeMode = static_cast<DisChargeMode>(nextModeIndex);
+      loopCount = 0;
     }
     else if (displaySettingMode == DisplaySettingMode::DischargeVSetting)
     {
@@ -256,7 +368,7 @@ struct BatteryStatus
   {
     int vir_offset{0};
     int line{START_LINE};
-    static std::vector<String> modeNames{String("None"), String("DiscA"), String("DiscB")};
+
     String modeName;
     drawAdafruit.drawFillLine(line);
     vir_offset = SETTING_MENU_START_COL;
@@ -265,7 +377,7 @@ struct BatteryStatus
     ++line;
     drawAdafruit.drawFillLine(line);
     vir_offset = SETTING_MENU_START_COL;
-    drawAdafruit.drawString(modeNames[(uint8_t)disChargeMode], SETTING_MENU_START_COL + 1, line);
+    drawAdafruit.drawString(modeNames[(uint8_t)disChargeMode], SETTING_MENU_START_COL - 1, line);
 
     ++line;
     drawAdafruit.drawFillLine(line);
@@ -336,21 +448,26 @@ struct BatteryStatus
     static constexpr int DISPLAY_MENU_OFFSET_COL{5};
     int vir_offset{0};
     int line{START_LINE};
-    static std::vector<String> modeNames{String("None"), String("DiscA"), String("DiscB")};
-    String modeName;
     drawAdafruit.drawFillLine(line);
     vir_offset = DISPLAY_MENU_START_COL;
-    drawAdafruit.drawString(modeNames[(uint8_t)disChargeMode], vir_offset + 5, line);
+    drawAdafruit.drawString(modeNames[(uint8_t)disChargeMode], vir_offset + 3, line);
 
     ++line;
     drawAdafruit.drawFillLine(line);
     vir_offset = DISPLAY_MENU_START_COL;
     vir_offset += DISPLAY_MENU_OFFSET_COL;
-    drawAdafruit.drawFloatR(V, vir_offset, line, DISPLAY_MENU_OFFSET_COL, 3);
+    drawAdafruit.drawFloatR(sleepV, vir_offset, line, DISPLAY_MENU_OFFSET_COL, 3);
     drawAdafruit.drawString("V", vir_offset, line);
 
     vir_offset += 2;
-    drawAdafruit.drawString("=>", vir_offset, line);
+    if ((disChargeMode != DisChargeMode::DischargeNone) && (tunedI > 0.f) && (displayCount % 2))
+    {
+
+    }
+    else
+    {
+      drawAdafruit.drawString("=>", vir_offset, line);
+    }
 
     vir_offset += 3;
     vir_offset += DISPLAY_MENU_OFFSET_COL;
@@ -361,7 +478,8 @@ struct BatteryStatus
     drawAdafruit.drawFillLine(line);
     vir_offset = DISPLAY_MENU_START_COL;
     vir_offset += DISPLAY_MENU_OFFSET_COL;
-    drawAdafruit.drawFloatR(I, vir_offset, line, DISPLAY_MENU_OFFSET_COL, 3);
+    float displayI{std::max(0.f, tunedI)};
+    drawAdafruit.drawFloatR(displayI, vir_offset, line, DISPLAY_MENU_OFFSET_COL, 3);
     drawAdafruit.drawString("A", vir_offset, line);
 
     vir_offset += 2;
@@ -372,31 +490,66 @@ struct BatteryStatus
     drawAdafruit.drawFloatR(targetI, vir_offset, line, SETTING_MENU_OFFSET_COL, 3);
     drawAdafruit.drawString("A", vir_offset, line);
 
-    ++line;
-    drawAdafruit.drawFillLine(line);
     if (0)
     {
+      ++line;
+      drawAdafruit.drawFillLine(line);
       drawAdafruit.drawInt(calcPWMValue(targetI), SETTING_MENU_START_COL, line);
       drawAdafruit.drawString("PWM", SETTING_MENU_START_COL + SETTING_MENU_OFFSET_COL, line);
+    }
+
+    if (0)
+    {
+      ++line;
+      drawAdafruit.drawFillLine(line);
+      vir_offset = DISPLAY_MENU_START_COL;
+      vir_offset += DISPLAY_MENU_OFFSET_COL;
+      drawAdafruit.drawFloatR(sleepV, vir_offset, line, DISPLAY_MENU_OFFSET_COL, 3);
+      drawAdafruit.drawString("V", vir_offset, line);
+    }
+
+    if (1)
+    {
+      ++line;
+      drawAdafruit.drawFillLine(line);
+      vir_offset = DISPLAY_MENU_START_COL;
+      vir_offset += DISPLAY_MENU_OFFSET_COL;
+      drawAdafruit.drawFloatR(I, vir_offset, line, DISPLAY_MENU_OFFSET_COL, 3);
+      drawAdafruit.drawString("A", vir_offset, line);
+    }
+
+    if (1)
+    {
+      ++line;
+      drawAdafruit.drawFillLine(line);
+      vir_offset = DISPLAY_MENU_START_COL;
+      vir_offset += DISPLAY_MENU_OFFSET_COL;
+      static std::vector<String> modeNames{String("None"), String("Active"), String("Sleep"), String("Stop"), String("NoBat"), String("Max")};
+      drawAdafruit.drawString(modeNames[(uint8_t)currentBatteryStatus], vir_offset + 5, line);
     }
 
   }
 
   ValueCounter valueCounter{};
 
-  ActiveOrSleep activeOrSleep{ActiveOrSleep::Active};
+  BatteryStatus currentBatteryStatus{BatteryStatus::None};
+  BatteryStatus nextBatteryStatus{BatteryStatus::None};
 
   bool settingFlag{false};
+
   uint8_t batteryIndex;
   uint8_t readPin{0};
   uint8_t writePin{0};
+  unsigned long startTime{0};
 
   float V{0.f};
-  float targetV{1.35f};
+  float sleepV{0.f};
+  float targetV{1.40f};
   float I{0.0f};
+  float tunedI{0.2f};
   float targetI{0.2f};
 
-  DisChargeMode disChargeMode{DisChargeMode::DisplayNone};
+  DisChargeMode disChargeMode{DisChargeMode::DischargeNone};
 };
 
 struct ButtonStatus{
@@ -479,11 +632,11 @@ class BatteryController {
   ButtonStatus buttonDStatus{};
   ButtonStatus buttonCStatus{};
 
-  std::vector<BatteryStatus> batteryStatuses{
-  BatteryStatus{READ1_PIN, WRITE1_PIN, 0},
-  BatteryStatus{READ2_PIN, WRITE2_PIN, 1},
-  BatteryStatus{READ3_PIN, WRITE3_PIN, 2},
-  BatteryStatus{READ4_PIN, WRITE4_PIN, 3}};
+  std::vector<BatteryInfo> batteryStatuses{
+  BatteryInfo{READ1_PIN, WRITE1_PIN, 0},
+  BatteryInfo{READ2_PIN, WRITE2_PIN, 1},
+  BatteryInfo{READ3_PIN, WRITE3_PIN, 2},
+  BatteryInfo{READ4_PIN, WRITE4_PIN, 3}};
 
   DisplaySettingMode displaySettingMode{DisplaySettingMode::Display};
 
@@ -493,12 +646,51 @@ class BatteryController {
 
   unsigned long loopSubCount{ 0 };
 
+  struct SaveBattery
+  {
+    float targetV{0.f};
+    float targetI{0.f};
+    DisChargeMode disChargeMode{DisChargeMode::DischargeNone};
+  }; 
+
+  struct SaveData
+  {
+    uint8_t ver{0};
+    SaveBattery battery[4];
+  };
+
+  SaveData saveData{};
+
+  void saveRomData()
+  {
+    byte* p = (byte*) &saveData;
+
+    for(int i = 0; i < sizeof(SaveData); i++)
+    {
+      EEPROM.write(i, *p);
+      p++;
+    }
+  };
+
+  void loadRomData()
+  {
+    byte* p = (byte*) &saveData;
+
+    for(int i = 0; i < sizeof(SaveData); i++)
+    {
+      byte b = EEPROM.read(i);
+      *p = b;
+      p++;
+    }
+  };
+
 public:
   BatteryController() {
     batteryStatuses[currentBatteryIndex].settingFlag = true;
   };
 
   void setup() {
+
     pinMode(PUSH_BUTTON1, INPUT);
     pinMode(PUSH_BUTTON2, INPUT);
     pinMode(PUSH_BUTTON3, INPUT);
@@ -511,11 +703,26 @@ public:
     buttonDStatus.init(PUSH_BUTTON2);
     buttonCStatus.init(PUSH_BUTTON5);
 
-    for (auto& batteryStatus : batteryStatuses)
+    loadRomData();
+
+    for (int i{0}; i < batteryStatuses.size(); ++i)
     {
+      auto& batteryStatus{batteryStatuses[i]};
+      Serial.println("hello");
+      Serial.println(saveData.ver);
+      Serial.println("end");
+      if (0)
+      {
+
+        auto& saveBattery{saveData.battery[i]};
+
+        batteryStatus.targetI = std::clamp(saveBattery.targetI, 0.f, 3.f);
+        batteryStatus.targetV = std::clamp(saveBattery.targetV, 0.f, 1.5f);
+        batteryStatus.disChargeMode = static_cast<DisChargeMode>(std::clamp(static_cast<uint8_t>(saveBattery.disChargeMode), static_cast<uint8_t>(0), static_cast<uint8_t>(DisChargeMode::Max)));
+      }
       batteryStatus.setup();
     }
-  }
+  };
 
   void loopMain() {
     for (auto& batteryStatus : batteryStatuses)
@@ -531,7 +738,7 @@ public:
     {
       batteryStatus.display(displaySettingMode);
     }
-  }
+  };
 
   void changeTargetBattery(int shift)
   {
@@ -548,31 +755,35 @@ public:
         batteryStatuses[index].settingFlag = false;
       }
     }
-  }
+  };
 
   void changeDisplayMode(int shift)
   {
     const int nextModeIndex{(static_cast<int>(displaySettingMode) + shift) % static_cast<int>(DisplaySettingMode::Max)};
 
     displaySettingMode = static_cast<DisplaySettingMode>(nextModeIndex);
-  }
+  };
 
   void shiftParam(int shift)
   {
     batteryStatuses[currentBatteryIndex].shiftParam(displaySettingMode, shift);
-  }
+  };
 
   void loopSub()
   {
-    digitalWrite(LED_BUILTIN, (++loopSubCount % 2));
+    digitalWrite(LED_BUILTIN, (++loopSubCount % 3));
+    Serial.print("on\n");
 
     for (auto& batteryStatus : batteryStatuses)
     {
       batteryStatus.loopSub();
     }
 
-    display();
-    drawAdafruit.display();
+    if ((loopSubCount % 3) == 0)
+    {
+      display();
+      drawAdafruit.display();
+    }
 
     int checkFlag{0};
     checkFlag = buttonLStatus.check();
@@ -599,7 +810,7 @@ public:
     if (checkFlag == 1) {
       changeDisplayMode(1);
     }
-  }
+  };
 
   void loopWhile() {
 
@@ -621,13 +832,12 @@ void setup() {
   // initialize digital pin LED_BUILTIN as an output.
   pinMode(LED_BUILTIN, OUTPUT);
 
-  // Serial.begin(115200);
-  // Serial.print("start\n");
+  Serial.begin(9600);
+  Serial.print("start\n");
 
   controller.setup();
 
   drawAdafruit.setupDisplay();
-
 
 }
 
