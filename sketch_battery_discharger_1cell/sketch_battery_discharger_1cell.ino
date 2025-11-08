@@ -120,21 +120,21 @@ struct BatteryInfo
   static constexpr float ACTIVE_RATE{3.f / 4.f};
 
   static constexpr int8_t NONE_MODE_LOOPS[] = {
-    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
-    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
-    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
-    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-    1, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
  };
 
   unsigned long loopCount{ 0 };
@@ -508,7 +508,7 @@ struct BatteryInfo
       drawAdafruit.drawString("V", vir_offset, line);
     }
 
-    if (1)
+    if (0)
     {
       ++line;
       drawAdafruit.drawFillLine(line);
@@ -518,7 +518,7 @@ struct BatteryInfo
       drawAdafruit.drawString("A", vir_offset, line);
     }
 
-    if (1)
+    if (0)
     {
       ++line;
       drawAdafruit.drawFillLine(line);
@@ -655,11 +655,13 @@ class BatteryController {
 
   struct SaveData
   {
-    uint8_t ver{0};
+    int ver{0};
     SaveBattery battery[4];
   };
 
+public:
   SaveData saveData{};
+private:
 
   void saveRomData()
   {
@@ -708,17 +710,14 @@ public:
     for (int i{0}; i < batteryStatuses.size(); ++i)
     {
       auto& batteryStatus{batteryStatuses[i]};
-      Serial.println("hello");
-      Serial.println(saveData.ver);
-      Serial.println("end");
-      if (0)
+      if (saveData.ver != -1)
       {
 
         auto& saveBattery{saveData.battery[i]};
 
-        batteryStatus.targetI = std::clamp(saveBattery.targetI, 0.f, 3.f);
-        batteryStatus.targetV = std::clamp(saveBattery.targetV, 0.f, 1.5f);
-        batteryStatus.disChargeMode = static_cast<DisChargeMode>(std::clamp(static_cast<uint8_t>(saveBattery.disChargeMode), static_cast<uint8_t>(0), static_cast<uint8_t>(DisChargeMode::Max)));
+        batteryStatus.targetI = saveBattery.targetI;
+        batteryStatus.targetV = saveBattery.targetV;
+        batteryStatus.disChargeMode = saveBattery.disChargeMode;
       }
       batteryStatus.setup();
     }
@@ -767,12 +766,26 @@ public:
   void shiftParam(int shift)
   {
     batteryStatuses[currentBatteryIndex].shiftParam(displaySettingMode, shift);
+
+    saveData.ver = 0;
+    for (int i{0}; i < batteryStatuses.size(); ++i)
+    {
+      auto& batteryStatus{batteryStatuses[i]};
+      auto& saveBattery{saveData.battery[i]};
+
+      saveBattery.targetI = batteryStatus.targetI;
+      saveBattery.targetV = batteryStatus.targetV;
+      saveBattery.disChargeMode = batteryStatus.disChargeMode;
+    }
+
+    saveRomData();
+
   };
 
   void loopSub()
   {
+
     digitalWrite(LED_BUILTIN, (++loopSubCount % 3));
-    Serial.print("on\n");
 
     for (auto& batteryStatus : batteryStatuses)
     {
@@ -829,11 +842,12 @@ public:
 BatteryController controller;
 // the setup function runs once when you press reset or power the board
 void setup() {
+
   // initialize digital pin LED_BUILTIN as an output.
   pinMode(LED_BUILTIN, OUTPUT);
 
-  Serial.begin(9600);
-  Serial.print("start\n");
+  // Serial.begin(115200);
+  // while (!Serial);
 
   controller.setup();
 
