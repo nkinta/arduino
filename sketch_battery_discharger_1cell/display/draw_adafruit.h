@@ -55,7 +55,7 @@ public:
   }
 
   void drawString(const String& string, int offsetX, int offsetY) {
-    drawChar(string.c_str(), offsetX, offsetY, string.length());
+    drawChar(string.c_str(), offsetX, offsetY);
   }
 
   void drawFloat(float value, float offsetX, float offsetY, int decimal = 2) {
@@ -162,8 +162,8 @@ public:
     adaDisplay.display();
   }
 
-  void drawChar(const char* chr, int offsetX, int offsetY, int sizeChar) {
-    adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * sizeChar, CHARSIZEY * 1, BLACK);
+  void drawChar(const char* chr, int offsetX, int offsetY) {
+    // adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * sizeChar, CHARSIZEY * 1, BLACK);
     adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
     // adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
     adaDisplay.print(chr);
