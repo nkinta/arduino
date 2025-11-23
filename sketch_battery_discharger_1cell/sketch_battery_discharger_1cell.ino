@@ -98,6 +98,13 @@ struct BatteryInfo
   static constexpr int START_LINE{1};
   static constexpr int SETTING_MENU_START_COL{7};
   static constexpr int SETTING_MENU_OFFSET_COL{5};
+  static constexpr float TARGET_V_MAX{1.55f};
+  static constexpr float TARGET_V_MIN{1.0f};
+  static constexpr float TARGET_I_MAX{1.5f};
+  static constexpr float TARGET_I_MIN{0.4f};
+
+  static constexpr char CHAR_DATA_UP[] = {0x20, 0x20, 0x20, 0x18, 0x00};
+  static constexpr char CHAR_DATA_DOWN[] = {0x20, 0x20, 0x20, 0x19, 0x00};
 
   static constexpr int8_t DISCHARGE_MODE_LOOPS[] = {
     2, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -382,11 +389,11 @@ struct BatteryInfo
     }
     else if (displaySettingMode == DisplaySettingMode::DischargeVSetting)
     {
-      targetV += 0.01f * static_cast<float>(shift);
+      targetV = std::clamp(targetV + 0.001f * static_cast<float>(shift), TARGET_V_MIN, TARGET_V_MAX);
     }
     else if (displaySettingMode == DisplaySettingMode::DischargeISetting)
     {
-      targetI += 0.1f * static_cast<float>(shift);
+      targetI = std::clamp(targetI + 0.1f * static_cast<float>(shift), TARGET_I_MIN, TARGET_I_MAX);
     }
   }
 
@@ -410,7 +417,7 @@ struct BatteryInfo
     String modeName;
     drawAdafruit.drawFillLine(line);
     vir_offset = SETTING_MENU_START_COL;
-    drawAdafruit.drawString("   |     ", vir_offset, line);
+    drawAdafruit.drawChar(&CHAR_DATA_UP[0], vir_offset, line);
 
     ++line;
     drawAdafruit.drawFillLine(line);
@@ -420,7 +427,7 @@ struct BatteryInfo
     ++line;
     drawAdafruit.drawFillLine(line);
     vir_offset = SETTING_MENU_START_COL;
-    drawAdafruit.drawString("   |     ", vir_offset, line);
+    drawAdafruit.drawChar(&CHAR_DATA_DOWN[0], vir_offset, line);
 
     ++line;
     drawAdafruit.drawFillLine(line);
@@ -434,7 +441,7 @@ struct BatteryInfo
     int line{START_LINE};
     drawAdafruit.drawFillLine(line);
     vir_offset = SETTING_MENU_START_COL;
-    drawAdafruit.drawString("   |     ", vir_offset, line);
+    drawAdafruit.drawChar(&CHAR_DATA_UP[0], vir_offset, line);
 
     ++line;
     drawAdafruit.drawFillLine(line);
@@ -446,7 +453,7 @@ struct BatteryInfo
     ++line;
     drawAdafruit.drawFillLine(line);
     vir_offset = SETTING_MENU_START_COL;
-    drawAdafruit.drawString("   |     ", vir_offset, line);
+    drawAdafruit.drawChar(&CHAR_DATA_DOWN[0], vir_offset, line);
 
     ++line;
     drawAdafruit.drawFillLine(line);
@@ -460,7 +467,7 @@ struct BatteryInfo
     int line{START_LINE};
     drawAdafruit.drawFillLine(line);
     vir_offset = SETTING_MENU_START_COL;
-    drawAdafruit.drawString("   |     ", vir_offset, line);
+    drawAdafruit.drawChar(&CHAR_DATA_UP[0], vir_offset, line);
 
     ++line;
     drawAdafruit.drawFillLine(line);
@@ -472,7 +479,7 @@ struct BatteryInfo
     ++line;
     drawAdafruit.drawFillLine(line);
     vir_offset = SETTING_MENU_START_COL;
-    drawAdafruit.drawString("   |     ", vir_offset, line);
+    drawAdafruit.drawChar(&CHAR_DATA_DOWN[0], vir_offset, line);
 
     ++line;
     drawAdafruit.drawFillLine(line);
@@ -509,10 +516,11 @@ struct BatteryInfo
       }
       else
       {
-        drawAdafruit.drawString("=>", vir_offset, line);
+        static constexpr char CHAR_DATA_ARROW[] = {0x1A, 0x00};
+        drawAdafruit.drawChar(&CHAR_DATA_ARROW[0], vir_offset, line);
       }
 
-      vir_offset += 3;
+      vir_offset += 2;
       vir_offset += DISPLAY_MENU_OFFSET_COL;
       drawAdafruit.drawFloatR(targetV, vir_offset, line, DISPLAY_MENU_OFFSET_COL, 3);
       drawAdafruit.drawString("V", vir_offset, line);
@@ -536,9 +544,10 @@ struct BatteryInfo
       drawAdafruit.drawString("A", vir_offset, line);
 
       vir_offset += 2;
-      drawAdafruit.drawString("=>", vir_offset, line);
+      static constexpr char CHAR_DATA_ARROW[] = {0x1A, 0x00};
+      drawAdafruit.drawChar(&CHAR_DATA_ARROW[0], vir_offset, line);
 
-      vir_offset += 3;
+      vir_offset += 2;
       vir_offset += SETTING_MENU_OFFSET_COL;
       drawAdafruit.drawFloatR(targetI, vir_offset, line, SETTING_MENU_OFFSET_COL, 3);
       drawAdafruit.drawString("A", vir_offset, line);
@@ -587,16 +596,18 @@ struct BatteryInfo
       drawAdafruit.drawString("A", vir_offset, line);
     }
 
+    ++line;
+    drawAdafruit.drawFillLine(line);
     if (disChargeMode != DisChargeMode::DischargeNone)
     {
-      ++line;
-      drawAdafruit.drawFillLine(line);
       vir_offset = DISPLAY_MENU_START_COL;
       vir_offset += DISPLAY_MENU_OFFSET_COL;
       drawAdafruit.drawFloatR(ohm, vir_offset, line, DISPLAY_MENU_OFFSET_COL, 1);
-      drawAdafruit.drawString("mo", vir_offset, line);
 
-      vir_offset += 3;
+      static constexpr char CHAR_DATA_OHM[] = {0x6D, 0xe9, 0x00};
+      drawAdafruit.drawChar(&CHAR_DATA_OHM[0], vir_offset, line);
+
+      vir_offset += 2;
       vir_offset += DISPLAY_MENU_OFFSET_COL;
       drawAdafruit.drawFloatR(milliAmpereHour, vir_offset, line, DISPLAY_MENU_OFFSET_COL, 1);
       drawAdafruit.drawString("mah", vir_offset, line);
@@ -680,6 +691,14 @@ struct ButtonStatus{
         return 1;
       }
     }
+    else if (buttonFlag)
+    {
+      if ((millis() - pushedMillis) > LONG_PUSH_MILLIS)
+      {
+        return 3;
+      }
+    }
+
 
     return 0;
   }
@@ -866,7 +885,7 @@ public:
       saveBattery.disChargeMode = batteryStatus.disChargeMode;
     }
 
-    saveRomData();
+    // saveRomData();
 
   };
 
@@ -898,12 +917,12 @@ public:
     }
 
     checkFlag = buttonUStatus.check();
-    if (checkFlag == 1) {
+    if (checkFlag >= 1) {
       shiftParam(1);
     }
 
     checkFlag = buttonDStatus.check();
-    if (checkFlag == 1) {
+    if (checkFlag >= 1) {
       shiftParam(-1);
     }
 

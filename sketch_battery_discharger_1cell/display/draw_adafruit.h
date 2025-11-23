@@ -4,6 +4,12 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
+#include <Fonts/FreeMonoBoldOblique12pt7b.h>
+#include <Fonts/FreeMonoBoldOblique9pt7b.h>
+#include <Fonts/FreeSerif9pt7b.h>
+#include <Fonts/Org_01.h>
+#include <Fonts/PicoPixel.h>
+
 class DrawAdafruit
 {
   static constexpr uint8_t SCREEN_WIDTH{128};
@@ -35,6 +41,9 @@ public:
     // the library initializes this with an Adafruit splash screen.
 
     // Clear the buffer
+
+    // adaDisplay.setFont(&Picopixel);
+
     adaDisplay.clearDisplay();
     adaDisplay.display();
     adaDisplay.setTextSize(TEXT_SIZE);
@@ -146,7 +155,6 @@ public:
   }
 
   void drawIntR(int value, float offsetX, float offsetY) {
-
     String valueInt{String(value)};
 
     adaDisplay.fillRect(CHARSIZEX * (offsetX - valueInt.length()), CHARSIZEY * offsetY, CHARSIZEX * valueInt.length(), CHARSIZEY * 1, BLACK);
