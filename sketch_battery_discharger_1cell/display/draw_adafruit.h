@@ -4,9 +4,14 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
-#include <Fonts/FreeMonoBoldOblique12pt7b.h>
+#include <Fonts/FreeMono9pt7b.h>
 #include <Fonts/FreeMonoBoldOblique9pt7b.h>
+#include <Fonts/FreeMonoOblique9pt7b.h>
+#include <Fonts/FreeSans9pt7b.h>
 #include <Fonts/FreeSerif9pt7b.h>
+#include <Fonts/FreeSansBold9pt7b.h>
+#include <Fonts/FreeSerifBoldItalic9pt7b.h>
+
 #include <Fonts/Org_01.h>
 #include <Fonts/PicoPixel.h>
 
@@ -25,9 +30,9 @@ class DrawAdafruit
 
   // static const uint8_t LINE_OFFSET{2};
 
-  Adafruit_SSD1306 adaDisplay{SCREEN_WIDTH, SCREEN_HEIGHT};
-
 public:
+
+  Adafruit_SSD1306 adaDisplay{SCREEN_WIDTH, SCREEN_HEIGHT};
 
   void setupDisplay(void) {
 
@@ -50,6 +55,26 @@ public:
     adaDisplay.setTextColor(SSD1306_WHITE);
   }
 
+  void setFont()
+  {
+    // FreeSerif9pt7b
+    // FreeMonoBoldOblique9pt7b
+    // FreeMonoOblique9pt7b
+    // FreeSerifBoldItalic9pt7b
+    // FreeMono9pt7b
+    adaDisplay.setFont(&FreeMono9pt7b);
+  }
+
+  void removeFont()
+  {
+    adaDisplay.setFont(nullptr);
+  }
+
+  void setTextSize(uint8_t size)
+  {
+    adaDisplay.setTextSize(size);
+  }
+
   void clearDisplay()
   {
     adaDisplay.clearDisplay();
@@ -68,17 +93,14 @@ public:
   }
 
   void drawFloat(float value, float offsetX, float offsetY, int decimal = 2) {
-    adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * 5, CHARSIZEY * 1, BLACK);
     adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
-    // adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
+
     adaDisplay.print(String(value, decimal));
   }
 
   void drawInt(int value, float offsetX, float offsetY) {
-    adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * 5, CHARSIZEY * 1, BLACK);
     adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
 
-    // std::cout << std::setw(10) << std::right << num << std::endl;
     adaDisplay.print(value);
   }
 
@@ -133,7 +155,7 @@ public:
     const int offset{valueStr.length()};
     const int clearOffset{max(offset, size)};
 
-    adaDisplay.fillRect(CHARSIZEX * (offsetX - clearOffset), CHARSIZEY * offsetY, CHARSIZEX * clearOffset, CHARSIZEY * 1, BLACK);
+    // adaDisplay.fillRect(CHARSIZEX * (offsetX - clearOffset), CHARSIZEY * offsetY, CHARSIZEX * clearOffset, CHARSIZEY * 1, BLACK);
     adaDisplay.setCursor(CHARSIZEX * (offsetX - offset), CHARSIZEY * offsetY);
     // adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
     adaDisplay.print(String(value, decimal));
