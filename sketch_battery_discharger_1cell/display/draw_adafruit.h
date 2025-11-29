@@ -34,10 +34,13 @@ public:
 
   Adafruit_SSD1306 adaDisplay{SCREEN_WIDTH, SCREEN_HEIGHT};
 
+
+
   void setupDisplay(void) {
 
     // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-    if (!adaDisplay.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x32
+    // adaDisplay.clearDisplay();
+    if (!adaDisplay.begin(SSD1306_SWITCHCAPVCC, 0x3C, true, true)) { // Address 0x3C for 128x32
       Serial.println(F("SSD1306 allocation failed"));
       for (;;); // Don't proceed, loop forever
     }
@@ -50,6 +53,7 @@ public:
     // adaDisplay.setFont(&Picopixel);
 
     adaDisplay.clearDisplay();
+    // drawCar();
     adaDisplay.display();
     adaDisplay.setTextSize(TEXT_SIZE);
     adaDisplay.setTextColor(SSD1306_WHITE);
@@ -73,6 +77,64 @@ public:
   void setTextSize(uint8_t size)
   {
     adaDisplay.setTextSize(size);
+  }
+
+  void drawBat(const float voltage)
+  {
+
+    const unsigned char bat3[] PROGMEM = {
+	    0x7f, 0xfc, 0x80, 0x02, 0xbb, 0xbb, 0xbb, 0xb9, 0xbb, 0xb9, 0xbb, 0xbb, 0x80, 0x02, 0x7f, 0xfc,
+    };
+
+    const unsigned char bat2[] PROGMEM = {
+	    0x7f, 0xfc, 0x80, 0x02, 0xbb, 0x83, 0xbb, 0x81, 0xbb, 0x81, 0xbb, 0x83, 0x80, 0x02, 0x7f, 0xfc,
+    };
+
+    const unsigned char bat1[] PROGMEM = {
+	    0x7f, 0xfc, 0x80, 0x02, 0xb8, 0x03, 0xb8, 0x01, 0xb8, 0x01, 0xb8, 0x03, 0x80, 0x02, 0x7f, 0xfc,
+    };
+
+    const unsigned char* bat_meter[3] = {
+      bat1, bat2, bat3
+    };
+
+    uint8_t index{0};
+    if (voltage > 4.1f)
+    {
+      index = 2;
+    }
+    else if (voltage > 3.8f)
+    {
+      index = 1;
+    }
+    else
+    {
+      index = 0;
+    }
+
+    drawFillLine(6);
+    // drawFloat(voltage, 10, 6);
+    adaDisplay.drawBitmap(110, 55, bat_meter[index], 16, 8, WHITE);
+  }
+
+  void drawCar()
+  {
+    // 'untitled', 16x16px
+    unsigned char epd_bitmap_untitled[] PROGMEM = {
+      0xff, 0xff, 0x7f, 0xff, 0xbf, 0xff, 0xa0, 0x3f, 0xdf, 0xdf, 0xbf, 0x23, 0xbf, 0xfd, 0xbf, 0xfe, 
+      0xa7, 0xe6, 0xdb, 0xda, 0xd8, 0x19, 0xe7, 0xe7, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+    };
+
+
+
+
+    // Array of all bitmaps for convenience. (Total bytes used to store images in PROGMEM = 48)
+    const int epd_bitmap_allArray_LEN = 1;
+    const unsigned char* epd_bitmap_allArray[1] = {
+      epd_bitmap_untitled
+    };
+
+    adaDisplay.drawBitmap(3, 3, &epd_bitmap_untitled[0], 16, 16, WHITE);
   }
 
   void clearDisplay()
@@ -184,8 +246,6 @@ public:
 
     adaDisplay.print(valueInt.c_str());
   }
-
-
 
   void display()
   {

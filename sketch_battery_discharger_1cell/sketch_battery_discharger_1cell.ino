@@ -227,13 +227,14 @@ struct BatteryInfo
 
   static int calcPWMValue(float ampere)
   {
+    static const float MAX_PWM{static_cast<float>(0XFF)};
     static const float REG{0.1f};
     static const float REG_RATE{ (5.1f + 5.1f + 1.f) / 1.f };
     static const float VOLT3_3{3.3f};
     const float volt{ampere * REG * REG_RATE};
     const float voltRate{volt / VOLT3_3};
 
-    return std::clamp(static_cast<int>(255.f * voltRate * (1 / ACTIVE_RATE)), 0, 255);
+    return std::clamp(static_cast<int>(MAX_PWM * voltRate * (1 / ACTIVE_RATE)), 0, 0XFF);
   };
 
   std::vector<String> modeNames{String(" DiscNorm"), String(" DiscStop")};
@@ -550,7 +551,7 @@ struct BatteryInfo
     drawAdafruit.drawFillLine(line + 2);
     drawAdafruit.drawFillLine(line + 3);
     drawAdafruit.drawFillLine(line + 4);
-    drawAdafruit.drawFillLine(line + 5);
+    // drawAdafruit.drawFillLine(line + 5);
 
     ++line;
     // drawAdafruit.setTextSize(1);
@@ -563,6 +564,7 @@ struct BatteryInfo
 
     drawAdafruit.removeFont();
     // drawAdafruit.setTextSize(1);
+    // drawAdafruit.drawBat();
 
   }
 
@@ -782,6 +784,8 @@ int modeIndex = 0;
 
 class BatteryController {
 
+  static constexpr uint8_t XIAO_READ_BAT{ 10 };
+
   static constexpr uint8_t READ1_PIN{ 0 };
   static constexpr uint8_t READ2_PIN{ 1 };
   static constexpr uint8_t READ3_PIN{ 6 };
@@ -829,6 +833,16 @@ public:
   SaveData saveData{};
 private:
 
+  void readAndDrawXiaoBattery()
+  {
+    constexpr static float R_RATE{2.f};
+    const int readValue{ analogRead(XIAO_READ_BAT) };
+    const float xiaoVolt{ (static_cast<float>(readValue) / 4096.f) * R_RATE * 3.3f };
+    // const float xiaoVolt{ (2048.f / 4096.f) * R_RATE * 3.3f };
+    drawAdafruit.drawBat(4.2f);
+
+  }
+
   void saveRomData()
   {
     byte* p = (byte*) &saveData;
@@ -858,6 +872,8 @@ public:
   };
 
   void setup() {
+
+    pinMode(XIAO_READ_BAT, INPUT);
 
     pinMode(PUSH_BUTTON1, INPUT);
     pinMode(PUSH_BUTTON2, INPUT);
@@ -941,18 +957,6 @@ public:
     if (displayMode == DisplayMode::Display)
     {
       saveData.ver = 0;
-      /*
-      for (int i{0}; i < batteryStatuses.size(); ++i)
-      {
-        auto& batteryStatus{batteryStatuses[i]};
-        auto& saveBattery{saveData.battery[i]};
-
-        saveBattery.targetI = batteryStatus.targetI;
-        saveBattery.targetV = batteryStatus.targetV;
-        saveBattery.disChargeMode = batteryStatus.disChargeMode;
-        saveBattery.activeFlag = batteryStatus.activeFlag;
-      }
-      */
       copySaveDataToStatusData();
       saveRomData();
     }
@@ -977,8 +981,12 @@ public:
 
   void loopSub()
   {
+    if ((loopSubCount % 60) == 0)
+    {
+      readAndDrawXiaoBattery();
+    }
 
-    digitalWrite(LED_BUILTIN, (++loopSubCount % 3));
+    digitalWrite(LED_BUILTIN, (((++loopSubCount) / 12) % 2));
 
     for (auto& batteryStatus : batteryStatuses)
     {
@@ -1053,15 +1061,14 @@ void setup() {
 
   // Serial.begin(115200);
   // while (!Serial);
-
-  controller.setup();
-
   drawAdafruit.setupDisplay();
-
+  controller.setup();
 }
 
 // the loop function runs over and over again forever
 void loop() {
+
+  drawAdafruit.display();
 
   while (true) {
     controller.loopWhile();
