@@ -9,45 +9,56 @@
 
 DrawAdafruit drawAdafruit;
 
-class ValueCounter {
-  unsigned long totalValue{ 0 };
+class ValueCounter
+{
+  unsigned long totalValue{0};
 
-  int count{ 0 };
+  int count{0};
 
 public:
-  void readVolt(int inVolt) {
+  void readVolt(int inVolt)
+  {
     totalValue += inVolt;
     count += 1;
   }
 
-  void reset() {
+  void reset()
+  {
     totalValue = 0;
     count = 0;
   }
 
-  unsigned long calcValue() {
-    if (count == 0) {
+  unsigned long calcValue()
+  {
+    if (count == 0)
+    {
       return 0;
     }
-    unsigned long result{ totalValue / count };
+    unsigned long result{totalValue / count};
     reset();
     return result;
   }
 };
 
-struct VoltageMapping {
-  struct VoltPair {
-    int input{ 0.f };
-    float volt{ 0 };
+struct VoltageMapping
+{
+  struct VoltPair
+  {
+    int input{0.f};
+    float volt{0};
   };
 
-  const std::vector<VoltPair> mappingData{ { 0, 0.f }, {4094, 3.3f} };
+  const std::vector<VoltPair> mappingData{{0, 0.f}, {4094, 3.3f}};
 
-  float getVoltage(int input) {
-    const VoltPair* before{ nullptr };
-    for (const VoltPair& current : mappingData) {
-      if (before) {
-        if (before->input < input && input <= current.input) {
+  float getVoltage(int input)
+  {
+    const VoltPair *before{nullptr};
+    for (const VoltPair &current : mappingData)
+    {
+      if (before)
+      {
+        if (before->input < input && input <= current.input)
+        {
           return before->volt + ((current.volt - before->volt) / static_cast<float>(current.input - before->input)) * (input - before->input);
         }
       }
@@ -60,26 +71,30 @@ struct VoltageMapping {
 
 static VoltageMapping voltageMapping;
 
-enum class DisChargeMode : uint8_t {
+enum class DisChargeMode : uint8_t
+{
   DischargeNormal,
   DischargeStop,
   Max,
 };
 
-enum class DisplayMode : uint8_t {
+enum class DisplayMode : uint8_t
+{
   None,
   Display,
   Max,
 };
 
-enum class SettingMode : uint8_t {
+enum class SettingMode : uint8_t
+{
   ModeChangeSetting,
   DischargeVSetting,
   DischargeISetting,
   Max,
 };
 
-enum class TimeStatus : uint8_t {
+enum class TimeStatus : uint8_t
+{
   None = 0,
   Active = 1,
   SleepStart = 2,
@@ -88,7 +103,8 @@ enum class TimeStatus : uint8_t {
   Max,
 };
 
-enum class BatteryStatus : uint8_t {
+enum class BatteryStatus : uint8_t
+{
   None,
   Active,
   Sleep,
@@ -102,7 +118,7 @@ struct SaveBattery
 
   static constexpr float TARGET_V_MAX{1.55f};
   static constexpr float TARGET_V_MIN{1.0f};
-  static constexpr float TARGET_I_MAX{1.5f};
+  static constexpr float TARGET_I_MAX{2.0f}; // 2SK4017 MOSFETの特性上 0.1Aの時に2.24V 0.5Aの時に2.6V 1.0Aの時に2.8V 2Aの時にMOSのゲート電圧が3.2V
   static constexpr float TARGET_I_MIN{0.4f};
 
   float targetV{0.f};
@@ -126,7 +142,6 @@ struct SaveBattery
       targetI = std::clamp(targetI + 0.1f * static_cast<float>(shift), TARGET_I_MIN, TARGET_I_MAX);
     }
   }
-
 };
 
 struct BatteryInfo
@@ -137,6 +152,8 @@ struct BatteryInfo
 
   static constexpr char CHAR_DATA_UP[] = {0x20, 0x20, 0x20, 0x18, 0x00};
   static constexpr char CHAR_DATA_DOWN[] = {0x20, 0x20, 0x20, 0x19, 0x00};
+
+  static constexpr float ACTIVE_RATE{3.f / 4.f};
 
   static constexpr int8_t DISCHARGE_MODE_LOOPS[] = {
     2, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -156,8 +173,6 @@ struct BatteryInfo
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
  };
 
-  static constexpr float ACTIVE_RATE{3.f / 4.f};
-
   static constexpr int8_t NONE_MODE_LOOPS[] = {
     1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -176,12 +191,13 @@ struct BatteryInfo
     1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
  };
 
-  unsigned long loopCount{ 0 };
-  unsigned long displayCount{ 0 };
+  unsigned long loopCount{0};
+  unsigned long displayCount{0};
 
   TimeStatus currentTimeStatus{TimeStatus::Active};
 
-  static float calcI(const float targetI, const float V, const float targetV, const DisChargeMode disChargeMode) {
+  static float calcI(const float targetI, const float V, const float targetV, const DisChargeMode disChargeMode)
+  {
     float resultI{0};
     if (disChargeMode == DisChargeMode::DischargeNormal)
     {
@@ -223,29 +239,39 @@ struct BatteryInfo
     }
 
     return resultI;
-  }; 
+  };
 
   static int calcPWMValue(float ampere)
   {
-    static const float MAX_PWM{static_cast<float>(0XFF)};
-    static const float REG{0.1f};
-    static const float REG_RATE{ (5.1f + 5.1f + 1.f) / 1.f };
-    static const float VOLT3_3{3.3f};
-    const float volt{ampere * REG * REG_RATE};
-    const float voltRate{volt / VOLT3_3};
+    static const float RA{5.1f};
+    static const float RB{5.1f};
+    static const float RC{1.f};
 
-    return std::clamp(static_cast<int>(MAX_PWM * voltRate * (1 / ACTIVE_RATE)), 0, 0XFF);
+    static const int MAX_PWM{0xFF};
+    static const float MAX_PWM_F{static_cast<float>(MAX_PWM)};
+    static const float REG{0.1f};
+    static const float REG_RATE{(RA + RB + RC) / RC};
+    static const float I_TO_V{REG * REG_RATE};
+    static const float VOLT3_3{3.3f};
+    static const float TO_V_RATE{I_TO_V / VOLT3_3};
+    static const float AMP_TUNE{1.08}; // 実測との補正
+    static const float INV_ACTIVE_RATE{AMP_TUNE / ACTIVE_RATE};
+
+    
+    const float voltRate{ampere * TO_V_RATE};
+
+    return std::clamp(static_cast<int>(voltRate * MAX_PWM_F * INV_ACTIVE_RATE), 0, MAX_PWM);
   };
 
   std::vector<String> modeNames{String(" DiscNorm"), String(" DiscStop")};
 
-  public:
-
+public:
   BatteryInfo(uint8_t inReadPin, uint8_t inWritePin, uint8_t inBatteryIndex) : readPin{inReadPin}, writePin{inWritePin}, batteryIndex{inBatteryIndex} {};
 
-  void read() {
+  void read()
+  {
     int MIN_VOLT{10};
-    const int volt{ analogRead(readPin) };
+    const int volt{analogRead(readPin)};
     valueCounter.readVolt(volt);
     if (volt < MIN_VOLT)
     {
@@ -286,7 +312,6 @@ struct BatteryInfo
 
       if (currentTimeStatus == TimeStatus::None)
       {
-
       }
       else if (currentTimeStatus == TimeStatus::Active)
       {
@@ -295,7 +320,7 @@ struct BatteryInfo
         I = std::max(0.f, tunedI);
         if ((tunedI > 0.f) && (sleepV - V))
         {
-          ohm = (sleepV - V) * 1000.f / tunedI ;
+          ohm = (sleepV - V) * 1000.f / tunedI;
         }
       }
       else if (currentTimeStatus == TimeStatus::SleepStart)
@@ -325,7 +350,6 @@ struct BatteryInfo
         I = std::max(0.f, tunedI);
       }
     }
-
 
     if (currentBatteryStatus == BatteryStatus::Active || currentBatteryStatus == BatteryStatus::Stop || currentBatteryStatus == BatteryStatus::None)
     {
@@ -366,7 +390,6 @@ struct BatteryInfo
 
     int intValue = calcPWMValue(I);
     analogWrite(writePin, intValue);
-
   };
 
   void reset()
@@ -419,7 +442,6 @@ struct BatteryInfo
           displayNone();
         }
       }
-
     }
   };
 
@@ -565,7 +587,6 @@ struct BatteryInfo
     drawAdafruit.removeFont();
     // drawAdafruit.setTextSize(1);
     // drawAdafruit.drawBat();
-
   }
 
   void displayDetail()
@@ -590,7 +611,6 @@ struct BatteryInfo
     vir_offset += 2;
     if ((tunedI > 0.f) && (displayCount % 2))
     {
-
     }
     else
     {
@@ -687,7 +707,6 @@ struct BatteryInfo
       static std::vector<String> modeNames{String("None"), String("Active"), String("Sleep"), String("Stop"), String("NoBat"), String("Max")};
       drawAdafruit.drawString(modeNames[(uint8_t)currentBatteryStatus], vir_offset + 5, line);
     }
-
   }
 
   ValueCounter valueCounter{};
@@ -713,14 +732,15 @@ struct BatteryInfo
   float milliAmpereHour{0.0f};
   unsigned long ampereHourTime{0};
 
-  SaveBattery* saveBattery{nullptr};
+  SaveBattery *saveBattery{nullptr};
 
   DisChargeMode disChargeMode{DisChargeMode::DischargeNormal};
 };
 
-struct ButtonStatus{
+struct ButtonStatus
+{
 
-  static constexpr int LONG_PUSH_MILLIS{ 1000 };
+  static constexpr int LONG_PUSH_MILLIS{1000};
 
   void init(const int inPinID)
   {
@@ -730,9 +750,12 @@ struct ButtonStatus{
   int check()
   {
     int val = digitalRead(pinID);
-    if (val == LOW) {
+    if (val == LOW)
+    {
       buttonFlag = true;
-    } else {
+    }
+    else
+    {
       buttonFlag = false;
     }
 
@@ -742,7 +765,8 @@ struct ButtonStatus{
     {
       pushedMillis = millis();
     }
-    else if (!buttonFlag && (buttonOldFlag != buttonFlag)) {
+    else if (!buttonFlag && (buttonOldFlag != buttonFlag))
+    {
       releaseFlag = true;
     }
     buttonOldFlag = buttonFlag;
@@ -766,41 +790,41 @@ struct ButtonStatus{
       }
     }
 
-
     return 0;
   }
 
-  int pinID{ 0 };
-  bool buttonFlag{ false };
-  bool buttonOldFlag{ false };
+  int pinID{0};
+  bool buttonFlag{false};
+  bool buttonOldFlag{false};
   unsigned long pushedMillis{0};
 };
 
-static constexpr float FPS{ 30.f };
-static constexpr float SEC{ 1000.f };
-static constexpr float ONE_FRAME_MS{ (1.f / FPS) * SEC };
+static constexpr float FPS{30.f};
+static constexpr float SEC{1000.f};
+static constexpr float ONE_FRAME_MS{(1.f / FPS) * SEC};
 
 int modeIndex = 0;
 
-class BatteryController {
+class BatteryController
+{
 
-  static constexpr uint8_t XIAO_READ_BAT{ 10 };
+  static constexpr uint8_t XIAO_READ_BAT{D10};
 
-  static constexpr uint8_t READ1_PIN{ 0 };
-  static constexpr uint8_t READ2_PIN{ 1 };
-  static constexpr uint8_t READ3_PIN{ 6 };
-  static constexpr uint8_t READ4_PIN{ 7 };
+  static constexpr uint8_t READ1_PIN{0};
+  static constexpr uint8_t READ2_PIN{1};
+  static constexpr uint8_t READ3_PIN{6};
+  static constexpr uint8_t READ4_PIN{7};
 
-  static constexpr uint8_t WRITE1_PIN{ 2 };
-  static constexpr uint8_t WRITE2_PIN{ 3 };
-  static constexpr uint8_t WRITE3_PIN{ 8 };
-  static constexpr uint8_t WRITE4_PIN{ 9 };
+  static constexpr uint8_t WRITE1_PIN{2};
+  static constexpr uint8_t WRITE2_PIN{3};
+  static constexpr uint8_t WRITE3_PIN{8};
+  static constexpr uint8_t WRITE4_PIN{9};
 
-  static constexpr int PUSH_BUTTON1{ 15 };
-  static constexpr int PUSH_BUTTON2{ 14 };
-  static constexpr int PUSH_BUTTON3{ 13 };
-  static constexpr int PUSH_BUTTON4{ 12 };
-  static constexpr int PUSH_BUTTON5{ 11 };
+  static constexpr int PUSH_BUTTON1{15};
+  static constexpr int PUSH_BUTTON2{14};
+  static constexpr int PUSH_BUTTON3{13};
+  static constexpr int PUSH_BUTTON4{12};
+  static constexpr int PUSH_BUTTON5{11};
 
   ButtonStatus buttonLStatus{};
   ButtonStatus buttonRStatus{};
@@ -809,19 +833,19 @@ class BatteryController {
   ButtonStatus buttonCStatus{};
 
   std::vector<BatteryInfo> batteryStatuses{
-  BatteryInfo{READ1_PIN, WRITE1_PIN, 0},
-  BatteryInfo{READ2_PIN, WRITE2_PIN, 1},
-  BatteryInfo{READ3_PIN, WRITE3_PIN, 2},
-  BatteryInfo{READ4_PIN, WRITE4_PIN, 3}};
+      BatteryInfo{READ1_PIN, WRITE1_PIN, 0},
+      BatteryInfo{READ2_PIN, WRITE2_PIN, 1},
+      BatteryInfo{READ3_PIN, WRITE3_PIN, 2},
+      BatteryInfo{READ4_PIN, WRITE4_PIN, 3}};
 
   DisplayMode displayMode{DisplayMode::Display};
   SettingMode settingMode{SettingMode::DischargeVSetting};
 
-  unsigned long loopSubMillis{ 0 };
+  unsigned long loopSubMillis{0};
 
   size_t currentBatteryIndex{0};
 
-  unsigned long loopSubCount{ 0 };
+  unsigned long loopSubCount{0};
 
   struct SaveData
   {
@@ -831,23 +855,22 @@ class BatteryController {
 
 public:
   SaveData saveData{};
-private:
 
+private:
   void readAndDrawXiaoBattery()
   {
     constexpr static float R_RATE{2.f};
-    const int readValue{ analogRead(XIAO_READ_BAT) };
-    const float xiaoVolt{ (static_cast<float>(readValue) / 4096.f) * R_RATE * 3.3f };
+    const int readValue{analogRead(XIAO_READ_BAT)};
+    const float xiaoVolt{(static_cast<float>(readValue) / 4096.f) * R_RATE * 3.3f};
     // const float xiaoVolt{ (2048.f / 4096.f) * R_RATE * 3.3f };
     drawAdafruit.drawBat(4.2f);
-
   }
 
   void saveRomData()
   {
-    byte* p = (byte*) &saveData;
+    byte *p = (byte *)&saveData;
 
-    for(int i = 0; i < sizeof(SaveData); i++)
+    for (int i = 0; i < sizeof(SaveData); i++)
     {
       EEPROM.write(i, *p);
       p++;
@@ -856,9 +879,9 @@ private:
 
   void loadRomData()
   {
-    byte* p = (byte*) &saveData;
+    byte *p = (byte *)&saveData;
 
-    for(int i = 0; i < sizeof(SaveData); i++)
+    for (int i = 0; i < sizeof(SaveData); i++)
     {
       byte b = EEPROM.read(i);
       *p = b;
@@ -867,11 +890,13 @@ private:
   };
 
 public:
-  BatteryController() {
+  BatteryController()
+  {
     batteryStatuses[currentBatteryIndex].settingFlag = true;
   };
 
-  void setup() {
+  void setup()
+  {
 
     pinMode(XIAO_READ_BAT, INPUT);
 
@@ -894,18 +919,17 @@ public:
     batteryStatuses[1].saveBattery = &(saveData.battery[1]);
     batteryStatuses[2].saveBattery = &(saveData.battery[2]);
     batteryStatuses[3].saveBattery = &(saveData.battery[3]);
-
   };
 
   void copySaveDataToStatusData()
   {
     for (int i{0}; i < batteryStatuses.size(); ++i)
     {
-      auto& batteryStatus{batteryStatuses[i]};
+      auto &batteryStatus{batteryStatuses[i]};
       if (saveData.ver != -1)
       {
 
-        auto& saveBattery{saveData.battery[i]};
+        auto &saveBattery{saveData.battery[i]};
 
         batteryStatus.targetI = saveBattery.targetI;
         batteryStatus.targetV = saveBattery.targetV;
@@ -916,17 +940,19 @@ public:
     }
   }
 
-  void loopMain() {
-    for (auto& batteryStatus : batteryStatuses)
+  void loopMain()
+  {
+    for (auto &batteryStatus : batteryStatuses)
     {
       batteryStatus.read();
     }
   };
 
-  void display() {
+  void display()
+  {
 
     drawAdafruit.drawFillLine(0);
-    for (auto& batteryStatus : batteryStatuses)
+    for (auto &batteryStatus : batteryStatuses)
     {
       batteryStatus.display(displayMode, settingMode);
     }
@@ -938,7 +964,7 @@ public:
 
     for (size_t index{0}; index < batteryStatuses.size(); ++index)
     {
-      if (index== currentBatteryIndex)
+      if (index == currentBatteryIndex)
       {
         batteryStatuses[index].settingFlag = true;
       }
@@ -988,7 +1014,7 @@ public:
 
     digitalWrite(LED_BUILTIN, (((++loopSubCount) / 12) % 2));
 
-    for (auto& batteryStatus : batteryStatuses)
+    for (auto &batteryStatus : batteryStatuses)
     {
       batteryStatus.loopSub();
     }
@@ -996,27 +1022,31 @@ public:
     if ((loopSubCount % 3) == 0)
     {
       display();
-      drawAdafruit.display();
+      drawAdafruit.display();      
     }
 
     int checkFlag{0};
     checkFlag = buttonLStatus.check();
-    if (checkFlag == 1) {
+    if (checkFlag == 1)
+    {
       changeTargetBattery(-1);
     }
 
     checkFlag = buttonRStatus.check();
-    if (checkFlag == 1) {
+    if (checkFlag == 1)
+    {
       changeTargetBattery(1);
     }
 
     checkFlag = buttonUStatus.check();
-    if (checkFlag >= 1) {
+    if (checkFlag >= 1)
+    {
       shiftParam(1);
     }
 
     checkFlag = buttonDStatus.check();
-    if (checkFlag >= 1) {
+    if (checkFlag >= 1)
+    {
       shiftParam(-1);
     }
 
@@ -1038,23 +1068,24 @@ public:
     }
   };
 
-  void loopWhile() {
+  void loopWhile()
+  {
 
     loopMain();
 
-    const unsigned long tempMillis{ millis() };
-    if (tempMillis - loopSubMillis > ONE_FRAME_MS) {
+    const unsigned long tempMillis{millis()};
+    if (tempMillis - loopSubMillis > ONE_FRAME_MS)
+    {
       loopSub();
       loopSubMillis = tempMillis;
     }
-
   };
-
 };
 
 BatteryController controller;
 // the setup function runs once when you press reset or power the board
-void setup() {
+void setup()
+{
 
   // initialize digital pin LED_BUILTIN as an output.
   pinMode(LED_BUILTIN, OUTPUT);
@@ -1066,18 +1097,20 @@ void setup() {
 }
 
 // the loop function runs over and over again forever
-void loop() {
+void loop()
+{
 
   drawAdafruit.display();
 
-  while (true) {
+  while (true)
+  {
     controller.loopWhile();
   }
 
   return;
 
-  digitalWrite(LED_BUILTIN, HIGH);  // turn the LED on (HIGH is the voltage level)
+  digitalWrite(LED_BUILTIN, HIGH); // turn the LED on (HIGH is the voltage level)
   delay(100);                      // wait for a second
-  digitalWrite(LED_BUILTIN, LOW);   // turn the LED off by making the voltage LOW
-  delay(100);              // wait for a second
+  digitalWrite(LED_BUILTIN, LOW);  // turn the LED off by making the voltage LOW
+  delay(100);                      // wait for a second
 }

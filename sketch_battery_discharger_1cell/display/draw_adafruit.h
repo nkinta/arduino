@@ -32,12 +32,9 @@ class DrawAdafruit
 
 public:
 
-  Adafruit_SSD1306 adaDisplay{SCREEN_WIDTH, SCREEN_HEIGHT};
-
-
+  Adafruit_SSD1306 adaDisplay{SCREEN_WIDTH, SCREEN_HEIGHT, &Wire}; // 
 
   void setupDisplay(void) {
-
     // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
     // adaDisplay.clearDisplay();
     if (!adaDisplay.begin(SSD1306_SWITCHCAPVCC, 0x3C, true, true)) { // Address 0x3C for 128x32
@@ -45,6 +42,7 @@ public:
       for (;;); // Don't proceed, loop forever
     }
 
+    // Wire.setClock(1000);
     // Show initial display buffer contents on the screen --
     // the library initializes this with an Adafruit splash screen.
 
@@ -217,31 +215,12 @@ public:
     const int offset{valueStr.length()};
     const int clearOffset{max(offset, size)};
 
-    // adaDisplay.fillRect(CHARSIZEX * (offsetX - clearOffset), CHARSIZEY * offsetY, CHARSIZEX * clearOffset, CHARSIZEY * 1, BLACK);
     adaDisplay.setCursor(CHARSIZEX * (offsetX - offset), CHARSIZEY * offsetY);
-    // adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
     adaDisplay.print(String(value, decimal));
-  }
-
-  void drawIntROld(int value, float offsetX, float offsetY, int startOffset) {
-    const int offset{startOffset};
-    int numOffset{offset - 1};
-
-    if (value != 0)
-    {
-      numOffset -= (floor(log10(value)));
-    }
-
-    adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * (offset + numOffset), CHARSIZEY * 1, BLACK);
-    adaDisplay.setCursor(CHARSIZEX * (offsetX + numOffset), CHARSIZEY * offsetY);
-    // std::cout << std::setw(10) << std::right << num << std::endl;
-    adaDisplay.print(value);
   }
 
   void drawIntR(int value, float offsetX, float offsetY) {
     String valueInt{String(value)};
-
-    adaDisplay.fillRect(CHARSIZEX * (offsetX - valueInt.length()), CHARSIZEY * offsetY, CHARSIZEX * valueInt.length(), CHARSIZEY * 1, BLACK);
     adaDisplay.setCursor(CHARSIZEX * (offsetX - valueInt.length()), CHARSIZEY * offsetY);
 
     adaDisplay.print(valueInt.c_str());
