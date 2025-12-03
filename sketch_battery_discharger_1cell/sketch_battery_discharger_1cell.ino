@@ -408,7 +408,15 @@ public:
     {
       drawAdafruit.drawString(">", 5 * batteryIndex, 0);
     }
-    drawAdafruit.drawFloatR(sleepV, 5 * (batteryIndex + 1), 0, 4, 2);
+
+    if (tunedI > 0 && (displayCount % 2))
+    {
+
+    }
+    else
+    {
+      drawAdafruit.drawFloatR(sleepV, 5 * (batteryIndex + 1), 0, 4, 2);
+    }
 
     if (settingFlag)
     {
