@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <string>
 
+// #include <ArduinoLowPower.h>
+
 #include "display/draw_adafruit.h"
 
 DrawAdafruit drawAdafruit;
@@ -816,7 +818,8 @@ int modeIndex = 0;
 class BatteryController
 {
 
-  static constexpr uint8_t XIAO_READ_BAT{D10};
+  static constexpr uint8_t XIAO_READ_BAT{PD4};
+  static constexpr uint8_t XIAO_READ_BAT_SWITCH{PD3};
 
   static constexpr uint8_t READ1_PIN{0};
   static constexpr uint8_t READ2_PIN{1};
@@ -871,7 +874,7 @@ private:
     const int readValue{analogRead(XIAO_READ_BAT)};
     const float xiaoVolt{(static_cast<float>(readValue) / 4096.f) * R_RATE * 3.3f};
     // const float xiaoVolt{ (2048.f / 4096.f) * R_RATE * 3.3f };
-    drawAdafruit.drawBat(4.2f);
+    drawAdafruit.drawBat(xiaoVolt);
   }
 
   void saveRomData()
@@ -905,9 +908,23 @@ public:
 
   void setup()
   {
+    /*
+    if (digitalRead(PUSH_BUTTON3) == LOW) {
+      while (true) {
+        digitalWrite(LED_BUILTIN, LOW);
+        delay(50);
+        digitalWrite(LED_BUILTIN, HIGH);
+        delay(50);
+      }
+    }
+    */
 
+    // BatteryReadSetting
+    pinMode(XIAO_READ_BAT_SWITCH, OUTPUT);
+    digitalWrite(XIAO_READ_BAT_SWITCH, HIGH);
     pinMode(XIAO_READ_BAT, INPUT);
 
+    // Button
     pinMode(PUSH_BUTTON1, INPUT);
     pinMode(PUSH_BUTTON2, INPUT);
     pinMode(PUSH_BUTTON3, INPUT);
@@ -1094,7 +1111,6 @@ BatteryController controller;
 // the setup function runs once when you press reset or power the board
 void setup()
 {
-
   // initialize digital pin LED_BUILTIN as an output.
   pinMode(LED_BUILTIN, OUTPUT);
 
@@ -1102,12 +1118,22 @@ void setup()
   // while (!Serial);
   drawAdafruit.setupDisplay();
   controller.setup();
+
+  // LowPower.deepSleep(10000);
 }
 
 // the loop function runs over and over again forever
 void loop()
 {
 
+/*
+  digitalWrite(LED_BUILTIN, HIGH); // turn the LED on (HIGH is the voltage level)
+  delay(100);                      // wait for a second
+  digitalWrite(LED_BUILTIN, LOW);  // turn the LED off by making the voltage LOW
+  delay(100);    
+
+  return;
+*/
   drawAdafruit.display();
 
   while (true)
@@ -1115,10 +1141,5 @@ void loop()
     controller.loopWhile();
   }
 
-  return;
-
-  digitalWrite(LED_BUILTIN, HIGH); // turn the LED on (HIGH is the voltage level)
-  delay(100);                      // wait for a second
-  digitalWrite(LED_BUILTIN, LOW);  // turn the LED off by making the voltage LOW
-  delay(100);                      // wait for a second
+  // wait for a second
 }

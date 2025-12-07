@@ -111,8 +111,8 @@ public:
     }
 
     drawFillLine(6);
-    // drawFloat(voltage, 10, 6);
-    adaDisplay.drawBitmap(110, 55, bat_meter[index], 16, 8, WHITE);
+    drawFloat(voltage, 10, 6);
+    // adaDisplay.drawBitmap(110, 55, bat_meter[index], 16, 8, WHITE);
   }
 
   void drawCar()
