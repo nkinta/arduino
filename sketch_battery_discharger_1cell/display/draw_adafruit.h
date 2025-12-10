@@ -1,8 +1,10 @@
 #pragma once
 
 #include <Wire.h>
+#define ARDUINO_ARCH_RP2040 // undef HAVE_PORTREG
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#undef ARDUINO_ARCH_RP2040
 
 #include <Fonts/FreeMono9pt7b.h>
 #include <Fonts/FreeMonoBoldOblique9pt7b.h>

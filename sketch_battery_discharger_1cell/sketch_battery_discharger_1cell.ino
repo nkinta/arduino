@@ -123,8 +123,8 @@ struct SaveBattery
   static constexpr float TARGET_I_MAX{2.0f}; // 2SK4017 MOSFETの特性上 0.1Aの時に2.24V 0.5Aの時に2.6V 1.0Aの時に2.8V 2Aの時にMOSのゲート電圧が3.2V
   static constexpr float TARGET_I_MIN{0.4f};
 
-  float targetV{0.f};
-  float targetI{0.f};
+  float targetV{1.4f};
+  float targetI{1.f};
   DisChargeMode disChargeMode{DisChargeMode::DischargeNormal};
   bool activeFlag{true};
 
@@ -736,7 +736,7 @@ public:
   float sleepV{0.f};
   float targetV{1.40f};
   float I{0.0f};
-  float tunedI{0.2f};
+  float tunedI{1.f};
   float ohm{0.f};
   float targetI{0.2f};
   float milliAmpereHour{0.0f};
@@ -831,11 +831,11 @@ class BatteryController
   static constexpr uint8_t WRITE3_PIN{8};
   static constexpr uint8_t WRITE4_PIN{9};
 
-  static constexpr int PUSH_BUTTON1{15};
-  static constexpr int PUSH_BUTTON2{14};
-  static constexpr int PUSH_BUTTON3{13};
-  static constexpr int PUSH_BUTTON4{12};
-  static constexpr int PUSH_BUTTON5{11};
+  static constexpr int PUSH_BUTTON_L{15};
+  static constexpr int PUSH_BUTTON_D{14};
+  static constexpr int PUSH_BUTTON_U{13};
+  static constexpr int PUSH_BUTTON_R{12};
+  static constexpr int PUSH_BUTTON_C{11};
 
   ButtonStatus buttonLStatus{};
   ButtonStatus buttonRStatus{};
@@ -906,6 +906,15 @@ public:
     batteryStatuses[currentBatteryIndex].settingFlag = true;
   };
 
+  void clearEEPROM()
+  {
+    const uint8_t clearSize{64};
+    for (int i = 0; i < clearSize; ++i)
+    {
+      EEPROM.write(i, 0xFF);
+    }
+  }
+
   void setup()
   {
     /*
@@ -925,17 +934,23 @@ public:
     pinMode(XIAO_READ_BAT, INPUT);
 
     // Button
-    pinMode(PUSH_BUTTON1, INPUT);
-    pinMode(PUSH_BUTTON2, INPUT);
-    pinMode(PUSH_BUTTON3, INPUT);
-    pinMode(PUSH_BUTTON4, INPUT);
-    pinMode(PUSH_BUTTON5, INPUT);
+    pinMode(PUSH_BUTTON_L, INPUT);
+    pinMode(PUSH_BUTTON_D, INPUT);
+    pinMode(PUSH_BUTTON_U, INPUT);
+    pinMode(PUSH_BUTTON_R, INPUT);
+    pinMode(PUSH_BUTTON_C, INPUT);
 
-    buttonLStatus.init(PUSH_BUTTON1);
-    buttonRStatus.init(PUSH_BUTTON4);
-    buttonUStatus.init(PUSH_BUTTON3);
-    buttonDStatus.init(PUSH_BUTTON2);
-    buttonCStatus.init(PUSH_BUTTON5);
+    buttonLStatus.init(PUSH_BUTTON_L);
+    buttonRStatus.init(PUSH_BUTTON_R);
+    buttonUStatus.init(PUSH_BUTTON_U);
+    buttonDStatus.init(PUSH_BUTTON_D);
+    buttonCStatus.init(PUSH_BUTTON_C);
+
+    const int val{digitalRead(PUSH_BUTTON_D)};
+    if (val == LOW) // val == LOW)
+    {
+      clearEEPROM();
+    }
 
     loadRomData();
     copySaveDataToStatusData();
@@ -950,17 +965,20 @@ public:
   {
     for (int i{0}; i < batteryStatuses.size(); ++i)
     {
-      auto &batteryStatus{batteryStatuses[i]};
-      if (saveData.ver != -1)
+      auto& batteryStatus{batteryStatuses[i]};
+
+      const static SaveBattery defaultSaveBattery{};
+      auto& saveBattery{saveData.battery[i]};
+      if (saveData.ver == -1)
       {
-
-        auto &saveBattery{saveData.battery[i]};
-
-        batteryStatus.targetI = saveBattery.targetI;
-        batteryStatus.targetV = saveBattery.targetV;
-        batteryStatus.disChargeMode = saveBattery.disChargeMode;
-        batteryStatus.activeFlag = saveBattery.activeFlag;
+        saveBattery = defaultSaveBattery;
       }
+
+      batteryStatus.targetI = saveBattery.targetI;
+      batteryStatus.targetV = saveBattery.targetV;
+      batteryStatus.disChargeMode = saveBattery.disChargeMode;
+      batteryStatus.activeFlag = saveBattery.activeFlag;
+
       batteryStatus.setup();
     }
   }
@@ -1108,11 +1126,17 @@ public:
 };
 
 BatteryController controller;
+
 // the setup function runs once when you press reset or power the board
 void setup()
 {
-  // initialize digital pin LED_BUILTIN as an output.
   pinMode(LED_BUILTIN, OUTPUT);
+
+
+
+  // return;
+  // initialize digital pin LED_BUILTIN as an output.
+
 
   // Serial.begin(115200);
   // while (!Serial);
@@ -1125,15 +1149,15 @@ void setup()
 // the loop function runs over and over again forever
 void loop()
 {
-
-/*
+#if 0
   digitalWrite(LED_BUILTIN, HIGH); // turn the LED on (HIGH is the voltage level)
   delay(100);                      // wait for a second
   digitalWrite(LED_BUILTIN, LOW);  // turn the LED off by making the voltage LOW
   delay(100);    
 
   return;
-*/
+#endif
+
   drawAdafruit.display();
 
   while (true)
