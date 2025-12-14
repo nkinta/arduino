@@ -99,11 +99,11 @@ public:
     };
 
     uint8_t index{0};
-    if (voltage > 4.1f)
+    if (voltage > 3.95f)
     {
       index = 2;
     }
-    else if (voltage > 3.8f)
+    else if (voltage > 3.75f)
     {
       index = 1;
     }
@@ -113,8 +113,8 @@ public:
     }
 
     drawFillLine(6);
-    drawFloat(voltage, 10, 6);
-    // adaDisplay.drawBitmap(110, 55, bat_meter[index], 16, 8, WHITE);
+    // drawFloat(voltage, 10, 6);
+    adaDisplay.drawBitmap(110, 55, bat_meter[index], 16, 8, WHITE);
   }
 
   void drawCar()
@@ -124,9 +124,6 @@ public:
       0xff, 0xff, 0x7f, 0xff, 0xbf, 0xff, 0xa0, 0x3f, 0xdf, 0xdf, 0xbf, 0x23, 0xbf, 0xfd, 0xbf, 0xfe, 
       0xa7, 0xe6, 0xdb, 0xda, 0xd8, 0x19, 0xe7, 0xe7, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
     };
-
-
-
 
     // Array of all bitmaps for convenience. (Total bytes used to store images in PROGMEM = 48)
     const int epd_bitmap_allArray_LEN = 1;

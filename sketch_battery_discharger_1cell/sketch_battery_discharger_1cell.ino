@@ -5,7 +5,10 @@
 #include <stdio.h>
 #include <string>
 
-// #include <ArduinoLowPower.h>
+// #define DEEP_SLEEP_ESCAPE_PIN   D13
+#include <ArduinoLowPower.h>
+
+#undef SERIAL_DEBUG_ON
 
 #include "display/draw_adafruit.h"
 
@@ -834,8 +837,10 @@ class BatteryController
   static constexpr int PUSH_BUTTON_L{15};
   static constexpr int PUSH_BUTTON_D{14};
   static constexpr int PUSH_BUTTON_U{13};
-  static constexpr int PUSH_BUTTON_R{12};
+  static constexpr int PUSH_BUTTON_R{12}; // 12(SAND11_RX) or 10
   static constexpr int PUSH_BUTTON_C{11};
+
+  static constexpr int WAKE_UP_PIN{PUSH_BUTTON_D};
 
   ButtonStatus buttonLStatus{};
   ButtonStatus buttonRStatus{};
@@ -860,7 +865,7 @@ class BatteryController
 
   struct SaveData
   {
-    int ver{0};
+    int ver{1};
     SaveBattery battery[4];
   };
 
@@ -940,6 +945,19 @@ public:
     pinMode(PUSH_BUTTON_R, INPUT);
     pinMode(PUSH_BUTTON_C, INPUT);
 
+    /*
+    pinMode(READ1_PIN, INPUT);
+    pinMode(READ2_PIN, INPUT);
+    pinMode(READ3_PIN, INPUT);
+    pinMode(READ4_PIN, INPUT);
+
+    pinMode(WRITE1_PIN, OUTPUT);
+    pinMode(WRITE2_PIN, OUTPUT);
+    pinMode(WRITE3_PIN, OUTPUT);
+    pinMode(WRITE4_PIN, OUTPUT);
+    */
+    digitalWrite(PA6, HIGH);  //FLASH
+
     buttonLStatus.init(PUSH_BUTTON_L);
     buttonRStatus.init(PUSH_BUTTON_R);
     buttonUStatus.init(PUSH_BUTTON_U);
@@ -947,12 +965,11 @@ public:
     buttonCStatus.init(PUSH_BUTTON_C);
 
     const int val{digitalRead(PUSH_BUTTON_D)};
-    if (val == LOW) // val == LOW)
+    if (val != LOW) // val == LOW)
     {
-      clearEEPROM();
+      loadRomData();
     }
 
-    loadRomData();
     copySaveDataToStatusData();
 
     batteryStatuses[0].saveBattery = &(saveData.battery[0]);
@@ -969,7 +986,7 @@ public:
 
       const static SaveBattery defaultSaveBattery{};
       auto& saveBattery{saveData.battery[i]};
-      if (saveData.ver == -1)
+      if (saveData.ver == -1 && saveData.ver == 0)
       {
         saveBattery = defaultSaveBattery;
       }
@@ -1025,7 +1042,7 @@ public:
     displayMode = static_cast<DisplayMode>(nextModeIndex);
     if (displayMode == DisplayMode::Display)
     {
-      saveData.ver = 0;
+      saveData.ver = 1;
       copySaveDataToStatusData();
       saveRomData();
     }
@@ -1050,12 +1067,20 @@ public:
 
   void loopSub()
   {
+    ++loopSubCount;
     if ((loopSubCount % 60) == 0)
     {
       readAndDrawXiaoBattery();
     }
 
-    digitalWrite(LED_BUILTIN, (((++loopSubCount) / 12) % 2));
+    digitalWrite(LED_BUILTIN, ((loopSubCount / 12) % 2));
+
+#ifdef SERIAL_DEBUG_ON
+    if ((loopSubCount % 12) == 0)
+    {
+      Serial.printf("serial print test. %d\n", loopSubCount);
+    }
+#endif
 
     for (auto &batteryStatus : batteryStatuses)
     {
@@ -1082,15 +1107,22 @@ public:
     }
 
     checkFlag = buttonUStatus.check();
-    if (checkFlag >= 1)
+    if (checkFlag == 1)
     {
       shiftParam(1);
     }
 
     checkFlag = buttonDStatus.check();
-    if (checkFlag >= 1)
+    if (checkFlag == 1)
     {
       shiftParam(-1);
+    }
+    else if (checkFlag == 2)
+    {
+      drawAdafruit.clearDisplay();
+      drawAdafruit.display();
+      LowPower.attachInterruptWakeup(WAKE_UP_PIN, nullptr, RISING);
+      LowPower.deepSleep(100000000); // 1000000
     }
 
     checkFlag = buttonCStatus.check();
@@ -1132,18 +1164,15 @@ void setup()
 {
   pinMode(LED_BUILTIN, OUTPUT);
 
-
-
-  // return;
-  // initialize digital pin LED_BUILTIN as an output.
-
-
-  // Serial.begin(115200);
+#ifdef SERIAL_DEBUG_ON
+  Serial.begin(115200);
   // while (!Serial);
+  Serial.print("Start!");
+#endif
+
   drawAdafruit.setupDisplay();
   controller.setup();
 
-  // LowPower.deepSleep(10000);
 }
 
 // the loop function runs over and over again forever
