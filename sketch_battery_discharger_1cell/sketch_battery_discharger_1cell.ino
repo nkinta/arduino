@@ -53,7 +53,8 @@ struct VoltageMapping
     float volt{0};
   };
 
-  const std::vector<VoltPair> mappingData{{0, 0.f}, {4094, 3.3f}};
+  const std::vector<VoltPair> defaultMappingData{{0, 0.f}, {621, 0.5f}, {1241, 1.0f}, {1862, 1.5f}, {2482, 2.0f}, {4094, 3.3f}};
+  std::vector<VoltPair> mappingData{defaultMappingData};
 
   float getVoltage(int input)
   {
@@ -72,6 +73,27 @@ struct VoltageMapping
     }
     return 0.f;
   }
+
+  void initMapping(const std::vector<VoltPair>& customMappingData)
+  {
+    constexpr double epsilon{1e-4};
+    mappingData.clear();
+    for (const VoltPair& defaultVoltPair : defaultMappingData)
+    {
+      int customOffset{0};
+      for (const VoltPair& customVoltPair : customMappingData)
+      {
+        if (std::abs(defaultVoltPair.volt - customVoltPair.volt) <= epsilon)
+        {
+          customOffset = customVoltPair.input;
+          break;
+        }
+      }
+
+      mappingData.push_back({defaultVoltPair.input + customOffset, defaultVoltPair.volt});
+    }
+  }
+
 };
 
 static VoltageMapping voltageMapping;
@@ -80,6 +102,13 @@ enum class DisChargeMode : uint8_t
 {
   DischargeNormal,
   DischargeStop,
+  Max,
+};
+
+enum class MainMode : uint8_t
+{
+  DischargerMode,
+  ConfigMode,
   Max,
 };
 
@@ -325,7 +354,7 @@ public:
         I = std::max(0.f, tunedI);
         if ((tunedI > 0.f) && (sleepV - V))
         {
-          ohm = (sleepV - V) * 1000.f / tunedI;
+          ohm = ((sleepV - V) * 1000.f * ACTIVE_RATE) / tunedI;
         }
       }
       else if (currentTimeStatus == TimeStatus::SleepStart)
@@ -404,7 +433,7 @@ public:
     loopCount = 0;
   };
 
-  void display(DisplayMode displayMode, SettingMode settingMode)
+  void setDisplayData(DisplayMode displayMode, SettingMode settingMode)
   {
 
     ++displayCount;
@@ -512,13 +541,13 @@ public:
     drawAdafruit.drawFillLine(line);
   }
 
-  void displayDischargeI()
+  void displayDischargeFloat(String&& title , String&& unit, float value)
   {
     int vir_offset{0};
     int line{START_LINE};
     drawAdafruit.drawFillLine(line);
     vir_offset = SETTING_MENU_START_COL;
-    drawAdafruit.drawString("Setting", vir_offset, line);
+    drawAdafruit.drawString(title, vir_offset, line);
 
     ++line;
     drawAdafruit.drawFillLine(line);
@@ -529,8 +558,8 @@ public:
     drawAdafruit.drawFillLine(line);
     vir_offset = SETTING_MENU_START_COL;
     vir_offset += SETTING_MENU_OFFSET_COL;
-    drawAdafruit.drawFloatR(saveBattery->targetI, vir_offset, line, SETTING_MENU_OFFSET_COL, 3);
-    drawAdafruit.drawString("A", vir_offset, line);
+    drawAdafruit.drawFloatR(value, vir_offset, line, SETTING_MENU_OFFSET_COL, 3);
+    drawAdafruit.drawString(unit, vir_offset, line);
 
     ++line;
     drawAdafruit.drawFillLine(line);
@@ -543,35 +572,14 @@ public:
     drawAdafruit.drawFillLine(line);
   }
 
+  void displayDischargeI()
+  {
+    displayDischargeFloat("Setting", "A", saveBattery->targetI);
+  }
+
   void displayDischargeV()
   {
-    int vir_offset{0};
-    int line{START_LINE};
-    drawAdafruit.drawFillLine(line);
-    vir_offset = SETTING_MENU_START_COL;
-    drawAdafruit.drawString("Setting", vir_offset, line);
-
-    ++line;
-    drawAdafruit.drawFillLine(line);
-    vir_offset = SETTING_MENU_START_COL;
-    drawAdafruit.drawChar(&CHAR_DATA_UP[0], vir_offset, line);
-
-    ++line;
-    drawAdafruit.drawFillLine(line);
-    vir_offset = SETTING_MENU_START_COL;
-    vir_offset += SETTING_MENU_OFFSET_COL;
-    drawAdafruit.drawFloatR(saveBattery->targetV, vir_offset, line, SETTING_MENU_OFFSET_COL, 3);
-    drawAdafruit.drawString("V", vir_offset, line);
-
-    ++line;
-    drawAdafruit.drawFillLine(line);
-    vir_offset = SETTING_MENU_START_COL;
-    drawAdafruit.drawChar(&CHAR_DATA_DOWN[0], vir_offset, line);
-
-    ++line;
-    drawAdafruit.drawFillLine(line);
-    ++line;
-    drawAdafruit.drawFillLine(line);
+    displayDischargeFloat("Setting", "V", saveBattery->targetV);
   }
 
   void displayVoltOnly()
@@ -820,6 +828,7 @@ int modeIndex = 0;
 
 class BatteryController
 {
+  static constexpr int SAVEDATA_ID{0xABCD};
 
   static constexpr uint8_t XIAO_READ_BAT{PD4};
   static constexpr uint8_t XIAO_READ_BAT_SWITCH{PD3};
@@ -863,14 +872,28 @@ class BatteryController
 
   unsigned long loopSubCount{0};
 
-  struct SaveData
+  struct SaveMainData
   {
+    static constexpr int SAVEDATA_ADDRESS{0X400};
+    int id{SAVEDATA_ID};
     int ver{1};
     SaveBattery battery[4];
   };
 
+  struct SaveConfigData
+  {
+    static constexpr int SAVEDATA_ADDRESS{0X100};
+    int id{SAVEDATA_ID};
+    int ver{1};
+    VoltageMapping::VoltPair voltPair[5] = {{0.f, 0}, {0.5f, 0}, {1.f, 0}, {1.5f, 0}, {2.f, 0}};
+  }; 
+
 public:
-  SaveData saveData{};
+  SaveMainData saveMainData{};
+
+  SaveConfigData saveConfigData{};
+
+  MainMode mainMode{MainMode::DischargerMode};
 
 private:
   void readAndDrawXiaoBattery()
@@ -882,27 +905,45 @@ private:
     drawAdafruit.drawBat(xiaoVolt);
   }
 
-  void saveRomData()
+  template <typename T>
+  void saveCustomData(byte *p)
   {
-    byte *p = (byte *)&saveData;
-
-    for (int i = 0; i < sizeof(SaveData); i++)
+    for (int i = 0; i < sizeof(SaveMainData); i++)
     {
-      EEPROM.write(i, *p);
+      EEPROM.write(T::SAVEDATA_ADDRESS + i, *p);
       p++;
     }
-  };
+  }
 
-  void loadRomData()
+  template <typename T>
+  void loadCustomData(byte *p)
   {
-    byte *p = (byte *)&saveData;
-
-    for (int i = 0; i < sizeof(SaveData); i++)
+    for (int i = 0; i < sizeof(T); i++)
     {
-      byte b = EEPROM.read(i);
+      byte b = EEPROM.read(T::SAVEDATA_ADDRESS + i);
       *p = b;
       p++;
     }
+  }
+
+  void saveConfig()
+  {
+    saveCustomData<SaveConfigData>((byte *)&saveConfigData);
+  }
+
+  void saveMain()
+  {
+    saveCustomData<SaveMainData>((byte *)&saveMainData);
+  }
+
+  void loadConfig()
+  {
+    loadCustomData<SaveConfigData>((byte *)&saveConfigData);
+  }
+
+  void loadMain()
+  {
+    loadCustomData<SaveMainData>((byte *)&saveMainData);
   };
 
 public:
@@ -964,29 +1005,37 @@ public:
     buttonDStatus.init(PUSH_BUTTON_D);
     buttonCStatus.init(PUSH_BUTTON_C);
 
-    const int val{digitalRead(PUSH_BUTTON_D)};
+    int val{HIGH};
+    val = digitalRead(PUSH_BUTTON_D);
     if (val != LOW) // val == LOW)
     {
-      loadRomData();
+      loadMain();
+      loadConfig();
     }
 
-    copySaveDataToStatusData();
+    val = digitalRead(PUSH_BUTTON_R);
+    if (val == LOW)
+    {
+      mainMode = MainMode::ConfigMode;
+    }
 
-    batteryStatuses[0].saveBattery = &(saveData.battery[0]);
-    batteryStatuses[1].saveBattery = &(saveData.battery[1]);
-    batteryStatuses[2].saveBattery = &(saveData.battery[2]);
-    batteryStatuses[3].saveBattery = &(saveData.battery[3]);
+    copySaveMainDataToStatusData();
+
+    batteryStatuses[0].saveBattery = &(saveMainData.battery[0]);
+    batteryStatuses[1].saveBattery = &(saveMainData.battery[1]);
+    batteryStatuses[2].saveBattery = &(saveMainData.battery[2]);
+    batteryStatuses[3].saveBattery = &(saveMainData.battery[3]);
   };
 
-  void copySaveDataToStatusData()
+  void copySaveMainDataToStatusData()
   {
     for (int i{0}; i < batteryStatuses.size(); ++i)
     {
       auto& batteryStatus{batteryStatuses[i]};
 
       const static SaveBattery defaultSaveBattery{};
-      auto& saveBattery{saveData.battery[i]};
-      if (saveData.ver == -1 && saveData.ver == 0)
+      auto& saveBattery{saveMainData.battery[i]};
+      if (saveMainData.id != SAVEDATA_ID)
       {
         saveBattery = defaultSaveBattery;
       }
@@ -1008,13 +1057,13 @@ public:
     }
   };
 
-  void display()
+  void setDisplayData()
   {
 
     drawAdafruit.drawFillLine(0);
     for (auto &batteryStatus : batteryStatuses)
     {
-      batteryStatus.display(displayMode, settingMode);
+      batteryStatus.setDisplayData(displayMode, settingMode);
     }
   };
 
@@ -1042,9 +1091,10 @@ public:
     displayMode = static_cast<DisplayMode>(nextModeIndex);
     if (displayMode == DisplayMode::Display)
     {
-      saveData.ver = 1;
-      copySaveDataToStatusData();
-      saveRomData();
+      saveMainData.id = SAVEDATA_ID;
+      saveMainData.ver = 1;
+      copySaveMainDataToStatusData();
+      saveMain();
     }
   };
 
@@ -1062,7 +1112,7 @@ public:
 
   void shiftParam(int shift)
   {
-    saveData.battery[currentBatteryIndex].shiftParam(settingMode, shift);
+    saveMainData.battery[currentBatteryIndex].shiftParam(settingMode, shift);
   };
 
   void loopSub()
@@ -1082,64 +1132,71 @@ public:
     }
 #endif
 
-    for (auto &batteryStatus : batteryStatuses)
+    if (mainMode == MainMode::DischargerMode)
     {
-      batteryStatus.loopSub();
-    }
-
-    if ((loopSubCount % 3) == 0)
-    {
-      display();
-      drawAdafruit.display();      
-    }
-
-    int checkFlag{0};
-    checkFlag = buttonLStatus.check();
-    if (checkFlag == 1)
-    {
-      changeTargetBattery(-1);
-    }
-
-    checkFlag = buttonRStatus.check();
-    if (checkFlag == 1)
-    {
-      changeTargetBattery(1);
-    }
-
-    checkFlag = buttonUStatus.check();
-    if (checkFlag == 1)
-    {
-      shiftParam(1);
-    }
-
-    checkFlag = buttonDStatus.check();
-    if (checkFlag == 1)
-    {
-      shiftParam(-1);
-    }
-    else if (checkFlag == 2)
-    {
-      drawAdafruit.clearDisplay();
-      drawAdafruit.display();
-      LowPower.attachInterruptWakeup(WAKE_UP_PIN, nullptr, RISING);
-      LowPower.deepSleep(100000000); // 1000000
-    }
-
-    checkFlag = buttonCStatus.check();
-    if (checkFlag == 1)
-    {
-      if (displayMode == DisplayMode::Display)
+      for (auto &batteryStatus : batteryStatuses)
       {
-        changeActive(1);
+        batteryStatus.loopSub();
       }
-      else
+
+      if ((loopSubCount % 3) == 0)
       {
-        changeSettingMode(1);
+        setDisplayData();
+        drawAdafruit.display();      
+      }
+
+      int checkFlag{0};
+      checkFlag = buttonLStatus.check();
+      if (checkFlag == 1)
+      {
+        changeTargetBattery(-1);
+      }
+
+      checkFlag = buttonRStatus.check();
+      if (checkFlag == 1)
+      {
+        changeTargetBattery(1);
+      }
+
+      checkFlag = buttonUStatus.check();
+      if (checkFlag == 1)
+      {
+        shiftParam(1);
+      }
+
+      checkFlag = buttonDStatus.check();
+      if (checkFlag == 1)
+      {
+        shiftParam(-1);
+      }
+      else if (checkFlag == 2)
+      {
+        drawAdafruit.clearDisplay();
+        drawAdafruit.display();
+        LowPower.attachInterruptWakeup(WAKE_UP_PIN, nullptr, RISING);
+        LowPower.deepSleep(100000000); // 1000000
+      }
+
+      checkFlag = buttonCStatus.check();
+      if (checkFlag == 1)
+      {
+        if (displayMode == DisplayMode::Display)
+        {
+          changeActive(1);
+        }
+        else
+        {
+          changeSettingMode(1);
+        }
+      }
+      else if (checkFlag == 2)
+      {
+        changeDisplayMode(1);
       }
     }
-    else if (checkFlag == 2)
+    else if (mainMode == MainMode::ConfigMode)
     {
-      changeDisplayMode(1);
+
     }
   };
 
