@@ -147,6 +147,12 @@ public:
     // adaDisplay.drawFastHLine(0, CHARSIZEY + 5, 128, BLACK);
   }
 
+  void drawStringC(const String& string, int offsetY)
+  {
+    const int offsetX{(SCREEN_WIDTH - (CHARSIZEX * string.length())) / (2 * CHARSIZEX)};
+    drawChar(string.c_str(), offsetX, offsetY);
+  }
+
   void drawString(const String& string, int offsetX, int offsetY) {
     drawChar(string.c_str(), offsetX, offsetY);
   }
@@ -221,7 +227,6 @@ public:
   void drawIntR(int value, float offsetX, float offsetY) {
     String valueInt{String(value)};
     adaDisplay.setCursor(CHARSIZEX * (offsetX - valueInt.length()), CHARSIZEY * offsetY);
-
     adaDisplay.print(valueInt.c_str());
   }
 
