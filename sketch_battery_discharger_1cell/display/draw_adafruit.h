@@ -157,6 +157,10 @@ public:
     drawChar(string.c_str(), offsetX, offsetY);
   }
 
+  void drawStringR(const String& string, int offsetX, int offsetY) {
+    drawChar(string.c_str(), offsetX - string.length(), offsetY);
+  }
+
   void drawFloat(float value, float offsetX, float offsetY, int decimal = 2) {
     adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
 

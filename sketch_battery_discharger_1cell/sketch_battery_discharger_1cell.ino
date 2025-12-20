@@ -109,21 +109,15 @@ enum class MainMode : uint8_t
 {
   DischargerMode,
   ConfigMode,
+  ParameterConfigMode,
   Max,
 };
 
-enum class DisplayMode : uint8_t
+enum class ParameterConfigSettingMode : uint8_t
 {
-  None,
-  Display,
-  Max,
-};
-
-enum class MainSettingMode : uint8_t
-{
-  ModeChangeSetting,
   DischargeVSetting,
   DischargeISetting,
+  ModeChangeSetting,
   Max,
 };
 
@@ -170,18 +164,18 @@ struct SaveBattery
   DisChargeMode disChargeMode{DisChargeMode::DischargeNormal};
   bool activeFlag{true};
 
-  void shiftParam(MainSettingMode settingMode, int shift)
+  void shiftParam(ParameterConfigSettingMode settingMode, int shift)
   {
-    if (settingMode == MainSettingMode::ModeChangeSetting)
+    if (settingMode == ParameterConfigSettingMode::ModeChangeSetting)
     {
       const int nextModeIndex{(static_cast<int>(DisChargeMode::Max) + static_cast<int>(disChargeMode) + shift) % static_cast<int>(DisChargeMode::Max)};
       disChargeMode = static_cast<DisChargeMode>(nextModeIndex);
     }
-    else if (settingMode == MainSettingMode::DischargeVSetting)
+    else if (settingMode == ParameterConfigSettingMode::DischargeVSetting)
     {
       targetV = std::clamp(targetV + 0.001f * static_cast<float>(shift), TARGET_V_MIN, TARGET_V_MAX);
     }
-    else if (settingMode == MainSettingMode::DischargeISetting)
+    else if (settingMode == ParameterConfigSettingMode::DischargeISetting)
     {
       targetI = std::clamp(targetI + 0.1f * static_cast<float>(shift), TARGET_I_MIN, TARGET_I_MAX);
     }
@@ -189,7 +183,7 @@ struct SaveBattery
 };
 
 namespace DisplayConst {
-
+static constexpr char CHAR_DATA_ARROW[] = {0x1A, 0x00};
 static constexpr char CHAR_DATA_UP[] = {0x20, 0x20, 0x20, 0x18, 0x00};
 static constexpr char CHAR_DATA_DOWN[] = {0x20, 0x20, 0x20, 0x19, 0x00};
 
@@ -259,43 +253,43 @@ static void displayDischargeInt(DrawAdafruit& adafruit, String&& title, String&&
   adafruit.drawFillLine(line);
 }
 
-static void displayDischargeFloat(DrawAdafruit& adafruit, String&& title , String&& unit, float value)
+static void displayTuneMenu(DrawAdafruit& adafruit, String&& title, std::vector<String>& menuList, std::vector<String>& valueList, int targetIndex)
 {
-  int vir_offset{0};
-  int line{DisplayConst::START_LINE};
+  int vir_offset1{0};
+  int vir_offset2{0};
+  int line{0};
   adafruit.drawFillLine(line);
   adafruit.drawStringC(title, line);
 
-  ++line;
-  adafruit.drawFillLine(line);
-  vir_offset = DisplayConst::SETTING_MENU_START_COL;
-  adafruit.drawChar(&DisplayConst::CHAR_DATA_UP[0], vir_offset, line);
+  vir_offset1 = 2;
+  vir_offset2 = 14;
+  for (int i{0}; i < menuList.size(); ++i)
+  {
+    ++line;
+    adafruit.drawFillLine(line);
+    if (i == targetIndex)
+    {
+      drawAdafruit.drawChar(&DisplayConst::CHAR_DATA_ARROW[0], 0, line);
+    }
+    adafruit.drawString(menuList[i], vir_offset1, line);
+    adafruit.drawString(valueList[i], vir_offset2, line);
+  }
 
-  ++line;
-  adafruit.drawFillLine(line);
-  vir_offset = DisplayConst::SETTING_MENU_START_COL;
-  vir_offset += DisplayConst::SETTING_MENU_OFFSET_COL;
-  adafruit.drawFloatR(value, vir_offset, line, DisplayConst::SETTING_MENU_OFFSET_COL, 3);
-  adafruit.drawString(unit, vir_offset, line);
+  while (line < 7)
+  {
+    line++;
+    adafruit.drawFillLine(line);
+  }
 
-  ++line;
-  adafruit.drawFillLine(line);
-  vir_offset = DisplayConst::SETTING_MENU_START_COL;
-  adafruit.drawChar(&DisplayConst::CHAR_DATA_DOWN[0], vir_offset, line);
 
-  ++line;
-  adafruit.drawFillLine(line);
-  ++line;
-  adafruit.drawFillLine(line);
 }
-
-
 
 struct BatteryInfo
 {
   static constexpr int START_LINE{1};
   static constexpr int SETTING_MENU_START_COL{7};
   static constexpr int SETTING_MENU_OFFSET_COL{5};
+
 
   static constexpr char CHAR_DATA_UP[] = {0x20, 0x20, 0x20, 0x18, 0x00};
   static constexpr char CHAR_DATA_DOWN[] = {0x20, 0x20, 0x20, 0x19, 0x00};
@@ -410,7 +404,7 @@ struct BatteryInfo
     return std::clamp(static_cast<int>(voltRate * MAX_PWM_F * INV_ACTIVE_RATE), 0, MAX_PWM);
   };
 
-  std::vector<String> modeNames{String(" DiscNorm"), String(" DiscStop")};
+  std::vector<String> modeNames{String("DiscCont"), String("DicStop")};
 
 public:
   BatteryInfo(uint8_t inReadPin, uint8_t inWritePin, uint8_t inBatteryIndex) : readPin{inReadPin}, writePin{inWritePin}, batteryIndex{inBatteryIndex} {};
@@ -546,7 +540,7 @@ public:
     loopCount = 0;
   };
 
-  void setDisplayData(DisplayMode displayMode, MainSettingMode settingMode)
+  void setDisplayData()
   {
 
     ++displayCount;
@@ -567,35 +561,13 @@ public:
 
     if (settingFlag)
     {
-      if (displayMode == DisplayMode::Display)
+      if (activeFlag)
       {
-        if (activeFlag)
-        {
-          displayDetail();
-        }
-        else
-        {
-          displayVoltOnly();
-        }
+        displayDetail();
       }
       else
       {
-        if (settingMode == MainSettingMode::ModeChangeSetting)
-        {
-          displayModeChangeSetting();
-        }
-        else if (settingMode == MainSettingMode::DischargeVSetting)
-        {
-          displayDischargeV();
-        }
-        else if (settingMode == MainSettingMode::DischargeISetting)
-        {
-          displayDischargeI();
-        }
-        else
-        {
-          displayNone();
-        }
+        displayVoltOnly();
       }
     }
   };
@@ -624,48 +596,18 @@ public:
     drawAdafruit.drawFillLine(line);
   }
 
-  void displayModeChangeSetting()
+  void displayParameterConfig(ParameterConfigSettingMode settingMode)
   {
-    displayEnumSetting(drawAdafruit, "ModeSetting", modeNames, (uint8_t)saveBattery->disChargeMode);
-    
-    return;
+    std::vector<String> menuList{"TargetI", "TargetA", "DiscMode"};
 
-    int vir_offset{0};
-    int line{START_LINE};
-    drawAdafruit.drawFillLine(line);
-    vir_offset = SETTING_MENU_START_COL;
-    drawAdafruit.drawString("Setting", vir_offset, line);
+    // String valueStr{String(value, decimal)};
+    String mode{modeNames[(uint8_t)saveBattery->disChargeMode]};
+    std::vector<String> valueList{String(saveBattery->targetV, 3), String(saveBattery->targetI), mode};
 
-    ++line;
-    String modeName;
-    drawAdafruit.drawFillLine(line);
-    vir_offset = SETTING_MENU_START_COL;
-    drawAdafruit.drawChar(&CHAR_DATA_UP[0], vir_offset, line);
-
-    ++line;
-    drawAdafruit.drawFillLine(line);
-    vir_offset = SETTING_MENU_START_COL;
-    drawAdafruit.drawString(modeNames[(uint8_t)saveBattery->disChargeMode], SETTING_MENU_START_COL - 1, line);
-
-    ++line;
-    drawAdafruit.drawFillLine(line);
-    vir_offset = SETTING_MENU_START_COL;
-    drawAdafruit.drawChar(&CHAR_DATA_DOWN[0], vir_offset, line);
-
-    ++line;
-    drawAdafruit.drawFillLine(line);
-    ++line;
-    drawAdafruit.drawFillLine(line);
-  }
-
-  void displayDischargeI()
-  {
-    displayDischargeFloat(drawAdafruit, "TargetA", "A", saveBattery->targetI);
-  }
-
-  void displayDischargeV()
-  {
-    displayDischargeFloat(drawAdafruit, "TargetV", "V", saveBattery->targetV);
+    String Title{"Battery No."};
+    Title += String(batteryIndex + 1);
+    displayTuneMenu(drawAdafruit, std::move(Title), menuList, valueList, static_cast<int>(settingMode));
+    // displayDischargeFloat(drawAdafruit, "TargetA", "A", saveBattery->targetI);
   }
 
   void displayVoltOnly()
@@ -705,7 +647,7 @@ public:
     drawAdafruit.drawFillLine(line);
 
     vir_offset = DISPLAY_MENU_START_COL;
-    drawAdafruit.drawString(modeNames[(uint8_t)disChargeMode], vir_offset + 3, line);
+    drawAdafruit.drawStringC(modeNames[(uint8_t)disChargeMode], line);
 
     ++line;
     drawAdafruit.drawFillLine(line);
@@ -953,11 +895,8 @@ class BatteryController
       BatteryInfo{READ3_PIN, WRITE3_PIN, 2},
       BatteryInfo{READ4_PIN, WRITE4_PIN, 3}};
 
-  DisplayMode displayMode{DisplayMode::Display};
-
-  MainSettingMode mainSettingMode{MainSettingMode::DischargeVSetting};
-
   ConfigSettingMode configSettingMode{ConfigSettingMode::Volt00Setting};
+  ParameterConfigSettingMode parameterConfigSettingMode{ParameterConfigSettingMode::DischargeVSetting};
 
   unsigned long loopSubMillis{0};
 
@@ -1174,8 +1113,20 @@ public:
     }
   };
 
-  void setDisplayDataConfigMode()
+  void setDisplayConfig()
   {
+    std::vector<String> menuList{"0.0V", "0.5V", "1.0V", "1.5V"};
+
+    std::vector<String> valueList{
+      String(saveConfigData.voltDatas[0]),
+      String(saveConfigData.voltDatas[1]),
+      String(saveConfigData.voltDatas[2]),
+      String(saveConfigData.voltDatas[3])
+    };
+
+    displayTuneMenu(drawAdafruit, "Congig", menuList, valueList, static_cast<int>(configSettingMode));
+
+    /*
     int line{0};
     String title{"ConfigConfig"};
     drawAdafruit.drawFillLine(line);
@@ -1196,22 +1147,24 @@ public:
     {
       displayDischargeInt(drawAdafruit, "Offset15V", "", saveConfigData.voltDatas[3]);
     }
+    */
+  }
+
+  void setDisplayParameterConfig()
+  {
+    drawAdafruit.drawFillLine(0);
+    batteryStatuses[currentBatteryIndex].displayParameterConfig(parameterConfigSettingMode);
   }
 
   void setDisplayData()
   {
-    if (mainMode == MainMode::DischargerMode)
+
+    drawAdafruit.drawFillLine(0);
+    for (auto &batteryStatus : batteryStatuses)
     {
-      drawAdafruit.drawFillLine(0);
-      for (auto &batteryStatus : batteryStatuses)
-      {
-        batteryStatus.setDisplayData(displayMode, mainSettingMode);
-      }
+      batteryStatus.setDisplayData();
     }
-    else if (mainMode == MainMode::ConfigMode)
-    {
-      setDisplayDataConfigMode();
-    }
+
   };
 
   void goDeepSleep()
@@ -1236,6 +1189,10 @@ public:
       {
         changeTargetBattery(-1);
       }
+      else if (mainMode == MainMode::ConfigMode || mainMode == MainMode::ParameterConfigMode)
+      {
+        shiftParam(-1);
+      }
     }
     else if (checkFlag == 4)
     {
@@ -1249,6 +1206,10 @@ public:
       {
         changeTargetBattery(1);
       }
+      else if (mainMode == MainMode::ConfigMode || mainMode == MainMode::ParameterConfigMode)
+      {
+        shiftParam(1);
+      }
     }
     else if (checkFlag == 4)
     {
@@ -1258,13 +1219,13 @@ public:
     checkFlag = buttonUStatus.check();
     if (checkFlag == 1)
     {
-      shiftParam(1);
+      changeSettingMode(-1);
     }
 
     checkFlag = buttonDStatus.check();
     if (checkFlag == 1)
     {
-      shiftParam(-1);
+      changeSettingMode(1);
     }
     else if (checkFlag == 2)
     {
@@ -1276,30 +1237,33 @@ public:
     {
       if (mainMode == MainMode::DischargerMode)
       {
-        if (displayMode == DisplayMode::Display)
-        {
-          changeActive(1);
-        }
-        else if (displayMode == DisplayMode::None)
-        {
-          changeSettingMode(1);
-        }
+        changeActive(1);
       }
       else if (mainMode == MainMode::ConfigMode)
       {
-        changeSettingMode(1);
+        changeTargetBattery(1);
+      }
+      else if (mainMode == MainMode::ParameterConfigMode)
+      {
+        changeTargetBattery(1);
       }
     }
     else if (checkFlag == 2)
     {
       if (mainMode == MainMode::DischargerMode)
       {
-        changeDisplayMode(1);
+        mainMode = MainMode::ParameterConfigMode;
+      }
+      else if (mainMode == MainMode::ParameterConfigMode)
+      {
+        updateMainSaveData();
+        saveMain();
+        mainMode = MainMode::DischargerMode;
       }
       else if (mainMode == MainMode::ConfigMode)
       {
-        saveConfig();
         updateConfigSaveData();
+        saveConfig();
         for (auto& batteryStatus: batteryStatuses)
         {
           batteryStatus.reset();
@@ -1335,25 +1299,13 @@ public:
     }
   };
 
-  void changeDisplayMode(int shift)
-  {
-    const int nextModeIndex{(static_cast<int>(displayMode) + shift) % static_cast<int>(DisplayMode::Max)};
-
-    displayMode = static_cast<DisplayMode>(nextModeIndex);
-    if (displayMode == DisplayMode::Display)
-    {
-      updateMainSaveData();
-      saveMain();
-    }
-  };
-
   void changeSettingMode(int shift)
   {
 
-    if (mainMode == MainMode::DischargerMode)
+    if (mainMode == MainMode::ParameterConfigMode)
     {
-      const int nextModeIndex{(static_cast<int>(mainSettingMode) + shift) % static_cast<int>(MainSettingMode::Max)};
-      mainSettingMode = static_cast<MainSettingMode>(nextModeIndex);
+      const int nextModeIndex{(static_cast<int>(parameterConfigSettingMode) + shift) % static_cast<int>(ParameterConfigSettingMode::Max)};
+      parameterConfigSettingMode = static_cast<ParameterConfigSettingMode>(nextModeIndex);
     }
     else if (mainMode == MainMode::ConfigMode)
     {
@@ -1370,9 +1322,9 @@ public:
 
   void shiftParam(int shift)
   {
-    if (mainMode == MainMode::DischargerMode)
+    if (mainMode == MainMode::ParameterConfigMode)
     {
-      saveMainData.battery[currentBatteryIndex].shiftParam(mainSettingMode, shift);
+      saveMainData.battery[currentBatteryIndex].shiftParam(parameterConfigSettingMode, shift);
     }
     else if (mainMode == MainMode::ConfigMode)
     {
@@ -1411,7 +1363,8 @@ public:
       Serial.printf("serial print test. %d\n", loopSubCount);
     }
 #endif
-
+    updateButtonStatus();
+    
     if (mainMode == MainMode::DischargerMode)
     {
       for (auto &batteryStatus : batteryStatuses)
@@ -1419,23 +1372,26 @@ public:
         batteryStatus.loopSub();
       }
 
-      updateButtonStatus();
-
       if ((loopSubCount % 3) == 0)
       {
         setDisplayData();
         drawAdafruit.display();      
       }
     }
-    else if (mainMode == MainMode::ConfigMode)
+    else if (mainMode == MainMode::ParameterConfigMode)
     {
-      
-      updateButtonStatus();
-
       if ((loopSubCount % 3) == 0)
       {
-        setDisplayData();
+        setDisplayParameterConfig();
         drawAdafruit.display();      
+      }
+    }
+    else if (mainMode == MainMode::ConfigMode)
+    {
+      if ((loopSubCount % 3) == 0)
+      {
+        setDisplayConfig();
+        drawAdafruit.display();
       }
     }
   };
