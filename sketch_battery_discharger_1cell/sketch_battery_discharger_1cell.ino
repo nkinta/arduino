@@ -45,8 +45,6 @@ public:
   }
 };
 
-std::vector<String> modeNames{String("DiscCont"), String("DicStop")};
-
 struct VoltageMapping
 {
   struct VoltPair
@@ -145,13 +143,13 @@ enum class BatteryStatus : uint8_t
 };
 
 namespace DisplayConst {
-static constexpr char CHAR_DATA_ARROW[] = ">";
-static constexpr char CHAR_DATA_UP[] = {0x20, 0x20, 0x20, 0x18, 0x00};
-static constexpr char CHAR_DATA_DOWN[] = {0x20, 0x20, 0x20, 0x19, 0x00};
 
-static constexpr int START_LINE{1};
-static constexpr int SETTING_MENU_START_COL{7};
-static constexpr int SETTING_MENU_OFFSET_COL{5};
+const std::vector<String> DISC_MODE_NAMES{String("DiscCont"), String("DicStop")};
+
+static constexpr char CHAR_DATA_ARROW[] = ">";
+static constexpr char CHAR_DATA_ARROW_NEW[] = {0x1A, 0x00}; // "->"
+static constexpr char CHAR_DATA_UP[] = {0x18, 0x00};
+static constexpr char CHAR_DATA_DOWN[] = {0x19, 0x00};
 
 }
 
@@ -219,7 +217,7 @@ struct SaveBattery
     std::vector<String> menuList{"TargetI", "TargetA", "DiscMode"};
 
     // String valueStr{String(value, decimal)};
-    String mode{modeNames[(uint8_t)disChargeMode]};
+    String mode{DisplayConst::DISC_MODE_NAMES[(uint8_t)disChargeMode]};
     std::vector<String> valueList{String(targetV, 3), String(targetI), mode};
 
     String Title{"Battery No."};
@@ -236,10 +234,6 @@ struct BatteryInfo
   static constexpr int START_LINE{1};
   static constexpr int SETTING_MENU_START_COL{7};
   static constexpr int SETTING_MENU_OFFSET_COL{5};
-
-
-  static constexpr char CHAR_DATA_UP[] = {0x20, 0x20, 0x20, 0x18, 0x00};
-  static constexpr char CHAR_DATA_DOWN[] = {0x20, 0x20, 0x20, 0x19, 0x00};
 
   static constexpr float ACTIVE_RATE{3.f / 4.f};
 
@@ -546,7 +540,7 @@ public:
     std::vector<String> menuList{"TargetI", "TargetA", "DiscMode"};
 
     // String valueStr{String(value, decimal)};
-    String mode{modeNames[(uint8_t)saveBattery->disChargeMode]};
+    String mode{DisplayConst::DISC_MODE_NAMES[(uint8_t)saveBattery->disChargeMode]};
     std::vector<String> valueList{String(saveBattery->targetV, 3), String(saveBattery->targetI), mode};
 
     String Title{"Battery No."};
@@ -592,7 +586,7 @@ public:
     drawAdafruit.drawFillLine(line);
 
     vir_offset = DISPLAY_MENU_START_COL;
-    drawAdafruit.drawStringC(modeNames[(uint8_t)disChargeMode], line);
+    drawAdafruit.drawStringC(DisplayConst::DISC_MODE_NAMES[(uint8_t)disChargeMode], line);
 
     ++line;
     drawAdafruit.drawFillLine(line);
@@ -608,8 +602,8 @@ public:
     }
     else
     {
-      static constexpr char CHAR_DATA_ARROW[] = {0x1A, 0x00};
-      drawAdafruit.drawChar(&CHAR_DATA_ARROW[0], vir_offset, line);
+      // static constexpr char CHAR_DATA_ARROW[] = {0x1A, 0x00};
+      drawAdafruit.drawChar(&DisplayConst::CHAR_DATA_ARROW_NEW[0], vir_offset, line);
     }
 
     vir_offset += 2;
@@ -627,8 +621,8 @@ public:
     drawAdafruit.drawString("A", vir_offset, line);
 
     vir_offset += 2;
-    static constexpr char CHAR_DATA_ARROW[] = {0x1A, 0x00};
-    drawAdafruit.drawChar(&CHAR_DATA_ARROW[0], vir_offset, line);
+
+    drawAdafruit.drawChar(&DisplayConst::CHAR_DATA_ARROW_NEW[0], vir_offset, line);
 
     vir_offset += 2;
     vir_offset += SETTING_MENU_OFFSET_COL;
