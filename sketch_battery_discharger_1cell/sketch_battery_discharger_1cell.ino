@@ -45,6 +45,8 @@ public:
   }
 };
 
+std::vector<String> modeNames{String("DiscCont"), String("DicStop")};
+
 struct VoltageMapping
 {
   struct VoltPair
@@ -76,16 +78,6 @@ struct VoltageMapping
 
   void initMapping(const std::vector<int>& customOffsetVolt)
   {
-    /*
-    mappingData.clear();
-    for (int i{0}; i < defaultMappingData.size(); ++i)
-    {
-      VoltPair& tempVoltPair{defaultMappingData[i]};
-      tempVoltPair.input += customOffsetVolt[i];
-
-      mappingData.push_back(tempVoltPair);
-    }
-    */
     mappingData = defaultMappingData;
     for (int i{0}; i < customOffsetVolt.size(); ++i)
     {
@@ -109,11 +101,11 @@ enum class MainMode : uint8_t
 {
   DischargerMode,
   ConfigMode,
-  ParameterConfigMode,
+  BatteryConfigMode,
   Max,
 };
 
-enum class ParameterConfigSettingMode : uint8_t
+enum class BatteryConfigSettingMode : uint8_t
 {
   DischargeVSetting,
   DischargeISetting,
@@ -127,6 +119,7 @@ enum class ConfigSettingMode : uint8_t
   Volt05Setting,
   Volt10Setting,
   Volt15Setting,
+  LedOnSetting,
   Max,
 };
 
@@ -151,39 +144,8 @@ enum class BatteryStatus : uint8_t
   Max,
 };
 
-struct SaveBattery
-{
-
-  static constexpr float TARGET_V_MAX{1.55f};
-  static constexpr float TARGET_V_MIN{1.0f};
-  static constexpr float TARGET_I_MAX{2.0f}; // 2SK4017 MOSFETの特性上 0.1Aの時に2.24V 0.5Aの時に2.6V 1.0Aの時に2.8V 2Aの時にMOSのゲート電圧が3.2V
-  static constexpr float TARGET_I_MIN{0.4f};
-
-  float targetV{1.4f};
-  float targetI{1.f};
-  DisChargeMode disChargeMode{DisChargeMode::DischargeNormal};
-  bool activeFlag{true};
-
-  void shiftParam(ParameterConfigSettingMode settingMode, int shift)
-  {
-    if (settingMode == ParameterConfigSettingMode::ModeChangeSetting)
-    {
-      const int nextModeIndex{(static_cast<int>(DisChargeMode::Max) + static_cast<int>(disChargeMode) + shift) % static_cast<int>(DisChargeMode::Max)};
-      disChargeMode = static_cast<DisChargeMode>(nextModeIndex);
-    }
-    else if (settingMode == ParameterConfigSettingMode::DischargeVSetting)
-    {
-      targetV = std::clamp(targetV + 0.001f * static_cast<float>(shift), TARGET_V_MIN, TARGET_V_MAX);
-    }
-    else if (settingMode == ParameterConfigSettingMode::DischargeISetting)
-    {
-      targetI = std::clamp(targetI + 0.1f * static_cast<float>(shift), TARGET_I_MIN, TARGET_I_MAX);
-    }
-  }
-};
-
 namespace DisplayConst {
-static constexpr char CHAR_DATA_ARROW[] = {0x1A, 0x00};
+static constexpr char CHAR_DATA_ARROW[] = ">";
 static constexpr char CHAR_DATA_UP[] = {0x20, 0x20, 0x20, 0x18, 0x00};
 static constexpr char CHAR_DATA_DOWN[] = {0x20, 0x20, 0x20, 0x19, 0x00};
 
@@ -191,66 +153,6 @@ static constexpr int START_LINE{1};
 static constexpr int SETTING_MENU_START_COL{7};
 static constexpr int SETTING_MENU_OFFSET_COL{5};
 
-}
-
-static void displayEnumSetting(DrawAdafruit& adafruit, String&& title, const std::vector<String>& enumNames, uint8_t value)
-{
-  int vir_offset{0};
-  int line{DisplayConst::START_LINE};
-  adafruit.drawFillLine(line);
-  adafruit.drawStringC(title, line);
-
-  ++line;
-  String modeName;
-  adafruit.drawFillLine(line);
-  vir_offset = DisplayConst::SETTING_MENU_START_COL;
-  adafruit.drawChar(&DisplayConst::CHAR_DATA_UP[0], vir_offset, line);
-
-  ++line;
-  adafruit.drawFillLine(line);
-  vir_offset = DisplayConst::SETTING_MENU_START_COL;
-  adafruit.drawString(enumNames[value], DisplayConst::SETTING_MENU_START_COL - 1, line);
-
-  ++line;
-  adafruit.drawFillLine(line);
-  vir_offset = DisplayConst::SETTING_MENU_START_COL;
-  adafruit.drawChar(&DisplayConst::CHAR_DATA_DOWN[0], vir_offset, line);
-
-  ++line;
-  adafruit.drawFillLine(line);
-  ++line;
-  adafruit.drawFillLine(line);
-}
-
-static void displayDischargeInt(DrawAdafruit& adafruit, String&& title, String&& unit, int value)
-{
-  int vir_offset{0};
-  int line{DisplayConst::START_LINE};
-  adafruit.drawFillLine(line);
-  vir_offset = DisplayConst::SETTING_MENU_START_COL;
-  adafruit.drawStringC(title, line);
-
-  ++line;
-  adafruit.drawFillLine(line);
-  vir_offset = DisplayConst::SETTING_MENU_START_COL;
-  adafruit.drawChar(&DisplayConst::CHAR_DATA_UP[0], vir_offset, line);
-
-  ++line;
-  adafruit.drawFillLine(line);
-  vir_offset = DisplayConst::SETTING_MENU_START_COL;
-  vir_offset += DisplayConst::SETTING_MENU_OFFSET_COL - 1;
-  adafruit.drawIntR(value, vir_offset, line);
-  adafruit.drawString(unit, vir_offset, line);
-
-  ++line;
-  adafruit.drawFillLine(line);
-  vir_offset = DisplayConst::SETTING_MENU_START_COL;
-  adafruit.drawChar(&DisplayConst::CHAR_DATA_DOWN[0], vir_offset, line);
-
-  ++line;
-  adafruit.drawFillLine(line);
-  ++line;
-  adafruit.drawFillLine(line);
 }
 
 static void displayTuneMenu(DrawAdafruit& adafruit, String&& title, std::vector<String>& menuList, std::vector<String>& valueList, int targetIndex)
@@ -280,9 +182,54 @@ static void displayTuneMenu(DrawAdafruit& adafruit, String&& title, std::vector<
     line++;
     adafruit.drawFillLine(line);
   }
-
-
 }
+
+struct SaveBattery
+{
+
+  static constexpr float TARGET_V_MAX{1.55f};
+  static constexpr float TARGET_V_MIN{1.0f};
+  static constexpr float TARGET_I_MAX{2.0f}; // 2SK4017 MOSFETの特性上 0.1Aの時に2.24V 0.5Aの時に2.6V 1.0Aの時に2.8V 2Aの時にMOSのゲート電圧が3.2V
+  static constexpr float TARGET_I_MIN{0.4f};
+
+  float targetV{1.4f};
+  float targetI{1.f};
+  DisChargeMode disChargeMode{DisChargeMode::DischargeNormal};
+  bool padding{true};
+
+  void shiftParam(BatteryConfigSettingMode settingMode, int shift)
+  {
+    if (settingMode == BatteryConfigSettingMode::ModeChangeSetting)
+    {
+      const int nextModeIndex{(static_cast<int>(DisChargeMode::Max) + static_cast<int>(disChargeMode) + shift) % static_cast<int>(DisChargeMode::Max)};
+      disChargeMode = static_cast<DisChargeMode>(nextModeIndex);
+    }
+    else if (settingMode == BatteryConfigSettingMode::DischargeVSetting)
+    {
+      targetV = std::clamp(targetV + 0.001f * static_cast<float>(shift), TARGET_V_MIN, TARGET_V_MAX);
+    }
+    else if (settingMode == BatteryConfigSettingMode::DischargeISetting)
+    {
+      targetI = std::clamp(targetI + 0.1f * static_cast<float>(shift), TARGET_I_MIN, TARGET_I_MAX);
+    }
+  }
+
+  void displayBatteryConfig(int index, BatteryConfigSettingMode settingMode)
+  {
+    std::vector<String> menuList{"TargetI", "TargetA", "DiscMode"};
+
+    // String valueStr{String(value, decimal)};
+    String mode{modeNames[(uint8_t)disChargeMode]};
+    std::vector<String> valueList{String(targetV, 3), String(targetI), mode};
+
+    String Title{"Battery No."};
+    Title += String(index + 1);
+    displayTuneMenu(drawAdafruit, std::move(Title), menuList, valueList, static_cast<int>(settingMode));
+    // displayDischargeFloat(drawAdafruit, "TargetA", "A", saveBattery->targetI);
+  }
+
+};
+
 
 struct BatteryInfo
 {
@@ -403,8 +350,6 @@ struct BatteryInfo
 
     return std::clamp(static_cast<int>(voltRate * MAX_PWM_F * INV_ACTIVE_RATE), 0, MAX_PWM);
   };
-
-  std::vector<String> modeNames{String("DiscCont"), String("DicStop")};
 
 public:
   BatteryInfo(uint8_t inReadPin, uint8_t inWritePin, uint8_t inBatteryIndex) : readPin{inReadPin}, writePin{inWritePin}, batteryIndex{inBatteryIndex} {};
@@ -545,7 +490,7 @@ public:
 
     ++displayCount;
 
-    if (settingFlag)
+    if (displayFlag)
     {
       drawAdafruit.drawString(">", 5 * batteryIndex, 0);
     }
@@ -559,7 +504,7 @@ public:
       drawAdafruit.drawFloatR(sleepV, 5 * (batteryIndex + 1), 0, 4, 2);
     }
 
-    if (settingFlag)
+    if (displayFlag)
     {
       if (activeFlag)
       {
@@ -596,7 +541,7 @@ public:
     drawAdafruit.drawFillLine(line);
   }
 
-  void displayParameterConfig(ParameterConfigSettingMode settingMode)
+  void displayBatteryConfig(BatteryConfigSettingMode settingMode)
   {
     std::vector<String> menuList{"TargetI", "TargetA", "DiscMode"};
 
@@ -763,7 +708,7 @@ public:
   BatteryStatus currentBatteryStatus{BatteryStatus::None};
   BatteryStatus nextBatteryStatus{BatteryStatus::None};
 
-  bool settingFlag{false};
+  bool displayFlag{false};
   bool activeFlag{false};
 
   uint8_t batteryIndex;
@@ -896,15 +841,21 @@ class BatteryController
       BatteryInfo{READ4_PIN, WRITE4_PIN, 3}};
 
   ConfigSettingMode configSettingMode{ConfigSettingMode::Volt00Setting};
-  ParameterConfigSettingMode parameterConfigSettingMode{ParameterConfigSettingMode::DischargeVSetting};
+  BatteryConfigSettingMode batteryConfigSettingMode{BatteryConfigSettingMode::DischargeVSetting};
 
   unsigned long loopSubMillis{0};
 
   size_t currentBatteryIndex{0};
 
+  size_t currentBatterySettingIndex{0};
+
   unsigned long loopSubCount{0};
 
-  struct SaveMainData
+  size_t batteryConfigNum{2};
+
+  uint8_t ledOnFlag{0};  
+
+  struct SaveBatteryConfigData
   {
     static constexpr int SAVEDATA_ADDRESS{0X400};
     int id{SAVEDATA_ID};
@@ -916,13 +867,26 @@ class BatteryController
   {
     static constexpr int8_t VOLT_DATA_SIZE{5};
     static constexpr int SAVEDATA_ADDRESS{0X100};
+    static constexpr int VOLT_RANGE{100};
+    static int voltClamp(int value) { return std::clamp(value, -1 * VOLT_RANGE, VOLT_RANGE);};
     int id{SAVEDATA_ID};
-    int ver{1};
+    int ver{2};
     int voltDatas[VOLT_DATA_SIZE] = {0, 0, 0, 0, 0};
+    uint8_t ledOnFlag{0};
   }; 
 
 public:
-  SaveMainData saveMainData{};
+  BatteryController()
+  {
+    batteryStatuses[0].saveBattery = &(saveBatteryConfigData.battery[0]);
+    batteryStatuses[1].saveBattery = &(saveBatteryConfigData.battery[0]);
+    batteryStatuses[2].saveBattery = &(saveBatteryConfigData.battery[1]);
+    batteryStatuses[3].saveBattery = &(saveBatteryConfigData.battery[1]);
+
+    batteryStatuses[currentBatteryIndex].displayFlag = true;
+  }
+
+  SaveBatteryConfigData saveBatteryConfigData{};
 
   SaveConfigData saveConfigData{};
 
@@ -942,7 +906,7 @@ private:
   template <typename T>
   void saveCustomData(byte *p)
   {
-    for (int i = 0; i < sizeof(SaveMainData); i++)
+    for (int i = 0; i < sizeof(SaveBatteryConfigData); i++)
     {
       EEPROM.write(T::SAVEDATA_ADDRESS + i, *p);
       p++;
@@ -969,9 +933,9 @@ private:
 
   void saveMain()
   {
-    saveMainData.id = SAVEDATA_ID;
-    saveMainData.ver = 1;
-    saveCustomData<SaveMainData>((byte *)&saveMainData);
+    saveBatteryConfigData.id = SAVEDATA_ID;
+    saveBatteryConfigData.ver = 1;
+    saveCustomData<SaveBatteryConfigData>((byte *)&saveBatteryConfigData);
   }
 
   void loadConfig()
@@ -981,14 +945,10 @@ private:
 
   void loadMain()
   {
-    loadCustomData<SaveMainData>((byte *)&saveMainData);
+    loadCustomData<SaveBatteryConfigData>((byte *)&saveBatteryConfigData);
   };
 
 public:
-  BatteryController()
-  {
-    batteryStatuses[currentBatteryIndex].settingFlag = true;
-  };
 
   void clearEEPROM()
   {
@@ -1057,32 +1017,28 @@ public:
       mainMode = MainMode::ConfigMode;
     }
 
-    updateMainSaveData();
+    updateBatterySaveData();
     updateConfigSaveData();
 
-    batteryStatuses[0].saveBattery = &(saveMainData.battery[0]);
-    batteryStatuses[1].saveBattery = &(saveMainData.battery[1]);
-    batteryStatuses[2].saveBattery = &(saveMainData.battery[2]);
-    batteryStatuses[3].saveBattery = &(saveMainData.battery[3]);
   };
 
-  void updateMainSaveData()
+  void updateBatterySaveData()
   {
     for (int i{0}; i < batteryStatuses.size(); ++i)
     {
       auto& batteryStatus{batteryStatuses[i]};
 
       const static SaveBattery defaultSaveBattery{};
-      auto& saveBattery{saveMainData.battery[i]};
-      if (saveMainData.id != SAVEDATA_ID)
+      auto* saveBattery{batteryStatus.saveBattery};
+      if (saveBatteryConfigData.id != SAVEDATA_ID)
       {
-        saveBattery = defaultSaveBattery;
+        *saveBattery = defaultSaveBattery;
       }
 
-      batteryStatus.targetI = saveBattery.targetI;
-      batteryStatus.targetV = saveBattery.targetV;
-      batteryStatus.disChargeMode = saveBattery.disChargeMode;
-      batteryStatus.activeFlag = saveBattery.activeFlag;
+      batteryStatus.targetI = saveBattery->targetI;
+      batteryStatus.targetV = saveBattery->targetV;
+      batteryStatus.disChargeMode = saveBattery->disChargeMode;
+      // batteryStatus.activeFlag = saveBattery->activeFlag;
 
       batteryStatus.setup();
     }
@@ -1103,6 +1059,8 @@ public:
       customMappingData.push_back(saveConfigData.voltDatas[i]);
     }
     voltageMapping.initMapping(customMappingData);
+
+    ledOnFlag = saveConfigData.ledOnFlag;
   }
 
   void loopMain()
@@ -1115,45 +1073,22 @@ public:
 
   void setDisplayConfig()
   {
-    std::vector<String> menuList{"0.0V", "0.5V", "1.0V", "1.5V"};
+    std::vector<String> menuList{"0.0V", "0.5V", "1.0V", "1.5V", "ledOn"};
 
     std::vector<String> valueList{
       String(saveConfigData.voltDatas[0]),
       String(saveConfigData.voltDatas[1]),
       String(saveConfigData.voltDatas[2]),
-      String(saveConfigData.voltDatas[3])
+      String(saveConfigData.voltDatas[3]),
+      String(saveConfigData.ledOnFlag == 0 ? false: true),
     };
 
-    displayTuneMenu(drawAdafruit, "Congig", menuList, valueList, static_cast<int>(configSettingMode));
-
-    /*
-    int line{0};
-    String title{"ConfigConfig"};
-    drawAdafruit.drawFillLine(line);
-    drawAdafruit.drawStringC(title, line);
-    if (configSettingMode == ConfigSettingMode::Volt00Setting)
-    {
-      displayDischargeInt(drawAdafruit, "Offset00V", "", saveConfigData.voltDatas[0]);
-    }
-    else if (configSettingMode == ConfigSettingMode::Volt05Setting)
-    {
-      displayDischargeInt(drawAdafruit, "Offset05V", "", saveConfigData.voltDatas[1]);
-    }
-    else if (configSettingMode == ConfigSettingMode::Volt10Setting)
-    {
-      displayDischargeInt(drawAdafruit, "Offset10V", "", saveConfigData.voltDatas[2]);
-    }
-    else if (configSettingMode == ConfigSettingMode::Volt15Setting)
-    {
-      displayDischargeInt(drawAdafruit, "Offset15V", "", saveConfigData.voltDatas[3]);
-    }
-    */
+    displayTuneMenu(drawAdafruit, "Config", menuList, valueList, static_cast<int>(configSettingMode));
   }
 
-  void setDisplayParameterConfig()
+  void setDisplayBatteryConfig()
   {
-    drawAdafruit.drawFillLine(0);
-    batteryStatuses[currentBatteryIndex].displayParameterConfig(parameterConfigSettingMode);
+    saveBatteryConfigData.battery[currentBatterySettingIndex].displayBatteryConfig(currentBatterySettingIndex, batteryConfigSettingMode);
   }
 
   void setDisplayData()
@@ -1189,7 +1124,7 @@ public:
       {
         changeTargetBattery(-1);
       }
-      else if (mainMode == MainMode::ConfigMode || mainMode == MainMode::ParameterConfigMode)
+      else if (mainMode == MainMode::ConfigMode || mainMode == MainMode::BatteryConfigMode)
       {
         shiftParam(-1);
       }
@@ -1206,7 +1141,7 @@ public:
       {
         changeTargetBattery(1);
       }
-      else if (mainMode == MainMode::ConfigMode || mainMode == MainMode::ParameterConfigMode)
+      else if (mainMode == MainMode::ConfigMode || mainMode == MainMode::BatteryConfigMode)
       {
         shiftParam(1);
       }
@@ -1241,10 +1176,11 @@ public:
       }
       else if (mainMode == MainMode::ConfigMode)
       {
-        changeTargetBattery(1);
+        
       }
-      else if (mainMode == MainMode::ParameterConfigMode)
+      else if (mainMode == MainMode::BatteryConfigMode)
       {
+        changeTargetBatterySetting(1);
         changeTargetBattery(1);
       }
     }
@@ -1252,11 +1188,22 @@ public:
     {
       if (mainMode == MainMode::DischargerMode)
       {
-        mainMode = MainMode::ParameterConfigMode;
+        if (batteryConfigNum == 2)
+        {
+          if (currentBatteryIndex == 0 || currentBatteryIndex == 1)
+          {
+            currentBatterySettingIndex = 0;
+          }
+          else if (currentBatteryIndex == 2 || currentBatteryIndex == 3)
+          {
+            currentBatterySettingIndex = 1;
+          }
+        }
+        mainMode = MainMode::BatteryConfigMode;
       }
-      else if (mainMode == MainMode::ParameterConfigMode)
+      else if (mainMode == MainMode::BatteryConfigMode)
       {
-        updateMainSaveData();
+        updateBatterySaveData();
         saveMain();
         mainMode = MainMode::DischargerMode;
       }
@@ -1282,6 +1229,11 @@ public:
 
   }
 
+  void changeTargetBatterySetting(int shift)
+  {
+    currentBatterySettingIndex = (currentBatterySettingIndex + shift) % batteryConfigNum;
+  }
+
   void changeTargetBattery(int shift)
   {
     currentBatteryIndex = (currentBatteryIndex + shift) % batteryStatuses.size();
@@ -1290,11 +1242,11 @@ public:
     {
       if (index == currentBatteryIndex)
       {
-        batteryStatuses[index].settingFlag = true;
+        batteryStatuses[index].displayFlag = true;
       }
       else
       {
-        batteryStatuses[index].settingFlag = false;
+        batteryStatuses[index].displayFlag = false;
       }
     }
   };
@@ -1302,10 +1254,10 @@ public:
   void changeSettingMode(int shift)
   {
 
-    if (mainMode == MainMode::ParameterConfigMode)
+    if (mainMode == MainMode::BatteryConfigMode)
     {
-      const int nextModeIndex{(static_cast<int>(parameterConfigSettingMode) + shift) % static_cast<int>(ParameterConfigSettingMode::Max)};
-      parameterConfigSettingMode = static_cast<ParameterConfigSettingMode>(nextModeIndex);
+      const int nextModeIndex{(static_cast<int>(batteryConfigSettingMode) + shift) % static_cast<int>(BatteryConfigSettingMode::Max)};
+      batteryConfigSettingMode = static_cast<BatteryConfigSettingMode>(nextModeIndex);
     }
     else if (mainMode == MainMode::ConfigMode)
     {
@@ -1322,27 +1274,31 @@ public:
 
   void shiftParam(int shift)
   {
-    if (mainMode == MainMode::ParameterConfigMode)
+    if (mainMode == MainMode::BatteryConfigMode)
     {
-      saveMainData.battery[currentBatteryIndex].shiftParam(parameterConfigSettingMode, shift);
+      saveBatteryConfigData.battery[currentBatterySettingIndex].shiftParam(batteryConfigSettingMode, shift);
     }
     else if (mainMode == MainMode::ConfigMode)
     {
       if (configSettingMode == ConfigSettingMode::Volt00Setting)
       {
-        saveConfigData.voltDatas[0] += shift;
+        saveConfigData.voltDatas[0] = SaveConfigData::voltClamp(saveConfigData.voltDatas[0] + shift);
       }
       else if (configSettingMode == ConfigSettingMode::Volt05Setting)
       {
-        saveConfigData.voltDatas[1] += shift;
+        saveConfigData.voltDatas[1] = SaveConfigData::voltClamp(saveConfigData.voltDatas[1] + shift);
       }
       else if (configSettingMode == ConfigSettingMode::Volt10Setting)
       {
-        saveConfigData.voltDatas[2] += shift;
+        saveConfigData.voltDatas[2] = SaveConfigData::voltClamp(saveConfigData.voltDatas[2] + shift);
       }
       else if (configSettingMode == ConfigSettingMode::Volt15Setting)
       {
-        saveConfigData.voltDatas[3] += shift;
+        saveConfigData.voltDatas[3] = SaveConfigData::voltClamp(saveConfigData.voltDatas[3] + shift);
+      }
+      else if (configSettingMode == ConfigSettingMode::LedOnSetting)
+      {
+        saveConfigData.ledOnFlag = ((saveConfigData.ledOnFlag == 0) ? 1 : 0);
       }
     }
   };
@@ -1355,7 +1311,14 @@ public:
       readAndDrawXiaoBattery();
     }
 
-    digitalWrite(LED_BUILTIN, ((loopSubCount / 12) % 2));
+    if (ledOnFlag > 0)
+    {
+      digitalWrite(LED_BUILTIN, ((loopSubCount / 12) % 2));
+    }
+    else
+    {
+      digitalWrite(LED_BUILTIN, 1);
+    }
 
 #ifdef SERIAL_DEBUG_ON
     if ((loopSubCount % 12) == 0)
@@ -1378,11 +1341,11 @@ public:
         drawAdafruit.display();      
       }
     }
-    else if (mainMode == MainMode::ParameterConfigMode)
+    else if (mainMode == MainMode::BatteryConfigMode)
     {
       if ((loopSubCount % 3) == 0)
       {
-        setDisplayParameterConfig();
+        setDisplayBatteryConfig();
         drawAdafruit.display();      
       }
     }
