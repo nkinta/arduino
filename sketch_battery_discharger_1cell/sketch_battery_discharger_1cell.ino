@@ -9,8 +9,11 @@
 #include <ArduinoLowPower.h>
 
 #undef SERIAL_DEBUG_ON
+// #define SERIAL_DEBUG_ON
 
 #include "display/draw_adafruit.h"
+
+#undef OLD_PCB
 
 DrawAdafruit drawAdafruit;
 
@@ -181,7 +184,7 @@ struct SaveBattery {
   }
 
   void displayBatteryConfig(int index, BatteryConfigSettingMode settingMode) {
-    std::vector<String> menuList{ "TargetI", "TargetA", "DiscMode" };
+    std::vector<String> menuList{ "TargetV", "TargetI", "DiscMode" };
 
     // String valueStr{String(value, decimal)};
     String mode{ DisplayConst::DISC_MODE_NAMES[(uint8_t)disChargeMode] };
@@ -677,8 +680,13 @@ class BatteryController {
   static constexpr uint8_t XIAO_READ_BAT{ PD4 };
   static constexpr uint8_t XIAO_READ_BAT_SWITCH{ PD3 };
 
+#if OLD_PCB
   static constexpr uint8_t READ1_PIN{ 0 };
   static constexpr uint8_t READ2_PIN{ 1 };
+#else
+  static constexpr uint8_t READ1_PIN{ 18 };
+  static constexpr uint8_t READ2_PIN{ 17 };
+#endif
   static constexpr uint8_t READ3_PIN{ 6 };
   static constexpr uint8_t READ4_PIN{ 7 };
 
@@ -687,10 +695,11 @@ class BatteryController {
   static constexpr uint8_t WRITE3_PIN{ 8 };
   static constexpr uint8_t WRITE4_PIN{ 9 };
 
+#if OLD_PCB
   static constexpr int PUSH_BUTTON_L{ 15 };
   static constexpr int PUSH_BUTTON_D{ 14 };
-  static constexpr int PUSH_BUTTON_U{ 13 };
-  static constexpr int PUSH_BUTTON_R{ 12 };  // 12(SAND11_RX) or 10
+  static constexpr int PUSH_BUTTON_U{ 13 }; // Arduino15\packages\SiliconLabs\hardware\silabs\3.0.0\variants\xiao_mg24\pins_arduino.h // DEEP_SLEEP_ESCAPE_PIN
+  static constexpr int PUSH_BUTTON_R{ 12 }; // 12(SAND11_RX) or 10
   static constexpr int PUSH_BUTTON_C{ 11 };
 
   static constexpr int WAKE_UP_PIN{ PUSH_BUTTON_D };
@@ -700,6 +709,26 @@ class BatteryController {
   ButtonStatus buttonUStatus{};
   ButtonStatus buttonDStatus{};
   ButtonStatus buttonCStatus{};
+#else
+  static constexpr int PUSH_BUTTON_L{ 15 }; // 1
+  static constexpr int PUSH_BUTTON_D{ 0  }; // 
+  static constexpr int PUSH_BUTTON_U{ 10 }; // 
+  static constexpr int PUSH_BUTTON_R{ 13 }; // 3 // Arduino15\packages\SiliconLabs\hardware\silabs\3.0.0\variants\xiao_mg24\pins_arduino.h // DEEP_SLEEP_ESCAPE_PIN
+  static constexpr int PUSH_BUTTON_C{ 14 }; // 2
+  static constexpr int PUSH_BUTTON_4{ 16 }; // 4
+  static constexpr int PUSH_BUTTON_ON{ 1 };
+
+  static constexpr int WAKE_UP_PIN{ PUSH_BUTTON_C };
+
+  ButtonStatus buttonLStatus{};
+  ButtonStatus buttonRStatus{};
+  ButtonStatus buttonUStatus{};
+  ButtonStatus buttonDStatus{};
+  ButtonStatus buttonCStatus{};
+
+  ButtonStatus buttonONStatus{};
+  ButtonStatus button4Status{};
+#endif
 
   std::vector<BatteryInfo> batteryStatuses{
     BatteryInfo{ READ1_PIN, WRITE1_PIN, 0 },
@@ -816,16 +845,6 @@ public:
   }
 
   void setup() {
-    /*
-    if (digitalRead(PUSH_BUTTON3) == LOW) {
-      while (true) {
-        digitalWrite(LED_BUILTIN, LOW);
-        delay(50);
-        digitalWrite(LED_BUILTIN, HIGH);
-        delay(50);
-      }
-    }
-    */
 
     // BatteryReadSetting
     pinMode(XIAO_READ_BAT_SWITCH, OUTPUT);
@@ -833,11 +852,11 @@ public:
     pinMode(XIAO_READ_BAT, INPUT);
 
     // Button
-    pinMode(PUSH_BUTTON_L, INPUT);
-    pinMode(PUSH_BUTTON_D, INPUT);
-    pinMode(PUSH_BUTTON_U, INPUT);
-    pinMode(PUSH_BUTTON_R, INPUT);
-    pinMode(PUSH_BUTTON_C, INPUT);
+    pinMode(PUSH_BUTTON_L, INPUT_PULLUP);
+    pinMode(PUSH_BUTTON_D, INPUT_PULLUP);
+    pinMode(PUSH_BUTTON_U, INPUT_PULLUP);
+    pinMode(PUSH_BUTTON_R, INPUT_PULLUP);
+    pinMode(PUSH_BUTTON_C, INPUT_PULLUP);
 
     /*
     pinMode(READ1_PIN, INPUT);
@@ -857,6 +876,15 @@ public:
     buttonUStatus.init(PUSH_BUTTON_U);
     buttonDStatus.init(PUSH_BUTTON_D);
     buttonCStatus.init(PUSH_BUTTON_C);
+
+#if OLD_PCB
+#else
+   pinMode(PUSH_BUTTON_ON, INPUT_PULLUP);
+   pinMode(PUSH_BUTTON_4, INPUT_PULLUP);
+
+   buttonONStatus.init(PUSH_BUTTON_ON);
+   button4Status.init(PUSH_BUTTON_4);
+#endif 
 
     int val{ HIGH };
     val = digitalRead(PUSH_BUTTON_D);
@@ -946,7 +974,10 @@ public:
     drawAdafruit.clearDisplay();
     drawAdafruit.display();
     LowPower.attachInterruptWakeup(WAKE_UP_PIN, nullptr, RISING);
-    LowPower.deepSleep(7 * 24 * 3600 * 1000);  // one week
+    pinMode(WAKE_UP_PIN, INPUT_PULLUP);
+     // FALLING
+    // LowPower.deepSleep(10 * 1000);
+    LowPower.sleep(20 * 1000); // 7 * 24 * 3600 * 1000 // one week
   }
 
   void updateButtonStatus() {
@@ -986,8 +1017,23 @@ public:
     if (checkFlag == 1) {
       changeSettingMode(1);
     } else if (checkFlag == 2) {
+
+    }
+
+#if OLD_PCB
+#else
+    checkFlag = buttonONStatus.check();
+    if (checkFlag == 1) {
+    } else if (checkFlag == 2) {
       goDeepSleep();
     }
+
+    checkFlag = button4Status.check();
+    if (checkFlag == 1) {
+    } else if (checkFlag == 2) {
+
+    }
+#endif
 
     checkFlag = buttonCStatus.check();
     if (checkFlag == 1) {
