@@ -17,6 +17,11 @@
 
 DrawAdafruit drawAdafruit;
 
+void callback() {
+  int count{};
+  count++;
+}
+
 class ValueCounter {
   unsigned long totalValue{ 0 };
 
@@ -84,10 +89,13 @@ enum class DisChargeMode : uint8_t {
 
 enum class MainMode : uint8_t {
   DischargerMode,
+  PushDischargerMode,
   ConfigMode,
   BatteryConfigMode,
   Max,
 };
+
+
 
 enum class BatteryConfigSettingMode : uint8_t {
   DischargeVSetting,
@@ -114,6 +122,7 @@ enum class TimeStatus : uint8_t {
   SleepEnd = 4,
   Max,
 };
+
 
 enum class BatteryStatus : uint8_t {
   None,
@@ -315,6 +324,17 @@ public:
     startTime = millis();
   };
 
+  void loopSubPushDischarge() {
+    unsigned long temp{ valueCounter.calcValue() };
+    sleepV = voltageMapping.getVoltage(temp);
+    V = sleepV;
+
+    I = std::max(0.f, tunedI);
+    int intValue = calcPWMValue(I);
+    analogWrite(writePin, intValue);
+
+  }
+
   void loopSub() {
     currentBatteryStatus = nextBatteryStatus;
 
@@ -396,6 +416,33 @@ public:
     tunedI = -1;
     I = 0;
     loopCount = 0;
+  };
+
+  void pushOn(){
+    tunedI = 2.f;
+  }
+
+  void pushOff(){
+    tunedI = 0.f;
+  }
+
+  void setDisplayPushData() {
+
+    ++displayCount;
+
+    if (tunedI > 0 && (displayCount % 2)) {
+
+    } else {
+      int batterySetIndex{batteryIndex / 2};
+      int vir_offset{10 * batterySetIndex + (batteryIndex % 2) * 3 + 6};
+      int line{(batteryIndex % 2) + 2};
+      drawAdafruit.drawFloatR(sleepV, vir_offset, line, 4, 3);
+      drawAdafruit.drawString("V", vir_offset, line);
+    }
+
+    if (displayFlag) {
+      // displayVoltOnly();
+    }
   };
 
   void setDisplayData() {
@@ -718,7 +765,7 @@ class BatteryController {
   static constexpr int PUSH_BUTTON_4{ 16 }; // 4
   static constexpr int PUSH_BUTTON_ON{ 1 };
 
-  static constexpr int WAKE_UP_PIN{ PUSH_BUTTON_C };
+  static constexpr int WAKE_UP_PIN{ PUSH_BUTTON_ON };
 
   ButtonStatus buttonLStatus{};
   ButtonStatus buttonRStatus{};
@@ -878,14 +925,6 @@ public:
     buttonCStatus.init(PUSH_BUTTON_C);
 
 #if OLD_PCB
-#else
-   pinMode(PUSH_BUTTON_ON, INPUT_PULLUP);
-   pinMode(PUSH_BUTTON_4, INPUT_PULLUP);
-
-   buttonONStatus.init(PUSH_BUTTON_ON);
-   button4Status.init(PUSH_BUTTON_4);
-#endif 
-
     int val{ HIGH };
     val = digitalRead(PUSH_BUTTON_D);
     if (val != LOW)  // val == LOW)
@@ -898,6 +937,27 @@ public:
     if (val == LOW) {
       mainMode = MainMode::ConfigMode;
     }
+
+#else
+    int val{ HIGH };
+    val = digitalRead(PUSH_BUTTON_C);
+    if (val != LOW)  // val == LOW)
+    {
+      loadMain();
+      loadConfig();
+    }
+
+    val = digitalRead(PUSH_BUTTON_D);
+    if (val == LOW) {
+      mainMode = MainMode::ConfigMode;
+    }
+
+    pinMode(PUSH_BUTTON_ON, INPUT_PULLUP);
+    pinMode(PUSH_BUTTON_4, INPUT_PULLUP);
+
+    buttonONStatus.init(PUSH_BUTTON_ON);
+    button4Status.init(PUSH_BUTTON_4);
+#endif 
 
     updateBatterySaveData();
     updateConfigSaveData();
@@ -961,6 +1021,18 @@ public:
   void setDisplayBatteryConfig() {
     saveBatteryConfigData.battery[currentBatterySettingIndex].displayBatteryConfig(currentBatterySettingIndex, batteryConfigSettingMode);
   }
+  
+  void setDisplayPushDischarge() {
+
+    for (int i = 0; i < 6; ++i)
+    {
+      drawAdafruit.drawFillLine(i);
+    }
+    drawAdafruit.drawStringC(String("PushDischarge"), 0);
+    for (auto &batteryStatus : batteryStatuses) {
+      batteryStatus.setDisplayPushData();
+    }
+  }
 
   void setDisplayData() {
 
@@ -973,11 +1045,9 @@ public:
   void goDeepSleep() {
     drawAdafruit.clearDisplay();
     drawAdafruit.display();
-    LowPower.attachInterruptWakeup(WAKE_UP_PIN, nullptr, RISING);
-    pinMode(WAKE_UP_PIN, INPUT_PULLUP);
-     // FALLING
-    // LowPower.deepSleep(10 * 1000);
-    LowPower.sleep(20 * 1000); // 7 * 24 * 3600 * 1000 // one week
+    LowPower.attachInterruptWakeup(WAKE_UP_PIN, callback, RISING);
+
+    LowPower.deepSleep(20 * 1000); // 7 * 24 * 3600 * 1000 // one week
   }
 
   void updateButtonStatus() {
@@ -985,27 +1055,50 @@ public:
 
     bool buttonLFlag{ false };
     bool buttonRFlag{ false };
+    int numBattery{0};
 
     checkFlag = buttonLStatus.check();
+    numBattery = 0;
     if (checkFlag == 1) {
       if (mainMode == MainMode::DischargerMode) {
-        changeTargetBattery(-1);
+        shiftTargetBattery(-1);
       } else if (mainMode == MainMode::ConfigMode || mainMode == MainMode::BatteryConfigMode) {
         shiftParam(-1);
       }
     } else if (checkFlag == 4) {
-      buttonLFlag = true;
+      if (mainMode == MainMode::PushDischargerMode) {
+        batteryStatuses[numBattery].pushOn();
+      }
+    } else if (checkFlag == 3) {
+      if (mainMode == MainMode::ConfigMode || mainMode == MainMode::BatteryConfigMode) {
+        shiftParam(-1);
+      }
+    } else if (checkFlag == 0) {
+      if (mainMode == MainMode::PushDischargerMode) {
+        batteryStatuses[numBattery].pushOff();
+      }
     }
 
     checkFlag = buttonRStatus.check();
+    numBattery = 2;
     if (checkFlag == 1) {
       if (mainMode == MainMode::DischargerMode) {
-        changeTargetBattery(1);
+        shiftTargetBattery(1);
       } else if (mainMode == MainMode::ConfigMode || mainMode == MainMode::BatteryConfigMode) {
         shiftParam(1);
       }
     } else if (checkFlag == 4) {
-      buttonRFlag = true;
+      if (mainMode == MainMode::PushDischargerMode) {
+        batteryStatuses[numBattery].pushOn();
+      }
+    } else if (checkFlag == 3) {
+      if (mainMode == MainMode::ConfigMode || mainMode == MainMode::BatteryConfigMode) {
+        shiftParam(1);
+      }
+    } else if (checkFlag == 0) {
+      if (mainMode == MainMode::PushDischargerMode) {
+        batteryStatuses[numBattery].pushOff();
+      }
     }
 
     checkFlag = buttonUStatus.check();
@@ -1024,18 +1117,38 @@ public:
 #else
     checkFlag = buttonONStatus.check();
     if (checkFlag == 1) {
+      if (mainMode == MainMode::PushDischargerMode)
+      {
+        mainMode = MainMode::DischargerMode;
+      }
+      else
+      {
+        mainMode = MainMode::PushDischargerMode;
+      }
     } else if (checkFlag == 2) {
       goDeepSleep();
     }
 
     checkFlag = button4Status.check();
+    numBattery = 3;
     if (checkFlag == 1) {
+
     } else if (checkFlag == 2) {
 
+    } else if (checkFlag == 4) {
+      if (mainMode == MainMode::PushDischargerMode) {
+        batteryStatuses[numBattery].pushOn();
+      }
+    } else if (checkFlag == 0) {
+      if (mainMode == MainMode::PushDischargerMode) {
+        batteryStatuses[numBattery].pushOff();
+      }
     }
+
 #endif
 
     checkFlag = buttonCStatus.check();
+    numBattery = 1;
     if (checkFlag == 1) {
       if (mainMode == MainMode::DischargerMode) {
         changeActive(1);
@@ -1043,7 +1156,7 @@ public:
 
       } else if (mainMode == MainMode::BatteryConfigMode) {
         changeTargetBatterySetting(1);
-        changeTargetBattery(1);
+        shiftTargetBattery(1);
       }
     } else if (checkFlag == 2) {
       if (mainMode == MainMode::DischargerMode) {
@@ -1067,7 +1180,16 @@ public:
         }
         mainMode = MainMode::DischargerMode;
       }
+    } else if (checkFlag == 4) {
+      if (mainMode == MainMode::PushDischargerMode) {
+        batteryStatuses[numBattery].pushOn();
+      }
+    } else if (checkFlag == 0) {
+      if (mainMode == MainMode::PushDischargerMode) {
+        batteryStatuses[numBattery].pushOff();
+      }
     }
+
 
     if ((buttonLFlag == true) && (buttonRFlag == true)) {
       if (mainMode == MainMode::DischargerMode) {
@@ -1080,8 +1202,20 @@ public:
     currentBatterySettingIndex = (currentBatterySettingIndex + shift) % batteryConfigNum;
   }
 
-  void changeTargetBattery(int shift) {
+  void shiftTargetBattery(int shift) {
     currentBatteryIndex = (currentBatteryIndex + shift) % batteryStatuses.size();
+
+    for (size_t index{ 0 }; index < batteryStatuses.size(); ++index) {
+      if (index == currentBatteryIndex) {
+        batteryStatuses[index].displayFlag = true;
+      } else {
+        batteryStatuses[index].displayFlag = false;
+      }
+    }
+  };
+
+  void changeTargetBattery(int batteryIndex) {
+    currentBatteryIndex = batteryIndex;
 
     for (size_t index{ 0 }; index < batteryStatuses.size(); ++index) {
       if (index == currentBatteryIndex) {
@@ -1163,7 +1297,18 @@ public:
         setDisplayConfig();
         drawAdafruit.display();
       }
+    } else if (mainMode == MainMode::PushDischargerMode) {
+      for (auto &batteryStatus : batteryStatuses) {
+        batteryStatus.loopSubPushDischarge();
+      }
+
+      if ((loopSubCount % 3) == 0) {
+        setDisplayPushDischarge();
+        drawAdafruit.display();
+      }
     }
+
+
   };
 
   void loopWhile() {
