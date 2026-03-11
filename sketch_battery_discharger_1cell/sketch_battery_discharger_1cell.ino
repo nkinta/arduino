@@ -54,7 +54,10 @@ struct VoltageMapping {
     float volt{ 0 };
   };
 
-  const std::vector<VoltPair> defaultMappingData{ { 0, 0.f }, { 621, 0.5f }, { 1241, 1.0f }, { 1862, 1.5f }, { 2482, 2.0f }, { 4094, 3.3f } };
+  static constexpr float REG_A = 1.f;
+  static constexpr float REG_B = 100.f;
+  static constexpr float REG_RATE = REG_B / (REG_A + REG_B);
+  const std::vector<VoltPair> defaultMappingData{ { 0, 0.f }, { static_cast<int>(621 * REG_RATE), 0.5f }, { static_cast<int>(1241 * REG_RATE), 1.0f }, { static_cast<int>(1862 * REG_RATE), 1.5f }, { static_cast<int>(2482 * REG_RATE), 2.0f }, { static_cast<int>(4094 * REG_RATE), 3.3f } };
   std::vector<VoltPair> mappingData{ defaultMappingData };
 
   float getVoltage(int input) {
@@ -282,7 +285,7 @@ struct BatteryInfo {
     return resultI;
   };
 
-  static int calcPWMValue(float ampere) {
+  static int calcPWMValue(float ampere, float active_rate) {
     static const float RA{ 5.1f };
     static const float RB{ 5.1f };
     static const float RC{ 1.f };
@@ -295,12 +298,11 @@ struct BatteryInfo {
     static const float VOLT3_3{ 3.3f };
     static const float TO_V_RATE{ I_TO_V / VOLT3_3 };
     static const float AMP_TUNE{ 1.08 };  // 実測との補正
-    static const float INV_ACTIVE_RATE{ AMP_TUNE / ACTIVE_RATE };
-
+    // static const float INV_ACTIVE_RATE{ AMP_TUNE / ACTIVE_RATE };
 
     const float voltRate{ ampere * TO_V_RATE };
 
-    return std::clamp(static_cast<int>(voltRate * MAX_PWM_F * INV_ACTIVE_RATE), 0, MAX_PWM);
+    return std::clamp(static_cast<int>(voltRate * MAX_PWM_F * (AMP_TUNE / active_rate)), 0, MAX_PWM);
   };
 
 public:
@@ -326,16 +328,23 @@ public:
 
   void loopSubPushDischarge() {
     unsigned long temp{ valueCounter.calcValue() };
-    sleepV = voltageMapping.getVoltage(temp);
-    V = sleepV;
+    if (tunedI > 0.01f)
+    {
+      V = voltageMapping.getVoltage(temp);
+    }
+    else
+    {
+      sleepV = voltageMapping.getVoltage(temp);
+      V = sleepV;
+    }
 
     I = std::max(0.f, tunedI);
-    int intValue = calcPWMValue(I);
+    int intValue = calcPWMValue(I, 1.f);
     analogWrite(writePin, intValue);
 
   }
 
-  void loopSub() {
+  void loopSubNormalDischarge() {
     currentBatteryStatus = nextBatteryStatus;
 
     if (!activeFlag) {
@@ -408,7 +417,7 @@ public:
       }
     }
 
-    int intValue = calcPWMValue(I);
+    int intValue = calcPWMValue(I, ACTIVE_RATE);
     analogWrite(writePin, intValue);
   };
 
@@ -434,7 +443,7 @@ public:
 
     } else {
       int batterySetIndex{batteryIndex / 2};
-      int vir_offset{10 * batterySetIndex + (batteryIndex % 2) * 3 + 6};
+      int vir_offset{10 * batterySetIndex + (batteryIndex % 2) * 2 + 6};
       int line{(batteryIndex % 2) + 2};
       drawAdafruit.drawFloatR(sleepV, vir_offset, line, 4, 3);
       drawAdafruit.drawString("V", vir_offset, line);
@@ -590,7 +599,7 @@ public:
     if (0) {
       ++line;
       drawAdafruit.drawFillLine(line);
-      drawAdafruit.drawInt(calcPWMValue(targetI), SETTING_MENU_START_COL, line);
+      drawAdafruit.drawInt(calcPWMValue(targetI, ACTIVE_RATE), SETTING_MENU_START_COL, line);
       drawAdafruit.drawString("PWM", SETTING_MENU_START_COL + SETTING_MENU_OFFSET_COL, line);
     }
 
@@ -1028,10 +1037,27 @@ public:
     {
       drawAdafruit.drawFillLine(i);
     }
-    drawAdafruit.drawStringC(String("PushDischarge"), 0);
+    drawAdafruit.drawStringC(String("Discharge 2A"), 0);
     for (auto &batteryStatus : batteryStatuses) {
       batteryStatus.setDisplayPushData();
     }
+
+    float lV{batteryStatuses[0].V + batteryStatuses[1].V};
+    float rV{batteryStatuses[2].V + batteryStatuses[3].V};
+    int line{4};
+    int vir_offset{0};
+    vir_offset += 10;
+    drawAdafruit.drawFloatR(lV, vir_offset, line, 4, 3);
+    drawAdafruit.drawString("V", vir_offset, line);
+    vir_offset += 10;
+    drawAdafruit.drawFloatR(rV, vir_offset, line, 4, 3);
+    drawAdafruit.drawString("V", vir_offset, line);
+
+    line += 1;
+    const BatteryInfo& bs{batteryStatuses[0]};
+    float ohm = ((bs.sleepV - bs.V) * 1000.f) / bs.tunedI;
+    drawAdafruit.drawFloatR(ohm, vir_offset, line, 4, 3);
+
   }
 
   void setDisplayData() {
@@ -1280,7 +1306,7 @@ public:
 
     if (mainMode == MainMode::DischargerMode) {
       for (auto &batteryStatus : batteryStatuses) {
-        batteryStatus.loopSub();
+        batteryStatus.loopSubNormalDischarge();
       }
 
       if ((loopSubCount % 3) == 0) {
