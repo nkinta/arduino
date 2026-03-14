@@ -114,8 +114,10 @@ enum class ConfigSettingMode : uint8_t {
   Volt05Setting,
   Volt10Setting,
   Volt15Setting,
+  Volt20Setting,
   LedOnSetting,
   discISetting,
+  tuneISetting,
   Max,
 };
 
@@ -141,7 +143,7 @@ enum class BatteryStatus : uint8_t {
 
 namespace DisplayConst {
 
-const std::vector<String> DISC_MODE_NAMES{ String("DiscCont"), String("DicStop") };
+const std::vector<String> DISC_MODE_NAMES{ String("Cont"), String("Stop") };
 
 static constexpr char CHAR_DATA_ARROW[] = ">";
 static constexpr char CHAR_DATA_ARROW_NEW[] = { 0x1A, 0x00 };  // "->"
@@ -150,7 +152,7 @@ static constexpr char CHAR_DATA_DOWN[] = { 0x19, 0x00 };
 
 }
 
-static void displayTuneMenu(DrawAdafruit &adafruit, String &&title, std::vector<String> &menuList, std::vector<String> &valueList, int targetIndex) {
+static void setDisplayTuneMenu(DrawAdafruit &adafruit, String &&title, std::vector<String> &menuList, std::vector<String> &valueList, int targetIndex) {
   int vir_offset1{ 0 };
   int vir_offset2{ 0 };
   int line{ 1 };
@@ -158,7 +160,7 @@ static void displayTuneMenu(DrawAdafruit &adafruit, String &&title, std::vector<
   adafruit.drawStringC(title, line);
 
   vir_offset1 = 2;
-  vir_offset2 = 14;
+  vir_offset2 = 12;
 
   constexpr int MAX_DISPLAY_LINE{4};
   int startIndex = std::max(0, targetIndex - MAX_DISPLAY_LINE);
@@ -181,9 +183,16 @@ static void displayTuneMenu(DrawAdafruit &adafruit, String &&title, std::vector<
     ++line;
   }
 
+  /*
+  for (i = line; i < MAX_DISPLAY_LINE; ++i)
+  {
+    adafruit.drawFillLine(i);
+  }
+  */
+
   while (line < 7) {
-    line++;
     adafruit.drawFillLine(line);
+    line++;
   }
 }
 
@@ -210,7 +219,7 @@ struct SaveBattery {
     }
   }
 
-  void displayBatteryConfig(int index, BatteryConfigSettingMode settingMode) {
+  void setDisplayBatteryConfig(int index, BatteryConfigSettingMode settingMode) {
     std::vector<String> menuList{ "TargetV", "TargetI", "DiscMode" };
 
     // String valueStr{String(value, decimal)};
@@ -219,11 +228,27 @@ struct SaveBattery {
 
     String Title{ "Battery No." };
     Title += String(index + 1);
-    displayTuneMenu(drawAdafruit, std::move(Title), menuList, valueList, static_cast<int>(settingMode));
+    setDisplayTuneMenu(drawAdafruit, std::move(Title), menuList, valueList, static_cast<int>(settingMode));
     // displayDischargeFloat(drawAdafruit, "TargetA", "A", saveBattery->targetI);
   }
 };
 
+static constexpr int SAVEDATA_ID{ 0xABCE };
+
+struct SaveConfigData {
+  static constexpr int8_t VOLT_DATA_SIZE{ 5 };
+  static constexpr int SAVEDATA_ADDRESS{ 0X100 };
+  static constexpr int VOLT_RANGE{ 100 };
+  static int voltClamp(int value) {
+    return std::clamp(value, -1 * VOLT_RANGE, VOLT_RANGE);
+  };
+  int id{ SAVEDATA_ID };
+  int ver{ 3 };
+  int voltDatas[VOLT_DATA_SIZE] = { 0, 0, 0, 0, 0 };
+  uint8_t ledOnFlag{ 0 };
+  float dischargeI{ 2.f };
+  float customAmpTune{ 1.f };
+};
 
 struct BatteryInfo {
   static constexpr int START_LINE{ 1 };
@@ -300,7 +325,7 @@ struct BatteryInfo {
     return resultI;
   };
 
-  static int calcPWMValue(float ampere, float active_rate) {
+  static int calcPWMValue(float ampere, float active_rate, float customAmpTune) {
     static const float RA{ 5.1f };
     static const float RB{ 5.1f };
     static const float RC{ 1.f };
@@ -311,12 +336,12 @@ struct BatteryInfo {
     static const float REG_RATE{ (RA + RB + RC) / RC };
     static const float I_TO_V{ REG * REG_RATE };
     static const float TO_V_RATE{ I_TO_V / VOLT3_3 };
-    static const float AMP_TUNE{ 1.08 };  // 実測との補正
+    static const float AMP_TUNE{ 1.08f };  // 実測との補正
     // static const float INV_ACTIVE_RATE{ AMP_TUNE / ACTIVE_RATE };
 
     const float voltRate{ ampere * TO_V_RATE };
 
-    return std::clamp(static_cast<int>(voltRate * MAX_PWM_F * (AMP_TUNE / active_rate)), 0, MAX_PWM);
+    return std::clamp(static_cast<int>(voltRate * MAX_PWM_F * ((AMP_TUNE * customAmpTune) / active_rate)), 0, MAX_PWM);
   };
 
 public:
@@ -358,7 +383,7 @@ public:
 
 
     I = std::max(0.f, tunedI);
-    int intValue = calcPWMValue(I, 1.f);
+    int intValue = calcPWMValue(I, 1.f, saveConfig->customAmpTune);
     analogWrite(writePin, intValue);
 
   }
@@ -436,7 +461,7 @@ public:
       }
     }
 
-    int intValue = calcPWMValue(I, ACTIVE_RATE);
+    int intValue = calcPWMValue(I, ACTIVE_RATE, saveConfig->customAmpTune);
     analogWrite(writePin, intValue);
   };
 
@@ -519,7 +544,7 @@ public:
     drawAdafruit.drawFillLine(line);
   }
 
-  void displayBatteryConfig(BatteryConfigSettingMode settingMode) {
+  void setDisplayBatteryConfig(BatteryConfigSettingMode settingMode) {
     std::vector<String> menuList{ "TargetI", "TargetA", "DiscMode" };
 
     // String valueStr{String(value, decimal)};
@@ -528,7 +553,7 @@ public:
 
     String Title{ "Battery No." };
     Title += String(batteryIndex + 1);
-    displayTuneMenu(drawAdafruit, std::move(Title), menuList, valueList, static_cast<int>(settingMode));
+    setDisplayTuneMenu(drawAdafruit, std::move(Title), menuList, valueList, static_cast<int>(settingMode));
     // displayDischargeFloat(drawAdafruit, "TargetA", "A", saveBattery->targetI);
   }
 
@@ -622,7 +647,7 @@ public:
     if (0) {
       ++line;
       drawAdafruit.drawFillLine(line);
-      drawAdafruit.drawInt(calcPWMValue(targetI, ACTIVE_RATE), SETTING_MENU_START_COL, line);
+      drawAdafruit.drawInt(calcPWMValue(targetI, ACTIVE_RATE, saveConfig->customAmpTune), SETTING_MENU_START_COL, line);
       drawAdafruit.drawString("PWM", SETTING_MENU_START_COL + SETTING_MENU_OFFSET_COL, line);
     }
 
@@ -695,6 +720,7 @@ public:
   unsigned long ampereHourTime{ 0 };
 
   SaveBattery *saveBattery{ nullptr };
+  const SaveConfigData *saveConfig{ nullptr };
 
   DisChargeMode disChargeMode{ DisChargeMode::DischargeNormal };
 };
@@ -754,7 +780,6 @@ static constexpr float ONE_FRAME_MS{ (1.f / FPS) * SEC };
 int modeIndex = 0;
 
 class BatteryController {
-  static constexpr int SAVEDATA_ID{ 0xABCD };
 
   static constexpr uint8_t XIAO_READ_BAT{ PD4 };
   static constexpr uint8_t XIAO_READ_BAT_SWITCH{ PD3 };
@@ -797,7 +822,7 @@ class BatteryController {
   static constexpr int PUSH_BUTTON_4{ 16 }; // 4
   static constexpr int PUSH_BUTTON_ON{ 1 };
 
-  static constexpr int WAKE_UP_PIN{ PUSH_BUTTON_ON };
+  static constexpr int WAKE_UP_PIN{ PUSH_BUTTON_L };
 
   ButtonStatus buttonLStatus{};
   ButtonStatus buttonRStatus{};
@@ -833,6 +858,8 @@ class BatteryController {
 
   float dischargeI{2.f};
 
+  float customAmpTune{1.f};
+
   bool xiaoVoltFlag{ true };
 
   struct SaveBatteryConfigData {
@@ -842,26 +869,17 @@ class BatteryController {
     SaveBattery battery[4];
   };
 
-  struct SaveConfigData {
-    static constexpr int8_t VOLT_DATA_SIZE{ 5 };
-    static constexpr int SAVEDATA_ADDRESS{ 0X100 };
-    static constexpr int VOLT_RANGE{ 100 };
-    static int voltClamp(int value) {
-      return std::clamp(value, -1 * VOLT_RANGE, VOLT_RANGE);
-    };
-    int id{ SAVEDATA_ID };
-    int ver{ 3 };
-    int voltDatas[VOLT_DATA_SIZE] = { 0, 0, 0, 0, 0 };
-    uint8_t ledOnFlag{ 0 };
-    float dischargeI{ 2.f };
-  };
-
 public:
   BatteryController() {
     batteryStatuses[0].saveBattery = &(saveBatteryConfigData.battery[0]);
     batteryStatuses[1].saveBattery = &(saveBatteryConfigData.battery[0]);
     batteryStatuses[2].saveBattery = &(saveBatteryConfigData.battery[1]);
     batteryStatuses[3].saveBattery = &(saveBatteryConfigData.battery[1]);
+
+    for (auto& batteryStatus : batteryStatuses)
+    {
+      batteryStatus.saveConfig = &saveConfigData;
+    }
 
     batteryStatuses[currentBatteryIndex].displayFlag = true;
   }
@@ -886,7 +904,7 @@ private:
 
   template<typename T>
   void saveCustomData(byte *p) {
-    for (int i = 0; i < sizeof(SaveBatteryConfigData); i++) {
+    for (int i = 0; i < sizeof(T); i++) {
       EEPROM.write(T::SAVEDATA_ADDRESS + i, *p);
       p++;
     }
@@ -903,22 +921,41 @@ private:
 
   void saveConfig() {
     saveConfigData.id = SAVEDATA_ID;
-    saveConfigData.ver = 1;
     saveCustomData<SaveConfigData>((byte *)&saveConfigData);
   }
 
   void saveMain() {
     saveBatteryConfigData.id = SAVEDATA_ID;
-    saveBatteryConfigData.ver = 1;
     saveCustomData<SaveBatteryConfigData>((byte *)&saveBatteryConfigData);
   }
 
   void loadConfig() {
-    loadCustomData<SaveConfigData>((byte *)&saveConfigData);
+    SaveConfigData tempData;
+    loadCustomData<SaveConfigData>((byte *)&tempData);
+    if (tempData.id != SAVEDATA_ID)
+    {
+      return;
+    }
+    if (tempData.ver != saveConfigData.ver)
+    {
+      return;
+    }
+    saveConfigData = tempData;
+
   }
 
   void loadMain() {
-    loadCustomData<SaveBatteryConfigData>((byte *)&saveBatteryConfigData);
+    SaveBatteryConfigData tempData;
+    loadCustomData<SaveBatteryConfigData>((byte *)&tempData);
+    if (tempData.id != SAVEDATA_ID)
+    {
+      return;
+    }
+    if (tempData.ver != saveBatteryConfigData.ver)
+    {
+      return;
+    }
+    saveBatteryConfigData = tempData;
   };
 
 public:
@@ -972,11 +1009,6 @@ public:
       loadConfig();
     }
 
-    val = digitalRead(PUSH_BUTTON_R);
-    if (val == LOW) {
-      mainMode = MainMode::ConfigMode;
-    }
-
 #else
     int val{ HIGH };
     val = digitalRead(PUSH_BUTTON_C);
@@ -984,11 +1016,6 @@ public:
     {
       loadMain();
       loadConfig();
-    }
-
-    val = digitalRead(PUSH_BUTTON_D);
-    if (val == LOW) {
-      mainMode = MainMode::ConfigMode;
     }
 
     pinMode(PUSH_BUTTON_ON, INPUT_PULLUP);
@@ -1035,6 +1062,7 @@ public:
     voltageMapping.initMapping(customMappingData);
 
     ledOnFlag = saveConfigData.ledOnFlag;
+    customAmpTune = saveConfigData.customAmpTune;
     dischargeI = saveConfigData.dischargeI;
   }
 
@@ -1045,22 +1073,24 @@ public:
   };
 
   void setDisplayConfig() {
-    std::vector<String> menuList{ "0.0V", "0.5V", "1.0V", "1.5V", "ledOn", "discI" };
+    std::vector<String> menuList{ "0.0V", "0.5V", "1.0V", "1.5V", "2.0V", "ledOn", "discI", "ampTune" };
 
     std::vector<String> valueList{
       String(saveConfigData.voltDatas[0]),
       String(saveConfigData.voltDatas[1]),
       String(saveConfigData.voltDatas[2]),
       String(saveConfigData.voltDatas[3]),
+      String(saveConfigData.voltDatas[4]),
       String(saveConfigData.ledOnFlag == 0 ? false : true),
       String(saveConfigData.dischargeI),
+      String(saveConfigData.customAmpTune),
     };
 
-    displayTuneMenu(drawAdafruit, "Config", menuList, valueList, static_cast<int>(configSettingMode));
+    setDisplayTuneMenu(drawAdafruit, "Config", menuList, valueList, static_cast<int>(configSettingMode));
   }
 
   void setDisplayBatteryConfig() {
-    saveBatteryConfigData.battery[currentBatterySettingIndex].displayBatteryConfig(currentBatterySettingIndex, batteryConfigSettingMode);
+    saveBatteryConfigData.battery[currentBatterySettingIndex].setDisplayBatteryConfig(currentBatterySettingIndex, batteryConfigSettingMode);
   }
   
   void setDisplayPushDischarge() {
@@ -1334,10 +1364,14 @@ public:
         saveConfigData.voltDatas[2] = SaveConfigData::voltClamp(saveConfigData.voltDatas[2] + shift);
       } else if (configSettingMode == ConfigSettingMode::Volt15Setting) {
         saveConfigData.voltDatas[3] = SaveConfigData::voltClamp(saveConfigData.voltDatas[3] + shift);
+      } else if (configSettingMode == ConfigSettingMode::Volt15Setting) {
+        saveConfigData.voltDatas[4] = SaveConfigData::voltClamp(saveConfigData.voltDatas[4] + shift);
       } else if (configSettingMode == ConfigSettingMode::LedOnSetting) {
         saveConfigData.ledOnFlag = ((saveConfigData.ledOnFlag == 0) ? 1 : 0);
       } else if (configSettingMode == ConfigSettingMode::discISetting) {
         saveConfigData.dischargeI = std::clamp(saveConfigData.dischargeI + (shift * 0.1f), 0.f, 2.4f);
+      } else if (configSettingMode == ConfigSettingMode::tuneISetting) {
+        saveConfigData.customAmpTune = std::clamp(saveConfigData.customAmpTune + (shift * 0.1f), 0.8f, 1.2f);
       }
     }
   };
