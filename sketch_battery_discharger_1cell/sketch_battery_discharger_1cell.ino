@@ -4,8 +4,8 @@
 #include <EEPROM.h>
 #include <stdio.h>
 #include <string>
-#include "battery_info.h"
-#include "discharger_define.h"
+#include "battery_info.hpp"
+#include "discharger_define.hpp"
 
 // #define DEEP_SLEEP_ESCAPE_PIN   D13
 #include <ArduinoLowPower.h>
@@ -13,7 +13,7 @@
 #undef SERIAL_DEBUG_ON
 // #define SERIAL_DEBUG_ON
 
-#include "display/draw_adafruit.h"
+#include "display/draw_adafruit.hpp"
 
 #undef OLD_PCB
 

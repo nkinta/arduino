@@ -12,7 +12,6 @@ namespace DisplayConst
 
 }
 
-static const float VOLT3_3{3.3f};
-
+static constexpr float VOLT3_3{3.3f};
 static constexpr int SAVEDATA_ID{0xABCE};
 
