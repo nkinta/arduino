@@ -271,7 +271,7 @@ void BatteryInfo::loopSubNormalDischarge()
     analogWrite(writePin, intValue);
 };
 
-void BatteryInfo::displayVoltOnly()
+void BatteryInfo::setDisplayVoltOnly()
 {
     static constexpr int DISPLAY_MENU_START_COL{3};
     static constexpr int DISPLAY_MENU_OFFSET_COL{5};
@@ -293,7 +293,7 @@ void BatteryInfo::displayVoltOnly()
     drawAdafruit.removeFont();
 };
 
-void BatteryInfo::displayDetail()
+void BatteryInfo::setDisplayDetail()
 {
     static constexpr int DISPLAY_MENU_START_COL{3};
     static constexpr int DISPLAY_MENU_OFFSET_COL{5};
@@ -413,7 +413,7 @@ void BatteryInfo::displayDetail()
     }
 }
 
-void BatteryInfo::displayNone()
+void BatteryInfo::setDisplayNone()
 {
     int line{START_LINE};
     drawAdafruit.drawFillLine(line);
@@ -458,7 +458,7 @@ void BatteryInfo::setDisplayPushData()
 
     if (displayFlag)
     {
-        // displayVoltOnly();
+        // setDisplayVoltOnly();
     }
 };
 
@@ -484,11 +484,11 @@ void BatteryInfo::setDisplayData()
     {
         if (activeFlag)
         {
-            displayDetail();
+            setDisplayDetail();
         }
         else
         {
-            displayVoltOnly();
+            setDisplayVoltOnly();
         }
     }
 };

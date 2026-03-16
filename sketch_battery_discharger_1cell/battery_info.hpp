@@ -95,7 +95,7 @@ enum class BatteryStatus : uint8_t
   Max,
 };
 
-struct BatteryInfo
+class BatteryInfo
 {
   static constexpr int START_LINE{1};
   static constexpr int SETTING_MENU_START_COL{7};
@@ -181,10 +181,6 @@ public:
     tunedI = 0.f;
   }
 
-  void setDisplayPushData();
-
-  void setDisplayData();
-
   void changeActive(int shift)
   {
     if (activeFlag)
@@ -197,13 +193,17 @@ public:
     }
   }
 
-  void displayNone();
+  void setDisplayPushData();
+
+  void setDisplayData();
+
+  void setDisplayNone();
 
   void setDisplayBatteryConfig(BatteryConfigSettingMode settingMode);
 
-  void displayVoltOnly();
+  void setDisplayVoltOnly();
 
-  void displayDetail();
+  void setDisplayDetail();
 
   ValueCounter valueCounter{};
 
@@ -227,9 +227,11 @@ public:
   float targetI{0.2f};
   float milliAmpereHour{0.0f};
   unsigned long ampereHourTime{0};
-
+  DisChargeMode disChargeMode{DisChargeMode::DischargeNormal};
+ 
   SaveBattery *saveBattery{nullptr};
+
   const SaveConfigData *saveConfigData{nullptr};
 
-  DisChargeMode disChargeMode{DisChargeMode::DischargeNormal};
+
 };
