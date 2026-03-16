@@ -17,3 +17,11 @@ struct SaveConfigData
   float customAmpTune{1.f};
   int decimal{3};
 };
+
+struct SaveBatteryConfigData
+{
+  static constexpr int SAVEDATA_ADDRESS{0X400};
+  int id{SAVEDATA_ID};
+  int ver{1};
+  SaveBattery battery[4];
+};

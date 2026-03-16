@@ -1,7 +1,7 @@
 #include "battery_info.hpp"
 #include "display/draw_adafruit.hpp"
 #include "voltage_mapping.hpp"
-#include "config.hpp"
+#include "save_config_data.hpp"
 
 extern VoltageMapping voltageMapping;
 extern DrawAdafruit drawAdafruit;
@@ -75,7 +75,7 @@ void SaveBattery::setDisplayBatteryConfig(int index, BatteryConfigSettingMode se
     String mode{DISC_MODE_NAMES[(uint8_t)disChargeMode]};
     std::vector<String> valueList{String(targetV, 3), String(targetI), mode};
 
-    String Title{"Battery No."};
+    String Title{"Battery Pair."};
     Title += String(index + 1);
     setDisplayTuneMenu(drawAdafruit, std::move(Title), menuList, valueList, static_cast<int>(settingMode));
     // displayDischargeFloat(drawAdafruit, "TargetA", "A", saveBattery->targetI);
@@ -476,15 +476,14 @@ void BatteryInfo::setDisplayData() const
         }
         else
         {
-            setDisplayVoltOnly() ;
+            setDisplayVoltOnly();
         }
     }
 };
 
 void BatteryInfo::read()
 {
-
-    int MIN_VOLT{10};
+    constexpr int MIN_VOLT{10};
     const int volt{analogRead(readPin)};
     valueCounter.readVolt(volt);
     if (volt < MIN_VOLT)

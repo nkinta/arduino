@@ -201,8 +201,6 @@ public:
 
   void setDisplayNone() const;
 
-  // void setDisplayBatteryConfig(BatteryConfigSettingMode settingMode) const;
-
   void setDisplayVoltOnly() const;
 
   void setDisplayDetail() const;
@@ -215,7 +213,7 @@ public:
   bool displayFlag{false};
   bool activeFlag{false};
 
-  uint8_t batteryIndex;
+  uint8_t batteryIndex{0};
   uint8_t readPin{0};
   uint8_t writePin{0};
   unsigned long startTime{0};
