@@ -6,6 +6,8 @@
 #include <string>
 #include "battery_info.hpp"
 #include "discharger_define.hpp"
+#include "voltage_mapping.hpp"
+#include "config.hpp"
 
 // #define DEEP_SLEEP_ESCAPE_PIN   D13
 #include <ArduinoLowPower.h>

@@ -1,4 +1,10 @@
 #include "battery_info.hpp"
+#include "display/draw_adafruit.hpp"
+#include "voltage_mapping.hpp"
+#include "config.hpp"
+
+extern VoltageMapping voltageMapping;
+extern DrawAdafruit drawAdafruit;
 
 void setDisplayTuneMenu(DrawAdafruit &adafruit, String &&title, std::vector<String> &menuList, std::vector<String> &valueList, int targetIndex)
 {

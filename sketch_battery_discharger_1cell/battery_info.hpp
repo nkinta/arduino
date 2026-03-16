@@ -2,16 +2,12 @@
 
 #include <Arduino.h>
 #include <vector>
-#include <stdio.h>
-#include <string>
 
 #include "discharger_define.hpp"
-#include "display/draw_adafruit.hpp"
-#include "config.hpp"
-#include "voltage_mapping.hpp"
 
-extern VoltageMapping voltageMapping;
-extern DrawAdafruit drawAdafruit;
+class DrawAdafruit;
+class SaveConfigData;
+class SaveBattery;
 
 enum class TimeStatus : uint8_t
 {
