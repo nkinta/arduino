@@ -118,6 +118,7 @@ enum class ConfigSettingMode : uint8_t {
   LedOnSetting,
   discISetting,
   tuneISetting,
+  decimalSetting,
   Max,
 };
 
@@ -155,9 +156,10 @@ static constexpr char CHAR_DATA_DOWN[] = { 0x19, 0x00 };
 static void setDisplayTuneMenu(DrawAdafruit &adafruit, String &&title, std::vector<String> &menuList, std::vector<String> &valueList, int targetIndex) {
   int vir_offset1{ 0 };
   int vir_offset2{ 0 };
-  int line{ 1 };
+  int line{ 0 };
   adafruit.drawFillLine(line);
   adafruit.drawStringC(title, line);
+  ++line;
 
   vir_offset1 = 2;
   vir_offset2 = 12;
@@ -243,11 +245,12 @@ struct SaveConfigData {
     return std::clamp(value, -1 * VOLT_RANGE, VOLT_RANGE);
   };
   int id{ SAVEDATA_ID };
-  int ver{ 3 };
+  int ver{ 4 };
   int voltDatas[VOLT_DATA_SIZE] = { 0, 0, 0, 0, 0 };
   uint8_t ledOnFlag{ 0 };
   float dischargeI{ 2.f };
   float customAmpTune{ 1.f };
+  int decimal{3};
 };
 
 struct BatteryInfo {
@@ -383,7 +386,7 @@ public:
 
 
     I = std::max(0.f, tunedI);
-    int intValue = calcPWMValue(I, 1.f, saveConfig->customAmpTune);
+    int intValue = calcPWMValue(I, 1.f, saveConfigData->customAmpTune);
     analogWrite(writePin, intValue);
 
   }
@@ -461,7 +464,7 @@ public:
       }
     }
 
-    int intValue = calcPWMValue(I, ACTIVE_RATE, saveConfig->customAmpTune);
+    int intValue = calcPWMValue(I, ACTIVE_RATE, saveConfigData->customAmpTune);
     analogWrite(writePin, intValue);
   };
 
@@ -493,7 +496,7 @@ public:
       int batterySetIndex{batteryIndex / 2};
       int vir_offset{10 * batterySetIndex + (batteryIndex % 2) * 0 + 8};
       int line{(batteryIndex % 2) + 2};
-      drawAdafruit.drawFloatR(V, vir_offset, line, 4, 3);
+      drawAdafruit.drawFloatR(V, vir_offset, line, 4, saveConfigData->decimal);
       drawAdafruit.drawString("V", vir_offset, line);
     }
 
@@ -568,20 +571,14 @@ public:
     drawAdafruit.drawFillLine(line + 2);
     drawAdafruit.drawFillLine(line + 3);
     drawAdafruit.drawFillLine(line + 4);
-    // drawAdafruit.drawFillLine(line + 5);
 
     ++line;
-    // drawAdafruit.setTextSize(1);
     drawAdafruit.setFont();
-    // drawAdafruit.drawFloat(sleepV, 5, 4, 3);
-    // drawAdafruit.drawString("V", 15, 4);
 
     drawAdafruit.adaDisplay.setCursor(28, 32);
     drawAdafruit.adaDisplay.print(String(sleepV, 3) + String("V"));
 
     drawAdafruit.removeFont();
-    // drawAdafruit.setTextSize(1);
-    // drawAdafruit.drawBat();
   }
 
   void displayDetail() {
@@ -647,7 +644,7 @@ public:
     if (0) {
       ++line;
       drawAdafruit.drawFillLine(line);
-      drawAdafruit.drawInt(calcPWMValue(targetI, ACTIVE_RATE, saveConfig->customAmpTune), SETTING_MENU_START_COL, line);
+      drawAdafruit.drawInt(calcPWMValue(targetI, ACTIVE_RATE, saveConfigData->customAmpTune), SETTING_MENU_START_COL, line);
       drawAdafruit.drawString("PWM", SETTING_MENU_START_COL + SETTING_MENU_OFFSET_COL, line);
     }
 
@@ -720,7 +717,7 @@ public:
   unsigned long ampereHourTime{ 0 };
 
   SaveBattery *saveBattery{ nullptr };
-  const SaveConfigData *saveConfig{ nullptr };
+  const SaveConfigData *saveConfigData{ nullptr };
 
   DisChargeMode disChargeMode{ DisChargeMode::DischargeNormal };
 };
@@ -878,7 +875,7 @@ public:
 
     for (auto& batteryStatus : batteryStatuses)
     {
-      batteryStatus.saveConfig = &saveConfigData;
+      batteryStatus.saveConfigData = &saveConfigData;
     }
 
     batteryStatuses[currentBatteryIndex].displayFlag = true;
@@ -1073,7 +1070,7 @@ public:
   };
 
   void setDisplayConfig() {
-    std::vector<String> menuList{ "0.0V", "0.5V", "1.0V", "1.5V", "2.0V", "ledOn", "discI", "ampTune" };
+    std::vector<String> menuList{ "0.0V", "0.5V", "1.0V", "1.5V", "2.0V", "LedOn", "DiscI", "AmpTune", "Decimal" };
 
     std::vector<String> valueList{
       String(saveConfigData.voltDatas[0]),
@@ -1084,6 +1081,7 @@ public:
       String(saveConfigData.ledOnFlag == 0 ? false : true),
       String(saveConfigData.dischargeI),
       String(saveConfigData.customAmpTune),
+      String(saveConfigData.decimal),
     };
 
     setDisplayTuneMenu(drawAdafruit, "Config", menuList, valueList, static_cast<int>(configSettingMode));
@@ -1112,10 +1110,10 @@ public:
     float rV{batteryStatuses[2].V + batteryStatuses[3].V};
 
     vir_offset += 10;
-    drawAdafruit.drawFloatR(lV, vir_offset, line, 4, 3);
+    drawAdafruit.drawFloatR(lV, vir_offset, line, 4, saveConfigData.decimal);
     drawAdafruit.drawString("V", vir_offset, line);
     vir_offset += 10;
-    drawAdafruit.drawFloatR(rV, vir_offset, line, 4, 3);
+    drawAdafruit.drawFloatR(rV, vir_offset, line, 4, saveConfigData.decimal);
     drawAdafruit.drawString("V", vir_offset, line);
     }
 
@@ -1303,7 +1301,7 @@ public:
 
 
     if ((buttonUFlag == true) && (buttonDFlag == true)) {
-      if (mainMode == MainMode::DischargerMode) {
+      if (mainMode == MainMode::DischargerMode || mainMode == MainMode::PushDischargerMode) {
         mainMode = MainMode::ConfigMode;
       }
     }
@@ -1372,6 +1370,8 @@ public:
         saveConfigData.dischargeI = std::clamp(saveConfigData.dischargeI + (shift * 0.1f), 0.f, 2.4f);
       } else if (configSettingMode == ConfigSettingMode::tuneISetting) {
         saveConfigData.customAmpTune = std::clamp(saveConfigData.customAmpTune + (shift * 0.1f), 0.8f, 1.2f);
+      } else if (configSettingMode == ConfigSettingMode::decimalSetting) {
+        saveConfigData.decimal = std::clamp(saveConfigData.decimal + shift, 2, 3);
       }
     }
   };
