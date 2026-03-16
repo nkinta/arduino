@@ -14,7 +14,7 @@ struct SaveConfigData
   int voltDatas[VOLT_DATA_SIZE] = {0, 0, 0, 0, 0};
   uint8_t ledOnFlag{0};
   float dischargeI{2.f};
-  float customAmpTune{1.f};
+  float calibI{1.f};
   int decimal{3};
 };
 

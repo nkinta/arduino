@@ -7,7 +7,7 @@
 
 class DrawAdafruit;
 class SaveConfigData;
-class SaveBattery;
+class BatteryController;
 
 enum class TimeStatus : uint8_t
 {
@@ -148,7 +148,7 @@ class BatteryInfo
 
   static float calcI(const float targetI, const float V, const float targetV, const DisChargeMode disChargeMode);
 
-  static int calcPWMValue(float ampere, float active_rate, float customAmpTune);
+  static int calcPWMValue(float ampere, float active_rate, float calibI);
 
 public:
   BatteryInfo(uint8_t inReadPin, uint8_t inWritePin, uint8_t inBatteryIndex)
@@ -229,9 +229,9 @@ public:
   unsigned long ampereHourTime{0};
   DisChargeMode disChargeMode{DisChargeMode::DischargeNormal};
  
-  SaveBattery *saveBattery{nullptr};
+  SaveBattery* saveBattery{nullptr};
 
-  const SaveConfigData *saveConfigData{nullptr};
+  const BatteryController* batteryController{nullptr};
 
 
 };

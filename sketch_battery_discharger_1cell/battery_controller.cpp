@@ -167,7 +167,8 @@ void BatteryController::updateConfigSaveData()
     voltageMapping.initMapping(customMappingData);
 
     ledOnFlag = saveConfigData.ledOnFlag;
-    customAmpTune = saveConfigData.customAmpTune;
+    calibI = saveConfigData.calibI;
+    decimal = saveConfigData.decimal;
     dischargeI = saveConfigData.dischargeI;
 }
 
@@ -216,7 +217,7 @@ void BatteryController::setDisplayConfig() const
         String(saveConfigData.voltDatas[4]),
         String(saveConfigData.ledOnFlag == 0 ? false : true),
         String(saveConfigData.dischargeI),
-        String(saveConfigData.customAmpTune),
+        String(saveConfigData.calibI),
         String(saveConfigData.decimal),
     };
 
@@ -359,7 +360,7 @@ void BatteryController::shiftParam(int shift)
         }
         else if (configSettingMode == ConfigSettingMode::tuneISetting)
         {
-            saveConfigData.customAmpTune = std::clamp(saveConfigData.customAmpTune + (shift * 0.1f), 0.8f, 1.2f);
+            saveConfigData.calibI = std::clamp(saveConfigData.calibI + (shift * 0.1f), 0.8f, 1.2f);
         }
         else if (configSettingMode == ConfigSettingMode::decimalSetting)
         {
@@ -575,7 +576,7 @@ void BatteryController::updateButtonStatus()
             {
                 batteryStatus.reset();
             }
-            mainMode = MainMode::DischargerMode;
+            mainMode = cachedMainMode;
         }
     }
     else if (checkFlag == 4)
@@ -597,6 +598,7 @@ void BatteryController::updateButtonStatus()
     {
         if (mainMode == MainMode::DischargerMode || mainMode == MainMode::PushDischargerMode)
         {
+            cachedMainMode = mainMode;
             mainMode = MainMode::ConfigMode;
         }
     }

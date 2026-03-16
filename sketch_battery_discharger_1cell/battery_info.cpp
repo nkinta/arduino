@@ -2,6 +2,7 @@
 #include "display/draw_adafruit.hpp"
 #include "voltage_mapping.hpp"
 #include "save_config_data.hpp"
+#include "battery_controller.hpp"
 
 extern VoltageMapping voltageMapping;
 extern DrawAdafruit drawAdafruit;
@@ -126,7 +127,7 @@ float BatteryInfo::calcI(const float targetI, const float V, const float targetV
     return resultI;
 };
 
-int BatteryInfo::calcPWMValue(float ampere, float active_rate, float customAmpTune)
+int BatteryInfo::calcPWMValue(float ampere, float active_rate, float calibI)
 {
     static const float RA{5.1f};
     static const float RB{5.1f};
@@ -143,7 +144,7 @@ int BatteryInfo::calcPWMValue(float ampere, float active_rate, float customAmpTu
 
     const float voltRate{ampere * TO_V_RATE};
 
-    return std::clamp(static_cast<int>(voltRate * MAX_PWM_F * ((AMP_TUNE * customAmpTune) / active_rate)), 0, MAX_PWM);
+    return std::clamp(static_cast<int>(voltRate * MAX_PWM_F * ((AMP_TUNE * calibI) / active_rate)), 0, MAX_PWM);
 };
 
 void BatteryInfo::loopSubPushDischarge()
@@ -165,7 +166,7 @@ void BatteryInfo::loopSubPushDischarge()
     }
 
     I = std::max(0.f, tunedI);
-    int intValue = calcPWMValue(I, 1.f, saveConfigData->customAmpTune);
+    int intValue = calcPWMValue(I, 1.f, batteryController->calibI);
     analogWrite(writePin, intValue);
 }
 
@@ -269,7 +270,7 @@ void BatteryInfo::loopSubNormalDischarge()
         }
     }
 
-    int intValue = calcPWMValue(I, ACTIVE_RATE, saveConfigData->customAmpTune);
+    int intValue = calcPWMValue(I, ACTIVE_RATE, batteryController->calibI);
     analogWrite(writePin, intValue);
 };
 
@@ -363,7 +364,7 @@ void BatteryInfo::setDisplayDetail() const
     {
         ++line;
         drawAdafruit.drawFillLine(line);
-        drawAdafruit.drawInt(calcPWMValue(targetI, ACTIVE_RATE, saveConfigData->customAmpTune), SETTING_MENU_START_COL, line);
+        drawAdafruit.drawInt(calcPWMValue(targetI, ACTIVE_RATE, batteryController->calibI), SETTING_MENU_START_COL, line);
         drawAdafruit.drawString("PWM", SETTING_MENU_START_COL + SETTING_MENU_OFFSET_COL, line);
     }
 
@@ -440,7 +441,7 @@ void BatteryInfo::setDisplayPushData() const
         int batterySetIndex{batteryIndex / 2};
         int vir_offset{10 * batterySetIndex + (batteryIndex % 2) * 0 + 8};
         int line{(batteryIndex % 2) + 2};
-        drawAdafruit.drawFloatR(V, vir_offset, line, 4, saveConfigData->decimal);
+        drawAdafruit.drawFloatR(V, vir_offset, line, 4, batteryController->decimal);
         drawAdafruit.drawString("V", vir_offset, line);
     }
 

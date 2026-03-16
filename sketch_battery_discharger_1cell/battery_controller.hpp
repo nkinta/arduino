@@ -178,9 +178,15 @@ class BatteryController
 
     float dischargeI{2.f};
 
-    float customAmpTune{1.f};
-
     bool xiaoVoltFlag{true};
+
+    SaveBatteryConfigData saveBatteryConfigData{};
+
+    SaveConfigData saveConfigData{};
+
+    MainMode mainMode{MainMode::DischargerMode};
+
+    MainMode cachedMainMode{MainMode::DischargerMode};
 
 public:
     BatteryController()
@@ -192,17 +198,15 @@ public:
 
         for (auto &batteryStatus : batteryStatuses)
         {
-            batteryStatus.saveConfigData = &saveConfigData;
+            batteryStatus.batteryController = this;
         }
 
         batteryStatuses[currentBatteryIndex].displayFlag = true;
     }
 
-    SaveBatteryConfigData saveBatteryConfigData{};
+    float calibI{1.f};
 
-    SaveConfigData saveConfigData{};
-
-    MainMode mainMode{MainMode::DischargerMode};
+    int decimal{3};
 
 private:
     float readAndDrawXiaoBattery();
