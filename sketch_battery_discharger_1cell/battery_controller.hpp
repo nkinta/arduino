@@ -1,7 +1,7 @@
 #pragma once
 
-#include "battery_info.hpp"
 #include "discharger_define.hpp"
+#include "battery_info.hpp"
 #include "config.hpp"
 
 static constexpr float FPS{30.f};

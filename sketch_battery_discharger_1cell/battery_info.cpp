@@ -6,6 +6,8 @@
 extern VoltageMapping voltageMapping;
 extern DrawAdafruit drawAdafruit;
 
+const std::vector<String> DISC_MODE_NAMES{String("Cont"), String("Stop")};
+
 void setDisplayTuneMenu(DrawAdafruit &adafruit, String &&title, std::vector<String> &menuList, std::vector<String> &valueList, int targetIndex)
 {
     int vir_offset1{0};
@@ -70,7 +72,7 @@ void SaveBattery::setDisplayBatteryConfig(int index, BatteryConfigSettingMode se
     std::vector<String> menuList{"TargetV", "TargetI", "DiscMode"};
 
     // String valueStr{String(value, decimal)};
-    String mode{DisplayConst::DISC_MODE_NAMES[(uint8_t)disChargeMode]};
+    String mode{DISC_MODE_NAMES[(uint8_t)disChargeMode]};
     std::vector<String> valueList{String(targetV, 3), String(targetI), mode};
 
     String Title{"Battery No."};
@@ -302,7 +304,7 @@ void BatteryInfo::setDisplayDetail()
     drawAdafruit.drawFillLine(line);
 
     vir_offset = DISPLAY_MENU_START_COL;
-    drawAdafruit.drawStringC(DisplayConst::DISC_MODE_NAMES[(uint8_t)disChargeMode], line);
+    drawAdafruit.drawStringC(DISC_MODE_NAMES[(uint8_t)disChargeMode], line);
 
     ++line;
     drawAdafruit.drawFillLine(line);
@@ -430,7 +432,7 @@ void BatteryInfo::setDisplayBatteryConfig(BatteryConfigSettingMode settingMode)
     std::vector<String> menuList{"TargetI", "TargetA", "DiscMode"};
 
     // String valueStr{String(value, decimal)};
-    String mode{DisplayConst::DISC_MODE_NAMES[(uint8_t)saveBattery->disChargeMode]};
+    String mode{DISC_MODE_NAMES[(uint8_t)saveBattery->disChargeMode]};
     std::vector<String> valueList{String(saveBattery->targetV, 3), String(saveBattery->targetI), mode};
 
     String Title{"Battery No."};

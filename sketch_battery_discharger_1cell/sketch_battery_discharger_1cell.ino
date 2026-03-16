@@ -7,9 +7,6 @@
 #include "display/draw_adafruit.hpp"
 #include "voltage_mapping.hpp"
 
-#undef SERIAL_DEBUG_ON
-// #define SERIAL_DEBUG_ON
-
 DrawAdafruit drawAdafruit;
 
 VoltageMapping voltageMapping;

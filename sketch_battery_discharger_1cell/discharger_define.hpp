@@ -1,10 +1,10 @@
 #pragma once
 
+#undef SERIAL_DEBUG_ON
+// #define SERIAL_DEBUG_ON
+
 namespace DisplayConst
 {
-
-  const std::vector<String> DISC_MODE_NAMES{String("Cont"), String("Stop")};
-
   static constexpr char CHAR_DATA_ARROW[] = ">";
   static constexpr char CHAR_DATA_ARROW_NEW[] = {0x1A, 0x00}; // "->"
   static constexpr char CHAR_DATA_UP[] = {0x18, 0x00};
@@ -14,4 +14,6 @@ namespace DisplayConst
 
 static constexpr float VOLT3_3{3.3f};
 static constexpr int SAVEDATA_ID{0xABCE};
+
+
 
