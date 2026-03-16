@@ -352,8 +352,8 @@ void BatteryInfo::setDisplayDetail() const
 
     vir_offset = DISPLAY_MENU_START_COL;
     vir_offset += DISPLAY_MENU_OFFSET_COL;
-    const int sec{(millis() - startTime) / 1000};
-    const int min{sec / 60};
+    const int sec{(millis() - startTime) / 1000.f};
+    const int min{sec / 60.f};
     // drawAdafruit.drawIntR(sec, vir_offset, line);
     char str[128];
     sprintf(str, "%02d:%02d", min, sec % 60);
