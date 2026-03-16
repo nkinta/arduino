@@ -240,16 +240,16 @@ void setup();
     }
   };
 
-  void setDisplayConfig();
+  void setDisplayConfig() const;
 
-  void setDisplayBatteryConfig()
+  void setDisplayBatteryConfig() const
   {
     saveBatteryConfigData.battery[currentBatterySettingIndex].setDisplayBatteryConfig(currentBatterySettingIndex, batteryConfigSettingMode);
   }
 
-  void setDisplayPushDischarge();
+  void setDisplayPushDischarge() const;
 
-  void setDisplayData();
+  void setDisplayData() const;
 
   void goDeepSleep();
 

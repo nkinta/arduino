@@ -82,7 +82,7 @@ struct SaveBattery
 
   void shiftParam(BatteryConfigSettingMode settingMode, int shift);
 
-  void setDisplayBatteryConfig(int index, BatteryConfigSettingMode settingMode);
+  void setDisplayBatteryConfig(int index, BatteryConfigSettingMode settingMode) const;
 };
 
 enum class BatteryStatus : uint8_t
@@ -140,7 +140,9 @@ class BatteryInfo
  };
 
   unsigned long loopCount{0};
-  unsigned long displayCount{0};
+
+  // チカチカ表示用
+  mutable unsigned long displayCount{0};
 
   TimeStatus currentTimeStatus{TimeStatus::Active};
 
@@ -193,17 +195,17 @@ public:
     }
   }
 
-  void setDisplayPushData();
+  void setDisplayPushData() const;
 
-  void setDisplayData();
+  void setDisplayData() const;
 
-  void setDisplayNone();
+  void setDisplayNone() const;
 
-  void setDisplayBatteryConfig(BatteryConfigSettingMode settingMode);
+  // void setDisplayBatteryConfig(BatteryConfigSettingMode settingMode) const;
 
-  void setDisplayVoltOnly();
+  void setDisplayVoltOnly() const;
 
-  void setDisplayDetail();
+  void setDisplayDetail() const;
 
   ValueCounter valueCounter{};
 

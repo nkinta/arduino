@@ -208,7 +208,7 @@ float BatteryController::readAndDrawXiaoBattery()
     return xiaoVolt;
 }
 
-  void BatteryController::setDisplayConfig()
+  void BatteryController::setDisplayConfig() const
   {
     std::vector<String> menuList{"0.0V", "0.5V", "1.0V", "1.5V", "2.0V", "LedOn", "DiscI", "AmpTune", "Decimal"};
 
@@ -227,7 +227,7 @@ float BatteryController::readAndDrawXiaoBattery()
     setDisplayTuneMenu(drawAdafruit, "Config", menuList, valueList, static_cast<int>(configSettingMode));
   }
 
-void BatteryController::setDisplayPushDischarge()
+void BatteryController::setDisplayPushDischarge() const
   {
     for (int i = 0; i < 6; ++i)
     {
@@ -273,7 +273,7 @@ void BatteryController::setDisplayPushDischarge()
     }
   }
 
-    void BatteryController::setDisplayData()
+    void BatteryController::setDisplayData() const
   {
     drawAdafruit.drawFillLine(0);
     for (auto &batteryStatus : batteryStatuses)

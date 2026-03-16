@@ -67,7 +67,7 @@ void SaveBattery::shiftParam(BatteryConfigSettingMode settingMode, int shift)
     }
 }
 
-void SaveBattery::setDisplayBatteryConfig(int index, BatteryConfigSettingMode settingMode)
+void SaveBattery::setDisplayBatteryConfig(int index, BatteryConfigSettingMode settingMode) const
 {
     std::vector<String> menuList{"TargetV", "TargetI", "DiscMode"};
 
@@ -273,7 +273,7 @@ void BatteryInfo::loopSubNormalDischarge()
     analogWrite(writePin, intValue);
 };
 
-void BatteryInfo::setDisplayVoltOnly()
+void BatteryInfo::setDisplayVoltOnly() const
 {
     static constexpr int DISPLAY_MENU_START_COL{3};
     static constexpr int DISPLAY_MENU_OFFSET_COL{5};
@@ -295,7 +295,7 @@ void BatteryInfo::setDisplayVoltOnly()
     drawAdafruit.removeFont();
 };
 
-void BatteryInfo::setDisplayDetail()
+void BatteryInfo::setDisplayDetail() const
 {
     static constexpr int DISPLAY_MENU_START_COL{3};
     static constexpr int DISPLAY_MENU_OFFSET_COL{5};
@@ -415,7 +415,7 @@ void BatteryInfo::setDisplayDetail()
     }
 }
 
-void BatteryInfo::setDisplayNone()
+void BatteryInfo::setDisplayNone() const
 {
     int line{START_LINE};
     drawAdafruit.drawFillLine(line);
@@ -427,21 +427,7 @@ void BatteryInfo::setDisplayNone()
     drawAdafruit.drawFillLine(line);
 }
 
-void BatteryInfo::setDisplayBatteryConfig(BatteryConfigSettingMode settingMode)
-{
-    std::vector<String> menuList{"TargetI", "TargetA", "DiscMode"};
-
-    // String valueStr{String(value, decimal)};
-    String mode{DISC_MODE_NAMES[(uint8_t)saveBattery->disChargeMode]};
-    std::vector<String> valueList{String(saveBattery->targetV, 3), String(saveBattery->targetI), mode};
-
-    String Title{"Battery No."};
-    Title += String(batteryIndex + 1);
-    setDisplayTuneMenu(drawAdafruit, std::move(Title), menuList, valueList, static_cast<int>(settingMode));
-    // displayDischargeFloat(drawAdafruit, "TargetA", "A", saveBattery->targetI);
-}
-
-void BatteryInfo::setDisplayPushData()
+void BatteryInfo::setDisplayPushData() const
 {
 
     ++displayCount;
@@ -464,7 +450,7 @@ void BatteryInfo::setDisplayPushData()
     }
 };
 
-void BatteryInfo::setDisplayData()
+void BatteryInfo::setDisplayData() const
 {
 
     ++displayCount;
@@ -490,7 +476,7 @@ void BatteryInfo::setDisplayData()
         }
         else
         {
-            setDisplayVoltOnly();
+            setDisplayVoltOnly() ;
         }
     }
 };
