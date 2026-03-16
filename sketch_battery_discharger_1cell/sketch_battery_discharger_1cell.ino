@@ -11,8 +11,6 @@ DrawAdafruit drawAdafruit;
 
 VoltageMapping voltageMapping;
 
-int modeIndex = 0;
-
 BatteryController controller;
 
 // the setup function runs once when you press reset or power the board
