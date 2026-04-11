@@ -143,7 +143,7 @@ class BatteryController
     static constexpr int PUSH_BUTTON_4{16}; // 4
     static constexpr int PUSH_BUTTON_ON{1};
 
-    static constexpr int WAKE_UP_PIN{PUSH_BUTTON_L};
+    static constexpr int WAKE_UP_PIN{PUSH_BUTTON_U}; // 14 16 0 10
 
     ButtonStatus buttonLStatus{};
     ButtonStatus buttonRStatus{};

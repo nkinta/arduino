@@ -356,7 +356,7 @@ void BatteryController::shiftParam(int shift)
         }
         else if (configSettingMode == ConfigSettingMode::discISetting)
         {
-            saveConfigData.dischargeI = std::clamp(saveConfigData.dischargeI + (shift * 0.1f), 0.f, 2.4f);
+            saveConfigData.dischargeI = std::clamp(saveConfigData.dischargeI + (shift * 0.1f), 0.2f, 2.0f);
         }
         else if (configSettingMode == ConfigSettingMode::tuneISetting)
         {
