@@ -170,7 +170,7 @@ void BatteryInfo::loopSubPushDischarge()
     analogWrite(writePin, intValue);
 }
 
-void BatteryInfo::preGoSleep() const
+void BatteryInfo::writePinReset() const
 {
     analogWrite(writePin, 0);
 }
@@ -242,36 +242,34 @@ void BatteryInfo::loopSubNormalDischarge()
     {
         if (V > 0.1f)
         {
+            // 放電中
             if (tunedI > 0)
             {
                 nextBatteryStatus = BatteryStatus::Active;
                 if (nextBatteryStatus != currentBatteryStatus)
                 {
+                    // 停止中、初期からの、放電再開
                     reset();
                 }
             }
+            // 放電完了
             else if (tunedI == 0)
             {
                 nextBatteryStatus = BatteryStatus::Stop;
             }
         }
-        /*
-        else
-        {
-          nextBatteryStatus = BatteryStatus::NoBat;
-        }
-        */
     }
     else if (currentBatteryStatus == BatteryStatus::NoBat)
     {
         if (V > 0.1f)
         {
+            // バッテリーセットからの、放電再開
             nextBatteryStatus = BatteryStatus::Active;
-            if (nextBatteryStatus != currentBatteryStatus)
             {
                 reset();
+                milliAmpereHour = 0.f;
+                startTime = millis();
             }
-            startTime = millis();
         }
     }
 
@@ -358,9 +356,16 @@ void BatteryInfo::setDisplayDetail() const
 
     vir_offset = DISPLAY_MENU_START_COL;
     vir_offset += DISPLAY_MENU_OFFSET_COL;
-    const int sec{(millis() - startTime) / 1000.f};
-    const int min{sec / 60.f};
+    int sec{(millis() - startTime) / 1000.f};
+    int min{sec / 60.f};
     // drawAdafruit.drawIntR(sec, vir_offset, line);
+    float displayMilliAmpereHour{milliAmpereHour};
+    if (currentBatteryStatus == BatteryStatus::NoBat)
+    {
+        min = 0;
+        sec = 0;
+        displayMilliAmpereHour = 0.f;
+    }
     char str[128];
     sprintf(str, "%02d:%02d", min, sec % 60);
     drawAdafruit.drawChar(str, vir_offset, line);
@@ -405,7 +410,7 @@ void BatteryInfo::setDisplayDetail() const
 
         vir_offset += 2;
         vir_offset += DISPLAY_MENU_OFFSET_COL;
-        drawAdafruit.drawFloatR(milliAmpereHour, vir_offset, line, DISPLAY_MENU_OFFSET_COL, 1);
+        drawAdafruit.drawFloatR(displayMilliAmpereHour, vir_offset, line, DISPLAY_MENU_OFFSET_COL, 1);
         drawAdafruit.drawString("mah", vir_offset, line);
     }
 
@@ -419,18 +424,6 @@ void BatteryInfo::setDisplayDetail() const
         static std::vector<String> modeNames{String("None"), String("Active"), String("Sleep"), String("Stop"), String("NoBat"), String("Max")};
         drawAdafruit.drawString(modeNames[(uint8_t)currentBatteryStatus], vir_offset + 5, line);
     }
-}
-
-void BatteryInfo::setDisplayNone() const
-{
-    int line{START_LINE};
-    drawAdafruit.drawFillLine(line);
-    ++line;
-    drawAdafruit.drawFillLine(line);
-    ++line;
-    drawAdafruit.drawFillLine(line);
-    ++line;
-    drawAdafruit.drawFillLine(line);
 }
 
 void BatteryInfo::setDisplayPushData() const
@@ -504,5 +497,6 @@ void BatteryInfo::setup()
     pinMode(readPin, INPUT);
     pinMode(writePin, OUTPUT);
     reset();
+    milliAmpereHour = 0.f;
     startTime = millis();
 };

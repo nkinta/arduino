@@ -221,6 +221,8 @@ class BatteryController
 
     bool xiaoVoltFlag{true};
 
+    bool clearDisplayFlag{false};
+
     SaveBatteryConfigData saveBatteryConfigData{};
 
     SaveConfigData saveConfigData{};
@@ -276,6 +278,10 @@ private:
     void setDisplayPushDischarge() const;
 
     void setDisplayData() const;
+
+    void setDisplayNone() const;
+
+    void writePinReset();
 
     void goDeepSleep();
 

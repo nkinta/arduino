@@ -72,7 +72,7 @@ struct SaveBattery
 
   static constexpr float TARGET_V_MAX{1.60f};
   static constexpr float TARGET_V_MIN{0.9f};
-  static constexpr float TARGET_I_MAX{1.8f}; // 2SK4017 MOSFETの特性上 0.1Aの時に2.24V 0.5Aの時に2.6V 1.0Aの時に2.8V 2Aの時にMOSのゲート電圧が3.2V
+  static constexpr float TARGET_I_MAX{2.0f}; // 2SK4017 MOSFETの特性上 0.1Aの時に2.24V 0.5Aの時に2.6V 1.0Aの時に2.8V 2Aの時にMOSのゲート電圧が3.2V
   static constexpr float TARGET_I_MIN{0.4f};
 
   float targetV{1.4f};
@@ -162,7 +162,7 @@ public:
 
   void loopSubNormalDischarge();
 
-  void preGoSleep() const;
+  void writePinReset() const;
 
   void reset()
   {
@@ -200,8 +200,6 @@ public:
   void setDisplayPushData() const;
 
   void setDisplayData() const;
-
-  void setDisplayNone() const;
 
   void setDisplayVoltOnly() const;
 

@@ -271,6 +271,12 @@ void BatteryController::setDisplayPushDischarge() const
     }
 }
 
+void BatteryController::setDisplayNone() const
+{
+    // int line{0};
+    drawAdafruit.clearDisplay();
+}
+
 void BatteryController::setDisplayData() const
 {
     drawAdafruit.drawFillLine(0);
@@ -280,16 +286,21 @@ void BatteryController::setDisplayData() const
     }
 };
 
+void BatteryController::writePinReset()
+{
+    for (auto &batteryStatus : batteryStatuses)
+    {
+        batteryStatus.writePinReset();
+    }
+}
+
 void BatteryController::goDeepSleep()
 {
     drawAdafruit.clearDisplay();
     drawAdafruit.display();
     LowPower.attachInterruptWakeup(WAKE_UP_PIN, callback, RISING);
 
-    for (auto &batteryStatus : batteryStatuses)
-    {
-        batteryStatus.preGoSleep();
-    }
+    writePinReset();
 
     LowPower.deepSleep(365 * 24 * 3600 * 1000); // 7 * 24 * 3600 * 1000 // one week
 }
@@ -362,7 +373,7 @@ void BatteryController::shiftParam(int shift)
         }
         else if (configSettingMode == ConfigSettingMode::discISetting)
         {
-            saveConfigData.dischargeI = std::clamp(saveConfigData.dischargeI + (shift * 0.1f), 0.2f, 2.0f);
+            saveConfigData.dischargeI = std::clamp(saveConfigData.dischargeI + (shift * 0.1f), 0.2f, 2.5f);
         }
         else if (configSettingMode == ConfigSettingMode::tuneISetting)
         {
@@ -432,6 +443,7 @@ void BatteryController::updateButtonStatus()
                     currentBatterySettingIndex = 1;
                 }
             }
+            writePinReset();
             nextMode = MainMode::BatteryConfigMode;
         }
     }
@@ -568,6 +580,7 @@ void BatteryController::updateButtonStatus()
     {
         if (mainMode == MainMode::DischargerMode || mainMode == MainMode::PushDischargerMode)
         {
+            writePinReset();
             cachedMainMode = mainMode;
             nextMode = MainMode::ConfigMode;
         }
@@ -586,7 +599,7 @@ void BatteryController::updateButtonStatus()
     }
     else if (buttonONStatus.getVal() == PushType::PushLong)
     {
-
+        clearDisplayFlag = true;
     }
     else if (buttonONStatus.getVal() == PushType::ReleaseLong)
     {
@@ -883,46 +896,55 @@ void BatteryController::loopSub()
 #endif
     updateButtonStatus();
 
-    if (mainMode == MainMode::DischargerMode)
+    if (clearDisplayFlag)
     {
-        for (auto &batteryStatus : batteryStatuses)
+        setDisplayNone();
+        drawAdafruit.display();
+    }
+    else
+    {
+        if (mainMode == MainMode::DischargerMode)
         {
-            batteryStatus.loopSubNormalDischarge();
-        }
+            for (auto &batteryStatus : batteryStatuses)
+            {
+                batteryStatus.loopSubNormalDischarge();
+            }
 
-        if ((loopSubCount % 3) == 0)
-        {
-            setDisplayData();
-            drawAdafruit.display();
+            if ((loopSubCount % 3) == 0)
+            {
+                setDisplayData();
+                drawAdafruit.display();
+            }
         }
-    }
-    else if (mainMode == MainMode::BatteryConfigMode)
-    {
-        if ((loopSubCount % 3) == 0)
+        else if (mainMode == MainMode::BatteryConfigMode)
         {
-            setDisplayBatteryConfig();
-            drawAdafruit.display();
+            if ((loopSubCount % 3) == 0)
+            {
+                setDisplayBatteryConfig();
+                drawAdafruit.display();
+            }
         }
-    }
-    else if (mainMode == MainMode::ConfigMode)
-    {
-        if ((loopSubCount % 3) == 0)
+        else if (mainMode == MainMode::ConfigMode)
         {
-            setDisplayConfig();
-            drawAdafruit.display();
+            if ((loopSubCount % 3) == 0)
+            {
+                setDisplayConfig();
+                drawAdafruit.display();
+            }
         }
-    }
-    else if (mainMode == MainMode::PushDischargerMode)
-    {
-        for (auto &batteryStatus : batteryStatuses)
+        else if (mainMode == MainMode::PushDischargerMode)
         {
-            batteryStatus.loopSubPushDischarge();
-        }
+            for (auto &batteryStatus : batteryStatuses)
+            {
+                batteryStatus.loopSubPushDischarge();
+            }
 
-        if ((loopSubCount % 3) == 0)
-        {
-            setDisplayPushDischarge();
-            drawAdafruit.display();
+            if ((loopSubCount % 3) == 0)
+            {
+                setDisplayPushDischarge();
+                drawAdafruit.display();
+            }
         }
     }
+
 };
