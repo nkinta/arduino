@@ -261,6 +261,8 @@ private:
 
     void updateButtonStatus();
 
+    void updateButtonStatusOld();
+
     void changeTargetBatterySetting(int shift)
     {
         currentBatterySettingIndex = (currentBatterySettingIndex + shift) % batteryConfigNum;
