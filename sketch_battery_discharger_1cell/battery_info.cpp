@@ -170,6 +170,11 @@ void BatteryInfo::loopSubPushDischarge()
     analogWrite(writePin, intValue);
 }
 
+void BatteryInfo::preGoSleep() const
+{
+    analogWrite(writePin, 0);
+}
+
 void BatteryInfo::loopSubNormalDischarge()
 {
     currentBatteryStatus = nextBatteryStatus;

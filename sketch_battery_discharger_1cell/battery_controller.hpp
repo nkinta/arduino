@@ -8,7 +8,9 @@ static constexpr float FPS{30.f};
 static constexpr float SEC{1000.f};
 static constexpr float ONE_FRAME_MS{(1.f / FPS) * SEC};
 
-#undef OLD_PCB
+#undef  OLD_PCB
+#undef  V1_PCB
+#define V2_PCB
 
 enum class MainMode : uint8_t
 {
@@ -105,12 +107,12 @@ class BatteryController
     static constexpr uint8_t XIAO_READ_BAT{PD4};
     static constexpr uint8_t XIAO_READ_BAT_SWITCH{PD3};
 
-#if OLD_PCB
-    static constexpr uint8_t READ1_PIN{0};
-    static constexpr uint8_t READ2_PIN{1};
-#else
+#if defined(V1_PCB) || defined(V2_PCB)
     static constexpr uint8_t READ1_PIN{18};
     static constexpr uint8_t READ2_PIN{17};
+#else
+    static constexpr uint8_t READ1_PIN{0};
+    static constexpr uint8_t READ2_PIN{1};
 #endif
     static constexpr uint8_t READ3_PIN{6};
     static constexpr uint8_t READ4_PIN{7};
@@ -120,27 +122,13 @@ class BatteryController
     static constexpr uint8_t WRITE3_PIN{8};
     static constexpr uint8_t WRITE4_PIN{9};
 
-#if OLD_PCB
-    static constexpr int PUSH_BUTTON_L{15};
-    static constexpr int PUSH_BUTTON_D{14};
-    static constexpr int PUSH_BUTTON_U{13}; // Arduino15\packages\SiliconLabs\hardware\silabs\3.0.0\variants\xiao_mg24\pins_arduino.h // DEEP_SLEEP_ESCAPE_PIN
-    static constexpr int PUSH_BUTTON_R{12}; // 12(SAND11_RX) or 10
-    static constexpr int PUSH_BUTTON_C{11};
-
-    static constexpr int WAKE_UP_PIN{PUSH_BUTTON_D};
-
-    ButtonStatus buttonLStatus{};
-    ButtonStatus buttonRStatus{};
-    ButtonStatus buttonUStatus{};
-    ButtonStatus buttonDStatus{};
-    ButtonStatus buttonCStatus{};
-#else
+#if defined(V1_PCB)
     static constexpr int PUSH_BUTTON_L{15}; // 1
     static constexpr int PUSH_BUTTON_D{0};  //
     static constexpr int PUSH_BUTTON_U{10}; //
     static constexpr int PUSH_BUTTON_R{13}; // 3 // Arduino15\packages\SiliconLabs\hardware\silabs\3.0.0\variants\xiao_mg24\pins_arduino.h // DEEP_SLEEP_ESCAPE_PIN
-    static constexpr int PUSH_BUTTON_C{14}; // 2
-    static constexpr int PUSH_BUTTON_4{16}; // 4
+    static constexpr int PUSH_BUTTON_A{14}; // 2
+    static constexpr int PUSH_BUTTON_B{16}; // 4
     static constexpr int PUSH_BUTTON_ON{1};
 
     static constexpr int WAKE_UP_PIN{PUSH_BUTTON_U}; // 14 16 0 10
@@ -149,10 +137,43 @@ class BatteryController
     ButtonStatus buttonRStatus{};
     ButtonStatus buttonUStatus{};
     ButtonStatus buttonDStatus{};
-    ButtonStatus buttonCStatus{};
+    ButtonStatus buttonAStatus{};
 
     ButtonStatus buttonONStatus{};
-    ButtonStatus button4Status{};
+    ButtonStatus buttonBStatus{};
+#elif defined(V2_PCB)
+    static constexpr int PUSH_BUTTON_L{15}; // 1
+    static constexpr int PUSH_BUTTON_D{0};  //
+    static constexpr int PUSH_BUTTON_U{1}; //
+    static constexpr int PUSH_BUTTON_R{14}; // 2 // Arduino15\packages\SiliconLabs\hardware\silabs\3.0.0\variants\xiao_mg24\pins_arduino.h // DEEP_SLEEP_ESCAPE_PIN
+    static constexpr int PUSH_BUTTON_A{13}; // 3
+    static constexpr int PUSH_BUTTON_B{16}; // 4
+    static constexpr int PUSH_BUTTON_ON{10};
+
+    static constexpr int WAKE_UP_PIN{PUSH_BUTTON_ON}; // 14 16 0 10
+
+    ButtonStatus buttonLStatus{};
+    ButtonStatus buttonRStatus{};
+    ButtonStatus buttonUStatus{};
+    ButtonStatus buttonDStatus{};
+    ButtonStatus buttonAStatus{};
+
+    ButtonStatus buttonONStatus{};
+    ButtonStatus buttonBStatus{};
+#else
+    static constexpr int PUSH_BUTTON_L{15};
+    static constexpr int PUSH_BUTTON_D{14};
+    static constexpr int PUSH_BUTTON_U{13}; // Arduino15\packages\SiliconLabs\hardware\silabs\3.0.0\variants\xiao_mg24\pins_arduino.h // DEEP_SLEEP_ESCAPE_PIN
+    static constexpr int PUSH_BUTTON_R{12}; // 12(SAND11_RX) or 10
+    static constexpr int PUSH_BUTTON_A{11};
+
+    static constexpr int WAKE_UP_PIN{PUSH_BUTTON_D};
+
+    ButtonStatus buttonLStatus{};
+    ButtonStatus buttonRStatus{};
+    ButtonStatus buttonUStatus{};
+    ButtonStatus buttonDStatus{};
+    ButtonStatus buttonAStatus{};
 #endif
 
     std::vector<BatteryInfo> batteryStatuses{

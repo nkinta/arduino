@@ -162,6 +162,8 @@ public:
 
   void loopSubNormalDischarge();
 
+  void preGoSleep() const;
+
   void reset()
   {
     tunedI = -1;

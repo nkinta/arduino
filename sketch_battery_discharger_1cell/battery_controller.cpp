@@ -100,7 +100,7 @@ void BatteryController::setup()
     pinMode(PUSH_BUTTON_D, INPUT_PULLUP);
     pinMode(PUSH_BUTTON_U, INPUT_PULLUP);
     pinMode(PUSH_BUTTON_R, INPUT_PULLUP);
-    pinMode(PUSH_BUTTON_C, INPUT_PULLUP);
+    pinMode(PUSH_BUTTON_A, INPUT_PULLUP);
 
     /*
     pinMode(READ1_PIN, INPUT);
@@ -119,9 +119,24 @@ void BatteryController::setup()
     buttonRStatus.init(PUSH_BUTTON_R);
     buttonUStatus.init(PUSH_BUTTON_U);
     buttonDStatus.init(PUSH_BUTTON_D);
-    buttonCStatus.init(PUSH_BUTTON_C);
+    buttonAStatus.init(PUSH_BUTTON_A);
 
-#if OLD_PCB
+#if defined(V1_PCB) || defined(V2_PCB)
+    int val{HIGH};
+    val = digitalRead(PUSH_BUTTON_A);
+    if (val != LOW) // val == LOW)
+    {
+        loadMain();
+        loadConfig();
+    }
+
+    pinMode(PUSH_BUTTON_ON, INPUT_PULLUP);
+    pinMode(PUSH_BUTTON_B, INPUT_PULLUP);
+
+    buttonONStatus.init(PUSH_BUTTON_ON);
+    buttonBStatus.init(PUSH_BUTTON_B);
+#else
+
     int val{HIGH};
     val = digitalRead(PUSH_BUTTON_D);
     if (val != LOW) // val == LOW)
@@ -130,20 +145,6 @@ void BatteryController::setup()
         loadConfig();
     }
 
-#else
-    int val{HIGH};
-    val = digitalRead(PUSH_BUTTON_C);
-    if (val != LOW) // val == LOW)
-    {
-        loadMain();
-        loadConfig();
-    }
-
-    pinMode(PUSH_BUTTON_ON, INPUT_PULLUP);
-    pinMode(PUSH_BUTTON_4, INPUT_PULLUP);
-
-    buttonONStatus.init(PUSH_BUTTON_ON);
-    button4Status.init(PUSH_BUTTON_4);
 #endif
 
     updateBatterySaveData();
@@ -285,7 +286,12 @@ void BatteryController::goDeepSleep()
     drawAdafruit.display();
     LowPower.attachInterruptWakeup(WAKE_UP_PIN, callback, RISING);
 
-    LowPower.deepSleep(20 * 1000); // 7 * 24 * 3600 * 1000 // one week
+    for (auto &batteryStatus : batteryStatuses)
+    {
+        batteryStatus.preGoSleep();
+    }
+
+    LowPower.deepSleep(365 * 24 * 3600 * 1000); // 7 * 24 * 3600 * 1000 // one week
 }
 
 void BatteryController::shiftTargetBattery(int shift)
@@ -392,7 +398,11 @@ void BatteryController::updateButtonStatus()
     int numBattery{0};
 
     checkFlag = buttonLStatus.check();
+#if defined(V1_PCB)
     numBattery = 0;
+#else
+    numBattery = 0;
+#endif
     if (checkFlag == 1)
     {
         if (mainMode == MainMode::DischargerMode)
@@ -427,7 +437,11 @@ void BatteryController::updateButtonStatus()
     }
 
     checkFlag = buttonRStatus.check();
+#if defined(V1_PCB)
     numBattery = 2;
+#else
+    numBattery = 1;
+#endif
     if (checkFlag == 1)
     {
         if (mainMode == MainMode::DischargerMode)
@@ -484,8 +498,7 @@ void BatteryController::updateButtonStatus()
         buttonDFlag = true;
     }
 
-#if OLD_PCB
-#else
+#if defined(V1_PCB) || defined(V2_PCB)
     checkFlag = buttonONStatus.check();
     if (checkFlag == 1)
     {
@@ -503,49 +516,13 @@ void BatteryController::updateButtonStatus()
         goDeepSleep();
     }
 
-    checkFlag = button4Status.check();
+    checkFlag = buttonBStatus.check();
+#if defined(V1_PCB)
     numBattery = 3;
-    if (checkFlag == 1)
-    {
-    }
-    else if (checkFlag == 2)
-    {
-    }
-    else if (checkFlag == 4)
-    {
-        if (mainMode == MainMode::PushDischargerMode)
-        {
-            batteryStatuses[numBattery].pushOn(dischargeI);
-        }
-    }
-    else if (checkFlag == 0)
-    {
-        if (mainMode == MainMode::PushDischargerMode)
-        {
-            batteryStatuses[numBattery].pushOff();
-        }
-    }
-
+#else
+    numBattery = 3;
 #endif
-
-    checkFlag = buttonCStatus.check();
-    numBattery = 1;
     if (checkFlag == 1)
-    {
-        if (mainMode == MainMode::DischargerMode)
-        {
-            changeActive(1);
-        }
-        else if (mainMode == MainMode::ConfigMode)
-        {
-        }
-        else if (mainMode == MainMode::BatteryConfigMode)
-        {
-            changeTargetBatterySetting(1);
-            shiftTargetBattery(1);
-        }
-    }
-    else if (checkFlag == 2)
     {
         if (mainMode == MainMode::DischargerMode)
         {
@@ -578,6 +555,51 @@ void BatteryController::updateButtonStatus()
             }
             mainMode = cachedMainMode;
         }
+    }
+    else if (checkFlag == 2)
+    {
+    }
+    else if (checkFlag == 4)
+    {
+        if (mainMode == MainMode::PushDischargerMode)
+        {
+            batteryStatuses[numBattery].pushOn(dischargeI);
+        }
+    }
+    else if (checkFlag == 0)
+    {
+        if (mainMode == MainMode::PushDischargerMode)
+        {
+            batteryStatuses[numBattery].pushOff();
+        }
+    }
+
+#endif
+
+    checkFlag = buttonAStatus.check();
+#if defined(V1_PCB)
+    numBattery = 1;
+#else
+    numBattery = 2;
+#endif
+    if (checkFlag == 1)
+    {
+        if (mainMode == MainMode::DischargerMode)
+        {
+            changeActive(1);
+        }
+        else if (mainMode == MainMode::ConfigMode)
+        {
+        }
+        else if (mainMode == MainMode::BatteryConfigMode)
+        {
+            changeTargetBatterySetting(1);
+            shiftTargetBattery(1);
+        }
+    }
+    else if (checkFlag == 2)
+    {
+
     }
     else if (checkFlag == 4)
     {
