@@ -35,6 +35,16 @@ enum class ConfigSettingMode : uint8_t
     Max,
 };
 
+enum class PushType : uint8_t
+{
+    None,
+    ReleaseShort,
+    ReleaseLong,
+    PushShort,
+    PushLong,
+    Max,
+};
+
 struct ButtonStatus
 {
 
@@ -45,9 +55,9 @@ struct ButtonStatus
         pinID = inPinID;
     }
 
-    int getVal() const
+    PushType getVal() const
     {
-        return status;
+        return cachedType;
     }
 
     void update()
@@ -78,12 +88,12 @@ struct ButtonStatus
         {
             if ((millis() - pushedMillis) > LONG_PUSH_MILLIS)
             {
-                status = 2;
+                cachedType = PushType::ReleaseLong;
                 return;
             }
             else
             {
-                status = 1;
+                cachedType = PushType::ReleaseShort;
                 return;
             }
         }
@@ -91,20 +101,20 @@ struct ButtonStatus
         {
             if ((millis() - pushedMillis) > LONG_PUSH_MILLIS)
             {
-                status = 3;
+                cachedType = PushType::PushLong;
                 return;
             }
             else
             {
-                status = 4;
+                cachedType = PushType::PushShort;
                 return;
             }
         }
 
-        status = 0;
+        cachedType = PushType::None;
     }
 
-    int status{0};
+    PushType cachedType{0};
     int pinID{0};
     bool buttonFlag{false};
     bool buttonOldFlag{false};
