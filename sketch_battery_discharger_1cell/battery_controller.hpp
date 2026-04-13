@@ -45,7 +45,12 @@ struct ButtonStatus
         pinID = inPinID;
     }
 
-    int check()
+    int getVal() const
+    {
+        return status;
+    }
+
+    void update()
     {
         int val = digitalRead(pinID);
         if (val == LOW)
@@ -73,28 +78,33 @@ struct ButtonStatus
         {
             if ((millis() - pushedMillis) > LONG_PUSH_MILLIS)
             {
-                return 2;
+                status = 2;
+                return;
             }
             else
             {
-                return 1;
+                status = 1;
+                return;
             }
         }
         else if (buttonFlag)
         {
             if ((millis() - pushedMillis) > LONG_PUSH_MILLIS)
             {
-                return 3;
+                status = 3;
+                return;
             }
             else
             {
-                return 4;
+                status = 4;
+                return;
             }
         }
 
-        return 0;
+        status = 0;
     }
 
+    int status{0};
     int pinID{0};
     bool buttonFlag{false};
     bool buttonOldFlag{false};
@@ -260,8 +270,6 @@ private:
     void goDeepSleep();
 
     void updateButtonStatus();
-
-    void updateButtonStatusOld();
 
     void changeTargetBatterySetting(int shift)
     {
