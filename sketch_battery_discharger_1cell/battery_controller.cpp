@@ -514,6 +514,8 @@ void BatteryController::updateButtonStatus()
             saveConfig();
             for (auto &batteryStatus : batteryStatuses)
             {
+                batteryStatus.currentBatteryStatus = BatteryStatus::None;
+                batteryStatus.nextBatteryStatus = BatteryStatus::None;
                 batteryStatus.reset();
             }
             nextMode = cachedMainMode;
@@ -596,6 +598,8 @@ void BatteryController::updateButtonStatus()
         {
             for (auto &batteryStatus : batteryStatuses)
             {
+                batteryStatus.currentBatteryStatus = BatteryStatus::None;
+                batteryStatus.nextBatteryStatus = BatteryStatus::None;
                 batteryStatus.reset();
             }
             nextMode = MainMode::PushDischargerMode;
@@ -613,246 +617,6 @@ void BatteryController::updateButtonStatus()
     mainMode = nextMode;
 
 }
-
-/*
-void BatteryController::updateButtonStatusOld()
-{
-    int pushType{0};
-
-    bool buttonUFlag{false};
-    bool buttonDFlag{false};
-    int numBattery{0};
-
-    pushType = buttonLStatus.check();
-#if defined(V1_PCB)
-    numBattery = 0;
-#else
-    numBattery = 0;
-#endif
-    if (pushType == 1)
-    {
-        if (mainMode == MainMode::DischargerMode)
-        {
-            shiftTargetBattery(-1);
-        }
-        else if (mainMode == MainMode::ConfigMode || mainMode == MainMode::BatteryConfigMode)
-        {
-            shiftParam(-1);
-        }
-    }
-    else if (pushType == 4)
-    {
-        if (mainMode == MainMode::PushDischargerMode)
-        {
-            batteryStatuses[numBattery].pushOn(dischargeI);
-        }
-    }
-    else if (pushType == 3)
-    {
-        if (mainMode == MainMode::ConfigMode || mainMode == MainMode::BatteryConfigMode)
-        {
-            shiftParam(-1);
-        }
-    }
-    else if (pushType == 0)
-    {
-        if (mainMode == MainMode::PushDischargerMode)
-        {
-            batteryStatuses[numBattery].pushOff();
-        }
-    }
-
-    pushType = buttonRStatus.check();
-#if defined(V1_PCB)
-    numBattery = 2;
-#else
-    numBattery = 1;
-#endif
-    if (pushType == 1)
-    {
-        if (mainMode == MainMode::DischargerMode)
-        {
-            shiftTargetBattery(1);
-        }
-        else if (mainMode == MainMode::ConfigMode || mainMode == MainMode::BatteryConfigMode)
-        {
-            shiftParam(1);
-        }
-    }
-    else if (pushType == 4)
-    {
-        if (mainMode == MainMode::PushDischargerMode)
-        {
-            batteryStatuses[numBattery].pushOn(dischargeI);
-        }
-    }
-    else if (pushType == 3)
-    {
-        if (mainMode == MainMode::ConfigMode || mainMode == MainMode::BatteryConfigMode)
-        {
-            shiftParam(1);
-        }
-    }
-    else if (pushType == 0)
-    {
-        if (mainMode == MainMode::PushDischargerMode)
-        {
-            batteryStatuses[numBattery].pushOff();
-        }
-    }
-
-    pushType = buttonUStatus.check();
-    if (pushType == 1)
-    {
-        changeSettingMode(-1);
-    }
-    else if (pushType == 3 || pushType == 4)
-    {
-        buttonUFlag = true;
-    }
-
-    pushType = buttonDStatus.check();
-    if (pushType == 1)
-    {
-        changeSettingMode(1);
-    }
-    else if (pushType == 2)
-    {
-    }
-    else if (pushType == 3 || pushType == 4)
-    {
-        buttonDFlag = true;
-    }
-
-#if defined(V1_PCB) || defined(V2_PCB)
-    pushType = buttonONStatus.check();
-    if (pushType == 1)
-    {
-        if (mainMode == MainMode::PushDischargerMode)
-        {
-            mainMode = MainMode::DischargerMode;
-        }
-        else
-        {
-            mainMode = MainMode::PushDischargerMode;
-        }
-    }
-    else if (pushType == 2)
-    {
-        goDeepSleep();
-    }
-
-    pushType = buttonBStatus.check();
-#if defined(V1_PCB)
-    numBattery = 3;
-#else
-    numBattery = 3;
-#endif
-    if (pushType == 1)
-    {
-        if (mainMode == MainMode::DischargerMode)
-        {
-            if (batteryConfigNum == 2)
-            {
-                if (currentBatteryIndex == 0 || currentBatteryIndex == 1)
-                {
-                    currentBatterySettingIndex = 0;
-                }
-                else if (currentBatteryIndex == 2 || currentBatteryIndex == 3)
-                {
-                    currentBatterySettingIndex = 1;
-                }
-            }
-            mainMode = MainMode::BatteryConfigMode;
-        }
-        else if (mainMode == MainMode::BatteryConfigMode)
-        {
-            updateBatterySaveData();
-            saveMain();
-            mainMode = MainMode::DischargerMode;
-        }
-        else if (mainMode == MainMode::ConfigMode)
-        {
-            updateConfigSaveData();
-            saveConfig();
-            for (auto &batteryStatus : batteryStatuses)
-            {
-                batteryStatus.reset();
-            }
-            mainMode = cachedMainMode;
-        }
-    }
-    else if (pushType == 2)
-    {
-    }
-    else if (pushType == 4)
-    {
-        if (mainMode == MainMode::PushDischargerMode)
-        {
-            batteryStatuses[numBattery].pushOn(dischargeI);
-        }
-    }
-    else if (pushType == 0)
-    {
-        if (mainMode == MainMode::PushDischargerMode)
-        {
-            batteryStatuses[numBattery].pushOff();
-        }
-    }
-
-#endif
-
-    pushType = buttonAStatus.check();
-#if defined(V1_PCB)
-    numBattery = 1;
-#else
-    numBattery = 2;
-#endif
-    if (pushType == 1)
-    {
-        if (mainMode == MainMode::DischargerMode)
-        {
-            changeActive(1);
-        }
-        else if (mainMode == MainMode::ConfigMode)
-        {
-        }
-        else if (mainMode == MainMode::BatteryConfigMode)
-        {
-            changeTargetBatterySetting(1);
-            shiftTargetBattery(1);
-        }
-    }
-    else if (pushType == 2)
-    {
-
-    }
-    else if (pushType == 4)
-    {
-        if (mainMode == MainMode::PushDischargerMode)
-        {
-            batteryStatuses[numBattery].pushOn(dischargeI);
-        }
-    }
-    else if (pushType == 0)
-    {
-        if (mainMode == MainMode::PushDischargerMode)
-        {
-            batteryStatuses[numBattery].pushOff();
-        }
-    }
-
-    if ((buttonUFlag == true) && (buttonDFlag == true))
-    {
-        if (mainMode == MainMode::DischargerMode || mainMode == MainMode::PushDischargerMode)
-        {
-            cachedMainMode = mainMode;
-            mainMode = MainMode::ConfigMode;
-        }
-    }
-}
-
-*/
 
 void BatteryController::loopSub()
 {
@@ -880,6 +644,7 @@ void BatteryController::loopSub()
     if (!xiaoVoltFlag)
     {
         drawAdafruit.display();
+        // goDeepSleep();
         return;
     }
 

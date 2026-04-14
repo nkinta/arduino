@@ -180,6 +180,8 @@ public:
     startSeconds = 0;
     endSeconds = 0;
     dischargedCount = 0;
+    milliAmpereHour = 0;
+    ohm = 0;
   }
 
   void pushOn(float inI)

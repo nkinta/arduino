@@ -238,7 +238,7 @@ void BatteryInfo::loopSubNormalDischarge()
         }
     }
 
-    if (currentBatteryStatus == BatteryStatus::Active || currentBatteryStatus == BatteryStatus::Stop || currentBatteryStatus == BatteryStatus::None)
+    if (currentBatteryStatus == BatteryStatus::Active || currentBatteryStatus == BatteryStatus::Stop)
     {
         if (V > 0.1f)
         {
@@ -248,7 +248,7 @@ void BatteryInfo::loopSubNormalDischarge()
                 nextBatteryStatus = BatteryStatus::Active;
                 if (nextBatteryStatus != currentBatteryStatus)
                 {
-                    // 放電完了&初期からの、放電再開
+                    // 放電完了からの、放電再開
                     miniReset();
                 }
                 if (dischargedCount == 0)
@@ -276,15 +276,13 @@ void BatteryInfo::loopSubNormalDischarge()
             }
         }
     }
-    else if (currentBatteryStatus == BatteryStatus::NoBat)
+    else if (currentBatteryStatus == BatteryStatus::NoBat || currentBatteryStatus == BatteryStatus::None)
     {
         if (V > 0.1f)
         {
-            // バッテリーセットからの、放電再開
+            // バッテリーセット&初期からの、放電再開
             nextBatteryStatus = BatteryStatus::Active;
-            {
-                reset();
-            }
+            reset();
         }
         startSeconds = 0;
         endSeconds = 0;
@@ -527,6 +525,4 @@ void BatteryInfo::setup()
     pinMode(readPin, INPUT);
     pinMode(writePin, OUTPUT);
     reset();
-
-
 };
