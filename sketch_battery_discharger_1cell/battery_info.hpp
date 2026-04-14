@@ -164,18 +164,29 @@ public:
 
   void writePinReset() const;
 
-  void reset()
+  void miniReset()
   {
     tunedI = -1;
     I = 0;
     loopCount = 0;
   };
 
+  void reset()
+  {
+    miniReset();
+    milliAmpereHour = 0.f;
+    startMillis = millis();
+    endMillis = millis();
+    startSeconds = 0;
+    endSeconds = 0;
+    dischargedCount = 0;
+  }
+
   void pushOn(float inI)
   {
     if (tunedI == 0.f)
     {
-      startTime = millis();
+      startMillis = millis();
     }
     tunedI = inI;
   }
@@ -216,8 +227,12 @@ public:
   uint8_t batteryIndex{0};
   uint8_t readPin{0};
   uint8_t writePin{0};
-  unsigned long startTime{0};
+  unsigned long startMillis{0}; // 放電開始時
+  unsigned long endMillis{0}; // 放電終了時
+  int startSeconds{0};
+  int endSeconds{0};
 
+  int dischargedCount{0}; // 放電完了した回数
   float V{0.f};
   float sleepV{0.f};
   float targetV{1.40f};

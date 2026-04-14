@@ -594,6 +594,10 @@ void BatteryController::updateButtonStatus()
         }
         else
         {
+            for (auto &batteryStatus : batteryStatuses)
+            {
+                batteryStatus.reset();
+            }
             nextMode = MainMode::PushDischargerMode;
         }
     }
