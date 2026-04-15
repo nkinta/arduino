@@ -481,6 +481,12 @@ void BatteryController::updateButtonStatus()
         {
             updateBatterySaveData();
             saveMain();
+            for (auto &batteryStatus : batteryStatuses)
+            {
+                batteryStatus.nextBatteryStatus = BatteryStatus::None;
+                batteryStatus.activeFlag = false;
+                batteryStatus.reset();
+            }
             nextMode = MainMode::DischargerMode;
         }
     }
@@ -514,8 +520,8 @@ void BatteryController::updateButtonStatus()
             saveConfig();
             for (auto &batteryStatus : batteryStatuses)
             {
-                batteryStatus.currentBatteryStatus = BatteryStatus::None;
                 batteryStatus.nextBatteryStatus = BatteryStatus::None;
+                batteryStatus.activeFlag = false;
                 batteryStatus.reset();
             }
             nextMode = cachedMainMode;
@@ -598,8 +604,8 @@ void BatteryController::updateButtonStatus()
         {
             for (auto &batteryStatus : batteryStatuses)
             {
-                batteryStatus.currentBatteryStatus = BatteryStatus::None;
                 batteryStatus.nextBatteryStatus = BatteryStatus::None;
+                batteryStatus.activeFlag = false;
                 batteryStatus.reset();
             }
             nextMode = MainMode::PushDischargerMode;

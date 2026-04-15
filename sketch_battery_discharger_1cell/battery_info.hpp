@@ -21,7 +21,8 @@ enum class TimeStatus : uint8_t
 
 enum class DisChargeMode : uint8_t
 {
-  DischargeNormal,
+  DischargeHold,
+  DischargeHoldP,  
   DischargeStop,
   Max,
 };
@@ -77,7 +78,7 @@ struct SaveBattery
 
   float targetV{1.4f};
   float targetI{1.f};
-  DisChargeMode disChargeMode{DisChargeMode::DischargeNormal};
+  DisChargeMode disChargeMode{DisChargeMode::DischargeHold};
   bool padding{true};
 
   void shiftParam(BatteryConfigSettingMode settingMode, int shift);
@@ -206,6 +207,7 @@ public:
     }
     else
     {
+      nextBatteryStatus = BatteryStatus::None;
       reset();
       activeFlag = true;
     }
@@ -245,7 +247,7 @@ public:
   float targetI{0.2f};
   float milliAmpereHour{0.0f};
   unsigned long ampereHourTime{0};
-  DisChargeMode disChargeMode{DisChargeMode::DischargeNormal};
+  DisChargeMode disChargeMode{DisChargeMode::DischargeHold};
  
   SaveBattery* saveBattery{nullptr};
 

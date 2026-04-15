@@ -8,7 +8,7 @@
 extern VoltageMapping voltageMapping;
 extern DrawAdafruit drawAdafruit;
 
-const std::vector<String> DISC_MODE_NAMES{String("Cont"), String("Stop")};
+const std::vector<String> DISC_MODE_NAMES{String("Hold"), String("HoldP"), String("Stop")};
 
 const std::vector<std::string> DISC_MODE_NAMES_NEW{std::string("Cont"), std::string("Stop")};
 
@@ -81,20 +81,18 @@ void SaveBattery::setDisplayBatteryConfig(int index, BatteryConfigSettingMode se
 {
     std::vector<String> menuList{"TargetV", "TargetI", "DiscMode"};
 
-    // String valueStr{String(value, decimal)};
-    String mode{DISC_MODE_NAMES[(uint8_t)disChargeMode]};
+    const String& mode{DISC_MODE_NAMES[static_cast<uint8_t>(disChargeMode)]};
     std::vector<String> valueList{String(targetV, 3), String(targetI), mode};
 
-    String Title{"Battery Pair."};
-    Title += String(index + 1);
-    setDisplayTuneMenu(drawAdafruit, std::move(Title), menuList, valueList, static_cast<int>(settingMode));
-    // displayDischargeFloat(drawAdafruit, "TargetA", "A", saveBattery->targetI);
+    String title{"Battery Pair."};
+    title += String(index + 1);
+    setDisplayTuneMenu(drawAdafruit, std::move(title), menuList, valueList, static_cast<int>(settingMode));
 }
 
 float BatteryInfo::calcI(const float targetI, const float V, const float targetV, const DisChargeMode disChargeMode)
 {
     float resultI{0};
-    if (disChargeMode == DisChargeMode::DischargeNormal)
+    if (disChargeMode == DisChargeMode::DischargeHold || disChargeMode == DisChargeMode::DischargeHoldP)
     {
         if (V - targetV > 0.01f)
         {
@@ -232,9 +230,25 @@ void BatteryInfo::loopSubNormalDischarge()
         }
         else if (currentTimeStatus == TimeStatus::SleepEnd)
         {
+            bool stopContinueFlag{false};
+            if (currentBatteryStatus == BatteryStatus::Stop)
+            {
+                if (disChargeMode == DisChargeMode::DischargeStop)
+                {
+                    stopContinueFlag = true;
+                }
+                else if (disChargeMode == DisChargeMode::DischargeHoldP)
+                {
+                    if (endSeconds > 60.f)
+                    {
+                        stopContinueFlag = true;
+                    }
+                }
+            }
+
             unsigned long temp{valueCounter.calcValue()};
             sleepV = voltageMapping.getVoltage(temp);
-            if (currentBatteryStatus == BatteryStatus::Stop && disChargeMode == DisChargeMode::DischargeStop)
+            if (stopContinueFlag)
             {
                 tunedI = 0;
             }
@@ -242,6 +256,7 @@ void BatteryInfo::loopSubNormalDischarge()
             {
                 tunedI = calcI(targetI, sleepV, targetV, disChargeMode);
             }
+
 
             I = std::max(0.f, tunedI);
         }
@@ -335,7 +350,7 @@ void BatteryInfo::setDisplayDetail() const
     drawAdafruit.drawFillLine(line);
 
     vir_offset = DISPLAY_MENU_START_COL;
-    drawAdafruit.drawStringC(DISC_MODE_NAMES[(uint8_t)disChargeMode], line);
+    drawAdafruit.drawStringC(DISC_MODE_NAMES[static_cast<uint8_t>(disChargeMode)], line);
 
     ++line;
     drawAdafruit.drawFillLine(line);

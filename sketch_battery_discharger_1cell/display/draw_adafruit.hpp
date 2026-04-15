@@ -252,7 +252,7 @@ public:
   void drawIntR(int value, float offsetX, float offsetY) {
     String valueInt{String(value)};
     _display.setCursor(CHARSIZEX * (offsetX - valueInt.length()), CHARSIZEY * offsetY);
-    _display.print(valueInt.c_str());
+    _display.print(valueInt);
   }
 
   void display()
