@@ -1,3 +1,4 @@
+#include <string>
 #include "battery_info.hpp"
 #include "display/draw_adafruit.hpp"
 #include "voltage_mapping.hpp"
@@ -8,6 +9,14 @@ extern VoltageMapping voltageMapping;
 extern DrawAdafruit drawAdafruit;
 
 const std::vector<String> DISC_MODE_NAMES{String("Cont"), String("Stop")};
+
+const std::vector<std::string> DISC_MODE_NAMES_NEW{std::string("Cont"), std::string("Stop")};
+
+void printMinuteSecond(int sec, char* str)
+{
+    int min{sec / 60.f};
+    sprintf(str, "%02d:%02d", min, sec % 60);
+}
 
 void setDisplayTuneMenu(DrawAdafruit &adafruit, String &&title, std::vector<String> &menuList, std::vector<String> &valueList, int targetIndex)
 {
@@ -311,17 +320,11 @@ void BatteryInfo::setDisplayVoltOnly() const
     ++line;
     drawAdafruit.setFont();
 
-    drawAdafruit.adaDisplay.setCursor(28, 32);
-    drawAdafruit.adaDisplay.print(String(sleepV, 3) + String("V"));
+    drawAdafruit.setCursor(28, 32);
+    drawAdafruit.printString(String(sleepV, 3) + String("V"));
 
     drawAdafruit.removeFont();
 };
-
-void printMinuteSecond(int sec, char* str)
-{
-    int min{sec / 60.f};
-    sprintf(str, "%02d:%02d", min, sec % 60);
-}
 
 void BatteryInfo::setDisplayDetail() const
 {

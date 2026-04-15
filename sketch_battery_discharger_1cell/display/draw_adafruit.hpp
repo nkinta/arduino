@@ -2,7 +2,7 @@
 
 #include <Wire.h>
 #define ARDUINO_ARCH_RP2040 // undef HAVE_PORTREG
-#include <Adafruit_GFX.h>
+// #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #undef ARDUINO_ARCH_RP2040
 
@@ -34,12 +34,12 @@ class DrawAdafruit
 
 public:
 
-  Adafruit_SSD1306 adaDisplay{SCREEN_WIDTH, SCREEN_HEIGHT, &Wire}; // 
+  Adafruit_SSD1306 _display{SCREEN_WIDTH, SCREEN_HEIGHT, &Wire}; // 
 
   void setupDisplay(void) {
     // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
     // adaDisplay.clearDisplay();
-    if (!adaDisplay.begin(SSD1306_SWITCHCAPVCC, 0x3C, true, true)) { // Address 0x3C for 128x32
+    if (!_display.begin(SSD1306_SWITCHCAPVCC, 0x3C, true, true)) { // Address 0x3C for 128x32
       Serial.println(F("SSD1306 allocation failed"));
       for (;;); // Don't proceed, loop forever
     }
@@ -52,11 +52,21 @@ public:
 
     // adaDisplay.setFont(&Picopixel);
 
-    adaDisplay.clearDisplay();
+    _display.clearDisplay();
     // drawCar();
-    adaDisplay.display();
-    adaDisplay.setTextSize(TEXT_SIZE);
-    adaDisplay.setTextColor(SSD1306_WHITE);
+    _display.display();
+    _display.setTextSize(TEXT_SIZE);
+    _display.setTextColor(SSD1306_WHITE);
+  }
+
+  void setCursor(int16_t x, int16_t y)
+  {
+    _display.setCursor(x, y);
+  }
+
+  void printString(const String& val)
+  {
+    _display.print(val);
   }
 
   void setFont()
@@ -66,17 +76,17 @@ public:
     // FreeMonoOblique9pt7b
     // FreeSerifBoldItalic9pt7b
     // FreeMono9pt7b
-    adaDisplay.setFont(&FreeMono9pt7b);
+    _display.setFont(&FreeMono9pt7b);
   }
 
   void removeFont()
   {
-    adaDisplay.setFont(nullptr);
+    _display.setFont(nullptr);
   }
 
   void setTextSize(uint8_t size)
   {
-    adaDisplay.setTextSize(size);
+    _display.setTextSize(size);
   }
 
   void drawBat(const float voltage)
@@ -125,7 +135,7 @@ public:
 
     drawFillLine(6);
     // drawFloat(voltage, 10, 6);
-    adaDisplay.drawBitmap(110, 55, bat_meter[index], 16, 8, WHITE);
+    _display.drawBitmap(110, 55, bat_meter[index], 16, 8, WHITE);
   }
 
   void drawCar()
@@ -142,20 +152,20 @@ public:
       epd_bitmap_untitled
     };
 
-    adaDisplay.drawBitmap(3, 3, &epd_bitmap_untitled[0], 16, 16, WHITE);
+    _display.drawBitmap(3, 3, &epd_bitmap_untitled[0], 16, 16, WHITE);
   }
 
   void clearDisplay()
   {
-    adaDisplay.clearDisplay();
-    adaDisplay.setTextSize(TEXT_SIZE);
-    adaDisplay.setTextColor(SSD1306_WHITE);
+    _display.clearDisplay();
+    _display.setTextSize(TEXT_SIZE);
+    _display.setTextColor(SSD1306_WHITE);
   }
 
   void drawFillLine(int line)
   {
-    adaDisplay.fillRect(0, CHARSIZEY * line, SCREEN_WIDTH, CHARSIZEY, BLACK);
-    // adaDisplay.drawFastHLine(0, CHARSIZEY + 5, 128, BLACK);
+    _display.fillRect(0, CHARSIZEY * line, SCREEN_WIDTH, CHARSIZEY, BLACK);
+    // _display.drawFastHLine(0, CHARSIZEY + 5, 128, BLACK);
   }
 
   void drawStringC(const String& string, int offsetY)
@@ -173,61 +183,61 @@ public:
   }
 
   void drawFloat(float value, float offsetX, float offsetY, int decimal = 2) {
-    adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
+    _display.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
 
-    adaDisplay.print(String(value, decimal));
+    _display.print(String(value, decimal));
   }
 
   void drawInt(int value, float offsetX, float offsetY) {
-    adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
+    _display.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
 
-    adaDisplay.print(value);
+    _display.print(value);
   }
 
   void drawFloatUnit(const char* chr, float value, float offsetX, float offsetY)
   {
     drawFloatR(value, offsetX, offsetY);
-    adaDisplay.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
-    adaDisplay.print(chr);   
+    _display.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
+    _display.print(chr);   
   }
 
   void drawIntUnit(const char* chr, int value, float offsetX, float offsetY)
   {
     drawIntR(value, offsetX, offsetY);
-    adaDisplay.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
-    adaDisplay.print(chr);   
+    _display.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
+    _display.print(chr);   
   }
 
   void drawRPM(int value, float offsetX, float offsetY)
   {
     const char chr[]{"rpm"};
     drawIntR(value, offsetX, offsetY);
-    adaDisplay.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
-    adaDisplay.print(chr);
+    _display.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
+    _display.print(chr);
   }
 
   void drawV(float value, float offsetX, float offsetY)
   {
     const char chr[]{"v"};
     drawFloatR(value, offsetX, offsetY);
-    adaDisplay.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
-    adaDisplay.print(chr);
+    _display.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
+    _display.print(chr);
   }
 
   void drawKm(float value, float offsetX, float offsetY)
   {
      const char chr[]{"km/h"};
     drawFloatR(value, offsetX, offsetY);
-    adaDisplay.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
-    adaDisplay.print(chr);   
+    _display.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
+    _display.print(chr);   
   }
   
   void drawI(float value, float offsetX, float offsetY)
   {
     const char chr[]{"a"};
     drawFloatR(value, offsetX, offsetY);
-    adaDisplay.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
-    adaDisplay.print(chr);
+    _display.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
+    _display.print(chr);
   }
 
   void drawFloatR(float value, float offsetX, float offsetY, int size = 4, int decimal = 2) {
@@ -235,26 +245,26 @@ public:
     const int offset{valueStr.length()};
     const int clearOffset{max(offset, size)};
 
-    adaDisplay.setCursor(CHARSIZEX * (offsetX - offset), CHARSIZEY * offsetY);
-    adaDisplay.print(String(value, decimal));
+    _display.setCursor(CHARSIZEX * (offsetX - offset), CHARSIZEY * offsetY);
+    _display.print(String(value, decimal));
   }
 
   void drawIntR(int value, float offsetX, float offsetY) {
     String valueInt{String(value)};
-    adaDisplay.setCursor(CHARSIZEX * (offsetX - valueInt.length()), CHARSIZEY * offsetY);
-    adaDisplay.print(valueInt.c_str());
+    _display.setCursor(CHARSIZEX * (offsetX - valueInt.length()), CHARSIZEY * offsetY);
+    _display.print(valueInt.c_str());
   }
 
   void display()
   {
-    adaDisplay.display();
+    _display.display();
   }
 
   void drawChar(const char* chr, int offsetX, int offsetY) {
-    // adaDisplay.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * sizeChar, CHARSIZEY * 1, BLACK);
-    adaDisplay.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
-    // adaDisplay.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
-    adaDisplay.print(chr);
+    // display.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * sizeChar, CHARSIZEY * 1, BLACK);
+    _display.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
+    // display.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
+    _display.print(chr);
   }
 
 
