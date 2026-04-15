@@ -206,6 +206,7 @@ public:
     }
     else
     {
+      reset();
       activeFlag = true;
     }
   }
