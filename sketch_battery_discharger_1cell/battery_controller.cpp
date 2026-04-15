@@ -627,14 +627,14 @@ void BatteryController::loopSub()
 
         if (xiaoVoltFlag)
         {
-            if (xiaoVolt < (VOLT3_3 + 0.1f))
+            if (xiaoVolt < (VOLT3_3 + 0.2f))
             {
                 xiaoVoltFlag = false;
             }
         }
         else
         {
-            if (xiaoVolt > (VOLT3_3 + 0.2f))
+            if (xiaoVolt > (VOLT3_3 + 0.3f))
             {
                 xiaoVoltFlag = true;
             }

@@ -187,6 +187,12 @@ void BatteryInfo::loopSubNormalDischarge()
         V = sleepV;
         tunedI = 0;
         I = 0;
+
+        startMillis = millis();
+        endMillis = millis();
+        startSeconds = 0;
+        endSeconds = 0;
+        dischargedCount = 0;
     }
     else
     {
@@ -255,6 +261,10 @@ void BatteryInfo::loopSubNormalDischarge()
                 {
                     startSeconds = (millis() - startMillis) / 1000;
                 }
+                else
+                {
+                    endSeconds = (millis() - endMillis) / 1000;
+                }
             }
             // 放電完了
             else if (tunedI == 0)
@@ -284,8 +294,11 @@ void BatteryInfo::loopSubNormalDischarge()
             nextBatteryStatus = BatteryStatus::Active;
             reset();
         }
+        startMillis = millis();
+        endMillis = millis();
         startSeconds = 0;
         endSeconds = 0;
+        dischargedCount = 0;
     }
 
     int intValue = calcPWMValue(I, ACTIVE_RATE, batteryController->calibI);
