@@ -8,9 +8,9 @@
 extern VoltageMapping voltageMapping;
 extern DrawAdafruit drawAdafruit;
 
-const std::vector<String> DISC_MODE_NAMES{String("Hold"), String("HoldP"), String("Stop")};
+const std::vector<String> DISC_MODE_NAMES{String("Keep"), String("KeepMin"), String("Stop")};
 
-const std::vector<std::string> DISC_MODE_NAMES_NEW{std::string("Cont"), std::string("Stop")};
+const std::vector<String> APERTURE_MODE_NAMES{String("Normal"), String("Mild"), String("None")};
 
 void printMinuteSecond(int sec, char* str)
 {
@@ -75,24 +75,35 @@ void SaveBattery::shiftParam(BatteryConfigSettingMode settingMode, int shift)
     {
         targetI = std::clamp(targetI + 0.1f * static_cast<float>(shift), TARGET_I_MIN, TARGET_I_MAX);
     }
+    else if (settingMode == BatteryConfigSettingMode::HoldMinSetting)
+    {
+        holdMin = std::clamp(holdMin + shift, HOLDMIN_MIN, HOLDMIN_MAX);
+    }
+    else if (settingMode == BatteryConfigSettingMode::ApatureChangeSetting)
+    {
+        const int nextModeIndex{(static_cast<int>(ApertureMode::Max) + static_cast<int>(apertureMode) + shift) % static_cast<int>(ApertureMode::Max)}; 
+        apertureMode = static_cast<ApertureMode>(nextModeIndex);
+    }
 }
 
 void SaveBattery::setDisplayBatteryConfig(int index, BatteryConfigSettingMode settingMode) const
 {
-    std::vector<String> menuList{"TargetV", "TargetI", "DiscMode"};
+    std::vector<String> menuList{"TargetV", "TargetI", "DiscMode", "Aperture", "KeepMin"};
 
-    const String& mode{DISC_MODE_NAMES[static_cast<uint8_t>(disChargeMode)]};
-    std::vector<String> valueList{String(targetV, 3), String(targetI), mode};
+    const String& disChargeModeString{DISC_MODE_NAMES[static_cast<uint8_t>(disChargeMode)]};
+    const String& apertureModeString{APERTURE_MODE_NAMES[static_cast<uint8_t>(apertureMode)]};
+
+    std::vector<String> valueList{String(targetV, 3), String(targetI), disChargeModeString, apertureModeString, String(holdMin)};
 
     String title{"Battery Pair."};
     title += String(index + 1);
     setDisplayTuneMenu(drawAdafruit, std::move(title), menuList, valueList, static_cast<int>(settingMode));
 }
 
-float BatteryInfo::calcI(const float targetI, const float V, const float targetV, const DisChargeMode disChargeMode)
+float BatteryInfo::calcI(const float targetI, const float V, const float targetV, const ApertureMode apertureMode)
 {
     float resultI{0};
-    if (disChargeMode == DisChargeMode::DischargeHold || disChargeMode == DisChargeMode::DischargeHoldP)
+    if (apertureMode == ApertureMode::Normal)
     {
         if (V - targetV > 0.01f)
         {
@@ -111,24 +122,32 @@ float BatteryInfo::calcI(const float targetI, const float V, const float targetV
             resultI = 0.f;
         }
     }
-    else if (disChargeMode == DisChargeMode::DischargeStop)
+    else if (apertureMode == ApertureMode::Mild)
     {
-        if (V - targetV > 0.01f)
+        if (V - targetV > 0.02f)
         {
             resultI = targetI;
         }
-        else if (V - targetV > 0.004f)
+        else if (V - targetV > 0.01f)
         {
             resultI = targetI * 0.5f;
         }
-        else if (V - targetV > 0)
+        else if (V - targetV > 0.004f)
         {
             resultI = targetI * 0.2f;
+        }
+        else if (V - targetV > 0)
+        {
+            resultI = 0.1;
         }
         else
         {
             resultI = 0.f;
         }
+    }
+    else if (apertureMode == ApertureMode::None)
+    {
+        resultI = targetI;
     }
 
     return resultI;
@@ -239,7 +258,7 @@ void BatteryInfo::loopSubNormalDischarge()
                 }
                 else if (disChargeMode == DisChargeMode::DischargeHoldP)
                 {
-                    if (endSeconds > 60.f)
+                    if (endSeconds > (holdMin * 60))
                     {
                         stopContinueFlag = true;
                     }
@@ -254,7 +273,7 @@ void BatteryInfo::loopSubNormalDischarge()
             }
             else
             {
-                tunedI = calcI(targetI, sleepV, targetV, disChargeMode);
+                tunedI = calcI(targetI, sleepV, targetV, apertureMode);
             }
 
 

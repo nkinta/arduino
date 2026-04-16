@@ -27,11 +27,22 @@ enum class DisChargeMode : uint8_t
   Max,
 };
 
+enum class ApertureMode : uint8_t
+{
+  Normal,
+  Mild,  
+  None,
+  Max,
+};
+
+
 enum class BatteryConfigSettingMode : uint8_t
 {
   DischargeVSetting,
   DischargeISetting,
   ModeChangeSetting,
+  ApatureChangeSetting,
+  HoldMinSetting,
   Max,
 };
 
@@ -75,10 +86,15 @@ struct SaveBattery
   static constexpr float TARGET_V_MIN{0.9f};
   static constexpr float TARGET_I_MAX{2.0f}; // 2SK4017 MOSFETの特性上 0.1Aの時に2.24V 0.5Aの時に2.6V 1.0Aの時に2.8V 2Aの時にMOSのゲート電圧が3.2V
   static constexpr float TARGET_I_MIN{0.4f};
+  static constexpr int HOLDMIN_MIN{1};
+  static constexpr int HOLDMIN_MAX{180};
 
   float targetV{1.4f};
   float targetI{1.f};
   DisChargeMode disChargeMode{DisChargeMode::DischargeHold};
+  ApertureMode apertureMode{ApertureMode::Normal};
+  int holdMin{30};
+
   bool padding{true};
 
   void shiftParam(BatteryConfigSettingMode settingMode, int shift);
@@ -147,7 +163,7 @@ class BatteryInfo
 
   TimeStatus currentTimeStatus{TimeStatus::Active};
 
-  static float calcI(const float targetI, const float V, const float targetV, const DisChargeMode disChargeMode);
+  static float calcI(const float targetI, const float V, const float targetV, const ApertureMode apertureMode);
 
   static int calcPWMValue(float ampere, float active_rate, float calibI);
 
@@ -248,7 +264,9 @@ public:
   float milliAmpereHour{0.0f};
   unsigned long ampereHourTime{0};
   DisChargeMode disChargeMode{DisChargeMode::DischargeHold};
- 
+  ApertureMode apertureMode{ApertureMode::Normal};
+  int holdMin{30};
+
   SaveBattery* saveBattery{nullptr};
 
   const BatteryController* batteryController{nullptr};
