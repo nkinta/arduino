@@ -1,6 +1,6 @@
 #include "battery_controller.hpp"
 
-// #define DEEP_SLEEP_ESCAPE_PIN   D13
+// #define DEEP_SLEEP_ESCAPE_PIN   D14
 #include <ArduinoLowPower.h>
 #include <EEPROM.h>
 #include "display/draw_adafruit.hpp"
@@ -129,6 +129,11 @@ void BatteryController::setup()
         loadMain();
         loadConfig();
     }
+    else
+    {
+        saveMain();
+        saveConfig();
+    }
 
     pinMode(PUSH_BUTTON_ON, INPUT_PULLUP);
     pinMode(PUSH_BUTTON_B, INPUT_PULLUP);
@@ -143,6 +148,11 @@ void BatteryController::setup()
     {
         loadMain();
         loadConfig();
+    }
+    else
+    {
+        saveMain();
+        saveConfig();
     }
 
 #endif
@@ -375,7 +385,7 @@ void BatteryController::shiftParam(int shift)
         }
         else if (configSettingMode == ConfigSettingMode::discISetting)
         {
-            saveConfigData.dischargeI = std::clamp(saveConfigData.dischargeI + (shift * 0.1f), 0.2f, 2.5f);
+            saveConfigData.dischargeI = std::clamp(saveConfigData.dischargeI + (shift * 0.1f), 0.4f, 3.f);
         }
         else if (configSettingMode == ConfigSettingMode::tuneISetting)
         {

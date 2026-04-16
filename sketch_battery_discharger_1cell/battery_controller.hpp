@@ -146,8 +146,8 @@ class BatteryController
     static constexpr int PUSH_BUTTON_L{15}; // 1
     static constexpr int PUSH_BUTTON_D{0};  //
     static constexpr int PUSH_BUTTON_U{10}; //
-    static constexpr int PUSH_BUTTON_R{13}; // 3 // Arduino15\packages\SiliconLabs\hardware\silabs\3.0.0\variants\xiao_mg24\pins_arduino.h // DEEP_SLEEP_ESCAPE_PIN
-    static constexpr int PUSH_BUTTON_A{14}; // 2
+    static constexpr int PUSH_BUTTON_R{13}; // 3 
+    static constexpr int PUSH_BUTTON_A{14}; // 2 // Arduino15\packages\SiliconLabs\hardware\silabs\3.0.0\variants\xiao_mg24\pins_arduino.h // DEEP_SLEEP_ESCAPE_PIN
     static constexpr int PUSH_BUTTON_B{16}; // 4
     static constexpr int PUSH_BUTTON_ON{1};
 
@@ -166,7 +166,7 @@ class BatteryController
     static constexpr int PUSH_BUTTON_D{0};  //
     static constexpr int PUSH_BUTTON_U{1}; //
     static constexpr int PUSH_BUTTON_R{14}; // 2 // Arduino15\packages\SiliconLabs\hardware\silabs\3.0.0\variants\xiao_mg24\pins_arduino.h // DEEP_SLEEP_ESCAPE_PIN
-    static constexpr int PUSH_BUTTON_A{13}; // 3
+    static constexpr int PUSH_BUTTON_A{13}; // 3 
     static constexpr int PUSH_BUTTON_B{16}; // 4
     static constexpr int PUSH_BUTTON_ON{10};
 
