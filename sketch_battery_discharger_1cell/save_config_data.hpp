@@ -11,7 +11,7 @@ struct SaveConfigData
   };
   int id{SAVEDATA_ID};
   int ver{5};
-  int voltDatas[VOLT_DATA_SIZE] = {0, 0, 0, 0, 0};
+  int voltDatas[VOLT_DATA_SIZE] = {-10, 0, 0, 0, 0};
   uint8_t ledOnFlag{0};
   float dischargeI{2.f};
   float calibI{1.f};

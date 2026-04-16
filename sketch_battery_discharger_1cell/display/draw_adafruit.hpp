@@ -116,15 +116,15 @@ public:
     };
 
     uint8_t index{0};
-    if (voltage > 3.95f)
+    if (voltage > 4.05f)
     {
       index = 3;
     }
-    else if (voltage > 3.75f)
+    else if (voltage > 3.85f)
     {
       index = 2;
     }
-    else if (voltage > 3.4f)
+    else if (voltage > 3.6f)
     {
       index = 1;
     }

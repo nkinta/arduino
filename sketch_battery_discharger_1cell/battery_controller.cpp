@@ -189,7 +189,7 @@ void BatteryController::updateBatterySaveData()
         batteryStatus.targetI = saveBattery->targetI;
         batteryStatus.targetV = saveBattery->targetV;
         batteryStatus.disChargeMode = saveBattery->disChargeMode;
-        batteryStatus.apertureMode = saveBattery->apertureMode;
+        batteryStatus.reduceMode = saveBattery->reduceMode;
         batteryStatus.holdMin = saveBattery->holdMin;
         // batteryStatus.activeFlag = saveBattery->activeFlag;
 

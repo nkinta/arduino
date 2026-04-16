@@ -22,15 +22,16 @@ enum class TimeStatus : uint8_t
 enum class DisChargeMode : uint8_t
 {
   DischargeHold,
-  DischargeHoldP,  
+  DischargeHoldP,
   DischargeStop,
   Max,
 };
 
-enum class ApertureMode : uint8_t
+enum class ReduceMode : uint8_t
 {
+  Soft,
   Normal,
-  Mild,  
+  Hard,
   None,
   Max,
 };
@@ -92,7 +93,7 @@ struct SaveBattery
   float targetV{1.4f};
   float targetI{1.f};
   DisChargeMode disChargeMode{DisChargeMode::DischargeHold};
-  ApertureMode apertureMode{ApertureMode::Normal};
+  ReduceMode reduceMode{ReduceMode::Normal};
   int holdMin{30};
 
   bool padding{true};
@@ -163,7 +164,7 @@ class BatteryInfo
 
   TimeStatus currentTimeStatus{TimeStatus::Active};
 
-  static float calcI(const float targetI, const float V, const float targetV, const ApertureMode apertureMode);
+  static float calcI(const float targetI, const float V, const float targetV, const ReduceMode reduceMode);
 
   static int calcPWMValue(float ampere, float active_rate, float calibI);
 
@@ -264,7 +265,7 @@ public:
   float milliAmpereHour{0.0f};
   unsigned long ampereHourTime{0};
   DisChargeMode disChargeMode{DisChargeMode::DischargeHold};
-  ApertureMode apertureMode{ApertureMode::Normal};
+  ReduceMode reduceMode{ReduceMode::Normal};
   int holdMin{30};
 
   SaveBattery* saveBattery{nullptr};

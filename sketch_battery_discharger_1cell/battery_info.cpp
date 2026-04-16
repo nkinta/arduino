@@ -10,7 +10,7 @@ extern DrawAdafruit drawAdafruit;
 
 const std::vector<String> DISC_MODE_NAMES{String("Keep"), String("KeepMin"), String("Stop")};
 
-const std::vector<String> APERTURE_MODE_NAMES{String("Normal"), String("Mild"), String("None")};
+const std::vector<String> REDUCE_MODE_NAMES{String("Mild"), String("Normal"), String("Hard"), String("None")};
 
 void printMinuteSecond(int sec, char* str)
 {
@@ -81,71 +81,83 @@ void SaveBattery::shiftParam(BatteryConfigSettingMode settingMode, int shift)
     }
     else if (settingMode == BatteryConfigSettingMode::ApatureChangeSetting)
     {
-        const int nextModeIndex{(static_cast<int>(ApertureMode::Max) + static_cast<int>(apertureMode) + shift) % static_cast<int>(ApertureMode::Max)}; 
-        apertureMode = static_cast<ApertureMode>(nextModeIndex);
+        const int nextModeIndex{(static_cast<int>(ReduceMode::Max) + static_cast<int>(reduceMode) + shift) % static_cast<int>(ReduceMode::Max)}; 
+        reduceMode = static_cast<ReduceMode>(nextModeIndex);
     }
 }
 
 void SaveBattery::setDisplayBatteryConfig(int index, BatteryConfigSettingMode settingMode) const
 {
-    std::vector<String> menuList{"TargetV", "TargetI", "DiscMode", "Aperture", "KeepMin"};
+    std::vector<String> menuList{"TargetV", "TargetI", "DiscMode", "ReduceI", "KeepMin"};
 
     const String& disChargeModeString{DISC_MODE_NAMES[static_cast<uint8_t>(disChargeMode)]};
-    const String& apertureModeString{APERTURE_MODE_NAMES[static_cast<uint8_t>(apertureMode)]};
+    const String& reduceModeString{REDUCE_MODE_NAMES[static_cast<uint8_t>(reduceMode)]};
 
-    std::vector<String> valueList{String(targetV, 3), String(targetI), disChargeModeString, apertureModeString, String(holdMin)};
+    std::vector<String> valueList{String(targetV, 3), String(targetI), disChargeModeString, reduceModeString, String(holdMin)};
 
     String title{"Battery Pair."};
     title += String(index + 1);
     setDisplayTuneMenu(drawAdafruit, std::move(title), menuList, valueList, static_cast<int>(settingMode));
 }
 
-float BatteryInfo::calcI(const float targetI, const float V, const float targetV, const ApertureMode apertureMode)
+float BatteryInfo::calcI(const float targetI, const float V, const float targetV, const ReduceMode reduceMode)
 {
+    float constexpr MIN_CURRENT{0.2};
     float resultI{0};
-    if (apertureMode == ApertureMode::Normal)
+    if (reduceMode == ReduceMode::Normal)
     {
         if (V - targetV > 0.01f)
         {
-            resultI = targetI;
+            resultI = std::max(targetI, MIN_CURRENT);
         }
         else if (V - targetV > 0.004f)
         {
-            resultI = targetI * 0.5f;
+            resultI = std::max(targetI * 0.5f, MIN_CURRENT);
         }
         else if (V - targetV > 0)
         {
-            resultI = targetI * 0.2f;
+            resultI = std::max(targetI * 0.2f, MIN_CURRENT);
         }
         else
         {
             resultI = 0.f;
         }
     }
-    else if (apertureMode == ApertureMode::Mild)
+    else if (reduceMode == ReduceMode::Soft)
     {
         if (V - targetV > 0.02f)
         {
-            resultI = targetI;
+            resultI = std::max(targetI, MIN_CURRENT);
         }
-        else if (V - targetV > 0.01f)
+        else if (V - targetV > 0.008f)
         {
-            resultI = targetI * 0.5f;
-        }
-        else if (V - targetV > 0.004f)
-        {
-            resultI = targetI * 0.2f;
+            resultI = std::max(targetI * 0.5f, MIN_CURRENT);
         }
         else if (V - targetV > 0)
         {
-            resultI = 0.1;
+            resultI = std::max(targetI * 0.2f, MIN_CURRENT);
         }
         else
         {
             resultI = 0.f;
         }
     }
-    else if (apertureMode == ApertureMode::None)
+    else if (reduceMode == ReduceMode::Hard)
+    {
+        if (V - targetV > 0.004f)
+        {
+            resultI = std::max(targetI, MIN_CURRENT);
+        }
+        else if (V - targetV > 0)
+        {
+            resultI = std::max(targetI * 0.3f, MIN_CURRENT);
+        }
+        else
+        {
+            resultI = 0.f;
+        }
+    }
+    else if (reduceMode == ReduceMode::None)
     {
         resultI = targetI;
     }
@@ -273,7 +285,7 @@ void BatteryInfo::loopSubNormalDischarge()
             }
             else
             {
-                tunedI = calcI(targetI, sleepV, targetV, apertureMode);
+                tunedI = calcI(targetI, sleepV, targetV, reduceMode);
             }
 
 
