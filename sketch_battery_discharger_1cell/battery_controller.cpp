@@ -458,6 +458,19 @@ void BatteryController::updateButtonStatus()
             writePinReset();
             nextMode = MainMode::BatteryConfigMode;
         }
+
+        pushType = buttonONStatus.getVal();
+        if (pushType == PushType::ReleaseShort)
+        {
+            for (auto &batteryStatus : batteryStatuses)
+            {
+                batteryStatus.nextBatteryStatus = BatteryStatus::None;
+                batteryStatus.activeFlag = false;
+                batteryStatus.reset();
+            }
+            nextMode = MainMode::PushDischargerMode;
+        }
+
     }
     else if (mainMode == MainMode::BatteryConfigMode)
     {
@@ -594,6 +607,12 @@ void BatteryController::updateButtonStatus()
         {
             batteryStatuses[numBattery].pushOff();
         }
+
+        pushType = buttonONStatus.getVal();
+        if (pushType == PushType::ReleaseShort)
+        {
+            nextMode = MainMode::DischargerMode;
+        }
     }
 
     if ((buttonUStatus.getVal() == PushType::PushShort || buttonUStatus.getVal() == PushType::PushLong) && (buttonDStatus.getVal() == PushType::PushShort || buttonDStatus.getVal() == PushType::PushLong))
@@ -606,24 +625,7 @@ void BatteryController::updateButtonStatus()
         }
     }
 
-    if (buttonONStatus.getVal() == PushType::ReleaseShort)
-    {
-        if (mainMode == MainMode::PushDischargerMode)
-        {
-            nextMode = MainMode::DischargerMode;
-        }
-        else
-        {
-            for (auto &batteryStatus : batteryStatuses)
-            {
-                batteryStatus.nextBatteryStatus = BatteryStatus::None;
-                batteryStatus.activeFlag = false;
-                batteryStatus.reset();
-            }
-            nextMode = MainMode::PushDischargerMode;
-        }
-    }
-    else if (buttonONStatus.getVal() == PushType::PushLong)
+    if (buttonONStatus.getVal() == PushType::PushLong)
     {
         clearDisplayFlag = true;
     }

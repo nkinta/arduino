@@ -103,16 +103,17 @@ void SaveBattery::setDisplayBatteryConfig(int index, BatteryConfigSettingMode se
 float BatteryInfo::calcI(const float targetI, const float V, const float targetV, const ReduceMode reduceMode)
 {
     float constexpr MIN_CURRENT{0.2};
+    float constexpr MIDDLE_MIN_CURRENT{0.4};
     float resultI{0};
     if (reduceMode == ReduceMode::Normal)
     {
         if (V - targetV > 0.01f)
         {
-            resultI = std::max(targetI, MIN_CURRENT);
+            resultI = std::max(targetI, MIDDLE_MIN_CURRENT);
         }
         else if (V - targetV > 0.004f)
         {
-            resultI = std::max(targetI * 0.5f, MIN_CURRENT);
+            resultI = std::max(targetI * 0.5f, MIDDLE_MIN_CURRENT);
         }
         else if (V - targetV > 0)
         {
@@ -127,11 +128,11 @@ float BatteryInfo::calcI(const float targetI, const float V, const float targetV
     {
         if (V - targetV > 0.02f)
         {
-            resultI = std::max(targetI, MIN_CURRENT);
+            resultI = std::max(targetI, MIDDLE_MIN_CURRENT);
         }
         else if (V - targetV > 0.008f)
         {
-            resultI = std::max(targetI * 0.5f, MIN_CURRENT);
+            resultI = std::max(targetI * 0.5f, MIDDLE_MIN_CURRENT);
         }
         else if (V - targetV > 0)
         {
@@ -146,7 +147,7 @@ float BatteryInfo::calcI(const float targetI, const float V, const float targetV
     {
         if (V - targetV > 0.004f)
         {
-            resultI = std::max(targetI, MIN_CURRENT);
+            resultI = std::max(targetI, MIDDLE_MIN_CURRENT);
         }
         else if (V - targetV > 0)
         {
