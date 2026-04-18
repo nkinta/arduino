@@ -5,7 +5,6 @@
 #include "save_config_data.hpp"
 #include "battery_controller.hpp"
 
-extern VoltageMapping voltageMapping;
 extern DrawAdafruit drawAdafruit;
 
 const std::vector<String> DISC_MODE_NAMES{String("Keep"), String("KeepMin"), String("Stop")};
@@ -191,7 +190,7 @@ void BatteryInfo::loopSubPushDischarge()
     unsigned long temp{valueCounter.calcValue()};
     if (tunedI > 0.01f)
     {
-        V = voltageMapping.getVoltage(temp);
+        V = batteryController->voltageMapping.getVoltage(temp);
 
         if ((tunedI > 0.f) && (sleepV - V) && ((millis() - startMillis) < 1000))
         {
@@ -200,7 +199,7 @@ void BatteryInfo::loopSubPushDischarge()
     }
     else
     {
-        sleepV = voltageMapping.getVoltage(temp);
+        sleepV = batteryController->voltageMapping.getVoltage(temp);
         V = sleepV;
     }
 
@@ -222,7 +221,7 @@ void BatteryInfo::loopSubNormalDischarge()
     {
         currentTimeStatus = static_cast<TimeStatus>(NONE_MODE_LOOPS[(++loopCount) % sizeof(NONE_MODE_LOOPS)]);
         unsigned long temp{valueCounter.calcValue()};
-        sleepV = voltageMapping.getVoltage(temp);
+        sleepV = batteryController->voltageMapping.getVoltage(temp);
         V = sleepV;
         tunedI = 0;
         I = 0;
@@ -242,7 +241,7 @@ void BatteryInfo::loopSubNormalDischarge()
         else if (currentTimeStatus == TimeStatus::Active)
         {
             unsigned long temp{valueCounter.calcValue()};
-            V = voltageMapping.getVoltage(temp);
+            V = batteryController->voltageMapping.getVoltage(temp);
             I = std::max(0.f, tunedI);
             if ((tunedI > 0.f) && (sleepV - V))
             {
@@ -252,7 +251,7 @@ void BatteryInfo::loopSubNormalDischarge()
         else if (currentTimeStatus == TimeStatus::SleepStart)
         {
             unsigned long temp{valueCounter.calcValue()};
-            V = voltageMapping.getVoltage(temp);
+            V = batteryController->voltageMapping.getVoltage(temp);
             I = 0;
         }
         else if (currentTimeStatus == TimeStatus::SleepStartRead)
@@ -279,7 +278,7 @@ void BatteryInfo::loopSubNormalDischarge()
             }
 
             unsigned long temp{valueCounter.calcValue()};
-            sleepV = voltageMapping.getVoltage(temp);
+            sleepV = batteryController->voltageMapping.getVoltage(temp);
             if (stopContinueFlag)
             {
                 tunedI = 0;

@@ -3,6 +3,7 @@
 #include "discharger_define.hpp"
 #include "battery_info.hpp"
 #include "save_config_data.hpp"
+#include "voltage_mapping.hpp"
 
 static constexpr float FPS{30.f};
 static constexpr float SEC{1000.f};
@@ -143,6 +144,7 @@ class BatteryController
     static constexpr uint8_t WRITE4_PIN{9};
 
 #if defined(V1_PCB)
+public:
     static constexpr int PUSH_BUTTON_L{15}; // 1
     static constexpr int PUSH_BUTTON_D{0};  //
     static constexpr int PUSH_BUTTON_U{10}; //
@@ -152,7 +154,7 @@ class BatteryController
     static constexpr int PUSH_BUTTON_ON{1};
 
     static constexpr int WAKE_UP_PIN{PUSH_BUTTON_U}; // 14 16 0 10
-
+private:
     ButtonStatus buttonLStatus{};
     ButtonStatus buttonRStatus{};
     ButtonStatus buttonUStatus{};
@@ -162,6 +164,7 @@ class BatteryController
     ButtonStatus buttonONStatus{};
     ButtonStatus buttonBStatus{};
 #elif defined(V2_PCB)
+public:
     static constexpr int PUSH_BUTTON_L{15}; // 1
     static constexpr int PUSH_BUTTON_D{0};  //
     static constexpr int PUSH_BUTTON_U{1}; //
@@ -171,7 +174,7 @@ class BatteryController
     static constexpr int PUSH_BUTTON_ON{10};
 
     static constexpr int WAKE_UP_PIN{PUSH_BUTTON_ON}; // 14 16 0 10
-
+private:
     ButtonStatus buttonLStatus{};
     ButtonStatus buttonRStatus{};
     ButtonStatus buttonUStatus{};
@@ -181,6 +184,7 @@ class BatteryController
     ButtonStatus buttonONStatus{};
     ButtonStatus buttonBStatus{};
 #else
+public:
     static constexpr int PUSH_BUTTON_L{15};
     static constexpr int PUSH_BUTTON_D{14};
     static constexpr int PUSH_BUTTON_U{13}; // Arduino15\packages\SiliconLabs\hardware\silabs\3.0.0\variants\xiao_mg24\pins_arduino.h // DEEP_SLEEP_ESCAPE_PIN
@@ -188,13 +192,14 @@ class BatteryController
     static constexpr int PUSH_BUTTON_A{11};
 
     static constexpr int WAKE_UP_PIN{PUSH_BUTTON_D};
-
+private:
     ButtonStatus buttonLStatus{};
     ButtonStatus buttonRStatus{};
     ButtonStatus buttonUStatus{};
     ButtonStatus buttonDStatus{};
     ButtonStatus buttonAStatus{};
 #endif
+
 
     std::vector<BatteryInfo> batteryStatuses{
         BatteryInfo{READ1_PIN, WRITE1_PIN, 0},
@@ -250,6 +255,8 @@ public:
     float calibI{1.f};
 
     int decimal{3};
+
+    VoltageMapping voltageMapping;
 
 private:
     float readAndDrawXiaoBattery();
@@ -317,6 +324,8 @@ private:
 
 public:
     void setup();
+
+    void preSetup();
 
     void loopWhile()
     {

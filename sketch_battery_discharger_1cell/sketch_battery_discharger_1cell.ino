@@ -5,13 +5,16 @@
 
 #include "battery_controller.hpp"
 #include "display/draw_adafruit.hpp"
-#include "voltage_mapping.hpp"
+
+#include "flappy.hpp"
 
 DrawAdafruit drawAdafruit;
 
-VoltageMapping voltageMapping;
-
 BatteryController controller;
+
+flappy::Game flappyGame;
+
+bool gameModeFlag{false};
 
 // the setup function runs once when you press reset or power the board
 void setup()
@@ -24,13 +27,30 @@ void setup()
   Serial.print("Start!");
 #endif
 
-  drawAdafruit.setupDisplay();
-  controller.setup();
+  controller.preSetup();
+  int PUSH_BUTTON_GAME{BatteryController::PUSH_BUTTON_D};
+  pinMode(PUSH_BUTTON_GAME, INPUT_PULLUP);
+  if (!digitalRead(PUSH_BUTTON_GAME))
+  {
+    gameModeFlag = true;
+    flappyGame.setup();
+  }
+  else
+  {
+    controller.setup();
+  }
+
 }
 
 // the loop function runs over and over again forever
 void loop()
 {
+  if (gameModeFlag)
+  {
+    flappyGame.loop();
+    return;
+  }
+
 #if 0
   digitalWrite(LED_BUILTIN, HIGH); // turn the LED on (HIGH is the voltage level)
   delay(100);                      // wait for a second
@@ -39,8 +59,6 @@ void loop()
 
   return;
 #endif
-
-  drawAdafruit.display();
 
   while (true)
   {

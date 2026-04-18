@@ -1,8 +1,8 @@
 #include <Wire.h>
- #include <Adafruit_GFX.h>
- #include <Adafruit_SSD1306.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
  
-namespace flap {
+namespace flappy {
 
 constexpr int16_t SCREEN_WIDTH{128};
 constexpr int16_t SCREEN_HEIGHT{64};
@@ -24,16 +24,20 @@ constexpr int16_t FLAP_VEL{-44};   // 羽ばたき速度 (x16)
 constexpr int16_t BIRD_X{20};
 constexpr int16_t BIRD_W{6};
 constexpr int16_t BIRD_H{5};
+
+constexpr int16_t INIT_PIPE_SPEED{2};
  
  // パイプ
 constexpr int16_t PIPE_WIDTH{8};
-constexpr int16_t PIPE_GAP{20};  // 通り抜ける隙間
+constexpr int16_t PIPE_GAP{30};  // 通り抜ける隙間
 constexpr int16_t PIPE_GAP_MIN{8};   // 上下の壁との最小距離
 constexpr int16_t NUM_PIPES{2};
 constexpr int16_t PIPE_SPACING{SCREEN_WIDTH / NUM_PIPES};  // 64px間隔
  
 constexpr int16_t FRAME_MS{28};   // ~35fps
- 
+
+class Game {
+
  struct Pipe {
    int x;
    int gapY;    // 隙間の上端Y
@@ -112,16 +116,16 @@ constexpr int16_t FRAME_MS{28};   // ~35fps
    birdY16 = (SCREEN_HEIGHT / 2) * 16;
    velY16  = 0;
    score   = 0;
-   pipeSpeed = 2;
+   pipeSpeed = INIT_PIPE_SPEED;
    initPipes();
    gameState = STATE_PLAYING;
    lastFrame = millis();
  }
  
+ public:
  // -----------------------------------------------
  void setup() {
    pinMode(BTN_FLAP,    INPUT_PULLUP);
-   pinMode(BTN_RESTART, INPUT_PULLUP);
    prevFlap    = false;
    prevRestart = false;
  
@@ -136,7 +140,7 @@ constexpr int16_t FRAME_MS{28};   // ~35fps
  
  void loop() {
    bool flap    = (digitalRead(BTN_FLAP)    == LOW);
-   bool restart = (digitalRead(BTN_RESTART) == LOW);
+   bool restart = (digitalRead(BTN_FLAP) == LOW);
    bool flapPressed    = flap    && !prevFlap;
    bool restartPressed = restart && !prevRestart;
    prevFlap    = flap;
@@ -180,7 +184,7 @@ constexpr int16_t FRAME_MS{28};   // ~35fps
      if (restartPressed) resetGame();
      return;
    }
- 
+
    // ---- プレイ中 ----
    unsigned long now = millis();
    if (now - lastFrame < FRAME_MS) return;
@@ -203,7 +207,7 @@ constexpr int16_t FRAME_MS{28};   // ~35fps
        score++;
        if (score > highScore) highScore = score;
        // 5点ごとに速度アップ（最大4）
-       pipeSpeed = min(4, 2 + score / 5);
+       pipeSpeed = min(4, INIT_PIPE_SPEED + score / 5);
      }
  
      // 画面外に出たら再生成
@@ -235,4 +239,5 @@ constexpr int16_t FRAME_MS{28};   // ~35fps
    display.display();
  }
 
+};
 }

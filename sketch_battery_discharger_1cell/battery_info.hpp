@@ -272,5 +272,6 @@ public:
 
   const BatteryController* batteryController{nullptr};
 
+  friend BatteryController;
 
 };

@@ -8,7 +8,7 @@ struct VoltageMapping
     float volt{0};
   };
 
-  float getVoltage(int input)
+  float getVoltage(int input) const
   {
     const VoltPair *before{nullptr};
     for (const VoltPair &current : mappingData)

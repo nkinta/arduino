@@ -4,10 +4,8 @@
 #include <ArduinoLowPower.h>
 #include <EEPROM.h>
 #include "display/draw_adafruit.hpp"
-#include "voltage_mapping.hpp"
 
 extern DrawAdafruit drawAdafruit;
-extern VoltageMapping voltageMapping;
 
 template <typename T>
 void saveCustomData(byte *p)
@@ -89,6 +87,7 @@ void BatteryController::clearEEPROM()
 
 void BatteryController::setup()
 {
+    drawAdafruit.setupDisplay();
 
     // BatteryReadSetting
     pinMode(XIAO_READ_BAT_SWITCH, OUTPUT);
@@ -102,17 +101,6 @@ void BatteryController::setup()
     pinMode(PUSH_BUTTON_R, INPUT_PULLUP);
     pinMode(PUSH_BUTTON_A, INPUT_PULLUP);
 
-    /*
-    pinMode(READ1_PIN, INPUT);
-    pinMode(READ2_PIN, INPUT);
-    pinMode(READ3_PIN, INPUT);
-    pinMode(READ4_PIN, INPUT);
-
-    pinMode(WRITE1_PIN, OUTPUT);
-    pinMode(WRITE2_PIN, OUTPUT);
-    pinMode(WRITE3_PIN, OUTPUT);
-    pinMode(WRITE4_PIN, OUTPUT);
-    */
     digitalWrite(PA6, HIGH); // FLASH
 
     buttonLStatus.init(PUSH_BUTTON_L);
@@ -160,6 +148,15 @@ void BatteryController::setup()
     updateBatterySaveData();
     updateConfigSaveData();
 };
+
+void BatteryController::preSetup()
+{
+    analogWrite(WRITE1_PIN, 0);
+    analogWrite(WRITE2_PIN, 0);
+    analogWrite(WRITE3_PIN, 0);
+    analogWrite(WRITE4_PIN, 0);
+}
+
 
 void BatteryController::updateConfigSaveData()
 {
