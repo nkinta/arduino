@@ -4,14 +4,11 @@
 #include "battery_info.hpp"
 #include "save_config_data.hpp"
 #include "voltage_mapping.hpp"
+#include "button_status.hpp"
 
 static constexpr float FPS{30.f};
 static constexpr float SEC{1000.f};
 static constexpr float ONE_FRAME_MS{(1.f / FPS) * SEC};
-
-#undef  OLD_PCB
-#undef  V1_PCB
-#define V2_PCB
 
 enum class MainMode : uint8_t
 {
@@ -36,170 +33,19 @@ enum class ConfigSettingMode : uint8_t
     Max,
 };
 
-enum class PushType : uint8_t
-{
-    None,
-    ReleaseShort,
-    ReleaseLong,
-    PushShort,
-    PushLong,
-    Max,
-};
-
-struct ButtonStatus
-{
-
-    static constexpr int LONG_PUSH_MILLIS{1000};
-
-    void init(const int inPinID)
-    {
-        pinID = inPinID;
-    }
-
-    PushType getVal() const
-    {
-        return cachedType;
-    }
-
-    void update()
-    {
-        int val = digitalRead(pinID);
-        if (val == LOW)
-        {
-            buttonFlag = true;
-        }
-        else
-        {
-            buttonFlag = false;
-        }
-
-        bool releaseFlag{false};
-
-        if (buttonFlag && (buttonOldFlag != buttonFlag))
-        {
-            pushedMillis = millis();
-        }
-        else if (!buttonFlag && (buttonOldFlag != buttonFlag))
-        {
-            releaseFlag = true;
-        }
-        buttonOldFlag = buttonFlag;
-
-        if (releaseFlag)
-        {
-            if ((millis() - pushedMillis) > LONG_PUSH_MILLIS)
-            {
-                cachedType = PushType::ReleaseLong;
-                return;
-            }
-            else
-            {
-                cachedType = PushType::ReleaseShort;
-                return;
-            }
-        }
-        else if (buttonFlag)
-        {
-            if ((millis() - pushedMillis) > LONG_PUSH_MILLIS)
-            {
-                cachedType = PushType::PushLong;
-                return;
-            }
-            else
-            {
-                cachedType = PushType::PushShort;
-                return;
-            }
-        }
-
-        cachedType = PushType::None;
-    }
-
-    PushType cachedType{0};
-    int pinID{0};
-    bool buttonFlag{false};
-    bool buttonOldFlag{false};
-    unsigned long pushedMillis{0};
-};
-
 class BatteryController
 {
 
     static constexpr uint8_t XIAO_READ_BAT{PD4};
     static constexpr uint8_t XIAO_READ_BAT_SWITCH{PD3};
 
-#if defined(V1_PCB) || defined(V2_PCB)
-    static constexpr uint8_t READ1_PIN{18};
-    static constexpr uint8_t READ2_PIN{17};
-#else
-    static constexpr uint8_t READ1_PIN{0};
-    static constexpr uint8_t READ2_PIN{1};
-#endif
-    static constexpr uint8_t READ3_PIN{6};
-    static constexpr uint8_t READ4_PIN{7};
-
-    static constexpr uint8_t WRITE1_PIN{2};
-    static constexpr uint8_t WRITE2_PIN{3};
-    static constexpr uint8_t WRITE3_PIN{8};
-    static constexpr uint8_t WRITE4_PIN{9};
-
-#if defined(V1_PCB)
-public:
-    static constexpr int PUSH_BUTTON_L{15}; // 1
-    static constexpr int PUSH_BUTTON_D{0};  //
-    static constexpr int PUSH_BUTTON_U{10}; //
-    static constexpr int PUSH_BUTTON_R{13}; // 3 
-    static constexpr int PUSH_BUTTON_A{14}; // 2 // Arduino15\packages\SiliconLabs\hardware\silabs\3.0.0\variants\xiao_mg24\pins_arduino.h // DEEP_SLEEP_ESCAPE_PIN
-    static constexpr int PUSH_BUTTON_B{16}; // 4
-    static constexpr int PUSH_BUTTON_ON{1};
-
-    static constexpr int WAKE_UP_PIN{PUSH_BUTTON_U}; // 14 16 0 10
 private:
     ButtonStatus buttonLStatus{};
     ButtonStatus buttonRStatus{};
     ButtonStatus buttonUStatus{};
     ButtonStatus buttonDStatus{};
     ButtonStatus buttonAStatus{};
-
-    ButtonStatus buttonONStatus{};
     ButtonStatus buttonBStatus{};
-#elif defined(V2_PCB)
-public:
-    static constexpr int PUSH_BUTTON_L{15}; // 1
-    static constexpr int PUSH_BUTTON_D{0};  //
-    static constexpr int PUSH_BUTTON_U{1}; //
-    static constexpr int PUSH_BUTTON_R{14}; // 2 // Arduino15\packages\SiliconLabs\hardware\silabs\3.0.0\variants\xiao_mg24\pins_arduino.h // DEEP_SLEEP_ESCAPE_PIN
-    static constexpr int PUSH_BUTTON_A{13}; // 3 
-    static constexpr int PUSH_BUTTON_B{16}; // 4
-    static constexpr int PUSH_BUTTON_ON{10};
-
-    static constexpr int WAKE_UP_PIN{PUSH_BUTTON_ON}; // 14 16 0 10
-private:
-    ButtonStatus buttonLStatus{};
-    ButtonStatus buttonRStatus{};
-    ButtonStatus buttonUStatus{};
-    ButtonStatus buttonDStatus{};
-    ButtonStatus buttonAStatus{};
-
-    ButtonStatus buttonONStatus{};
-    ButtonStatus buttonBStatus{};
-#else
-public:
-    static constexpr int PUSH_BUTTON_L{15};
-    static constexpr int PUSH_BUTTON_D{14};
-    static constexpr int PUSH_BUTTON_U{13}; // Arduino15\packages\SiliconLabs\hardware\silabs\3.0.0\variants\xiao_mg24\pins_arduino.h // DEEP_SLEEP_ESCAPE_PIN
-    static constexpr int PUSH_BUTTON_R{12}; // 12(SAND11_RX) or 10
-    static constexpr int PUSH_BUTTON_A{11};
-
-    static constexpr int WAKE_UP_PIN{PUSH_BUTTON_D};
-private:
-    ButtonStatus buttonLStatus{};
-    ButtonStatus buttonRStatus{};
-    ButtonStatus buttonUStatus{};
-    ButtonStatus buttonDStatus{};
-    ButtonStatus buttonAStatus{};
-#endif
-
 
     std::vector<BatteryInfo> batteryStatuses{
         BatteryInfo{READ1_PIN, WRITE1_PIN, 0},
@@ -288,9 +134,7 @@ private:
 
     void setDisplayNone() const;
 
-    void writePinReset();
-
-    void goDeepSleep();
+    // void goDeepSleep();
 
     void updateButtonStatus();
 
@@ -323,9 +167,14 @@ private:
     };
 
 public:
+    void clearDisplay()
+    {
+        clearDisplayFlag = true;
+    }
+
     void setup();
 
-    void preSetup();
+    static void writePinReset();
 
     void loopWhile()
     {

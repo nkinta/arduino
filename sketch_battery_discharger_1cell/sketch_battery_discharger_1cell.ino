@@ -3,6 +3,8 @@
 #include <vector>
 #include <stdio.h>
 
+#include <ArduinoLowPower.h>
+
 #include "battery_controller.hpp"
 #include "display/draw_adafruit.hpp"
 
@@ -12,7 +14,11 @@ DrawAdafruit drawAdafruit;
 
 BatteryController controller;
 
+ButtonStatus buttonONStatus{};
+
 flappy::Game flappyGame;
+
+unsigned long loopSubMillis{0};;
 
 bool gameModeFlag{false};
 
@@ -27,12 +33,16 @@ void setup()
   Serial.print("Start!");
 #endif
 
-  controller.preSetup();
-  int PUSH_BUTTON_GAME{BatteryController::PUSH_BUTTON_D};
+  pinMode(PUSH_BUTTON_ON, INPUT_PULLUP);
+  buttonONStatus.init(PUSH_BUTTON_ON);
+
+  BatteryController::writePinReset();
+  int PUSH_BUTTON_GAME{PUSH_BUTTON_D};
   pinMode(PUSH_BUTTON_GAME, INPUT_PULLUP);
-  if (!digitalRead(PUSH_BUTTON_GAME))
+  gameModeFlag = !digitalRead(PUSH_BUTTON_GAME);
+  // gameModeFlag = true;
+  if (gameModeFlag)
   {
-    gameModeFlag = true;
     flappyGame.setup();
   }
   else
@@ -40,17 +50,59 @@ void setup()
     controller.setup();
   }
 
+  loopSubMillis = millis();
+
 }
+
+void callback()
+{
+    int count{};
+    count++;
+}
+
+void goDeepSleep()
+{
+    LowPower.attachInterruptWakeup(WAKE_UP_PIN, callback, RISING);
+
+    BatteryController::writePinReset();
+
+    LowPower.deepSleep(365 * 24 * 3600 * 1000); // 7 * 24 * 3600 * 1000 // one week // 365 * 24 * 3600 * 1000
+}
+
+void loopSub()
+{
+  buttonONStatus.update();
+
+  if (buttonONStatus.getVal() == PushType::PushLong)
+  {
+    if (gameModeFlag)
+    {
+      flappyGame.clearDisplay();
+    }
+    else
+    {
+      controller.clearDisplay();
+    }
+  }
+  else if (buttonONStatus.getVal() == PushType::ReleaseLong)
+  {
+      goDeepSleep();
+  }
+}
+
+void loopWhile()
+{
+    const unsigned long tempMillis{millis()};
+    if (tempMillis - loopSubMillis > ONE_FRAME_MS)
+    {
+        loopSub();
+        loopSubMillis = tempMillis;
+    }
+};
 
 // the loop function runs over and over again forever
 void loop()
 {
-  if (gameModeFlag)
-  {
-    flappyGame.loop();
-    return;
-  }
-
 #if 0
   digitalWrite(LED_BUILTIN, HIGH); // turn the LED on (HIGH is the voltage level)
   delay(100);                      // wait for a second
@@ -62,7 +114,16 @@ void loop()
 
   while (true)
   {
-    controller.loopWhile();
+    loopWhile();
+
+    if (gameModeFlag)
+    {
+      flappyGame.loop();
+    }
+    else
+    {
+      controller.loopWhile();
+    }
   }
 
   // wait for a second

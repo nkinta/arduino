@@ -1,11 +1,11 @@
 #include "battery_controller.hpp"
 
 // #define DEEP_SLEEP_ESCAPE_PIN   D14
-#include <ArduinoLowPower.h>
 #include <EEPROM.h>
 #include "display/draw_adafruit.hpp"
 
 extern DrawAdafruit drawAdafruit;
+extern ButtonStatus buttonONStatus;
 
 template <typename T>
 void saveCustomData(byte *p)
@@ -26,12 +26,6 @@ void loadCustomData(byte *p)
         *p = b;
         p++;
     }
-}
-
-void callback()
-{
-    int count{};
-    count++;
 }
 
 void BatteryController::saveConfig()
@@ -89,6 +83,8 @@ void BatteryController::setup()
 {
     drawAdafruit.setupDisplay();
 
+    digitalWrite(PA6, HIGH); // FLASH
+
     // BatteryReadSetting
     pinMode(XIAO_READ_BAT_SWITCH, OUTPUT);
     digitalWrite(XIAO_READ_BAT_SWITCH, HIGH);
@@ -100,16 +96,16 @@ void BatteryController::setup()
     pinMode(PUSH_BUTTON_U, INPUT_PULLUP);
     pinMode(PUSH_BUTTON_R, INPUT_PULLUP);
     pinMode(PUSH_BUTTON_A, INPUT_PULLUP);
+    pinMode(PUSH_BUTTON_B, INPUT_PULLUP);
 
-    digitalWrite(PA6, HIGH); // FLASH
 
     buttonLStatus.init(PUSH_BUTTON_L);
     buttonRStatus.init(PUSH_BUTTON_R);
     buttonUStatus.init(PUSH_BUTTON_U);
     buttonDStatus.init(PUSH_BUTTON_D);
     buttonAStatus.init(PUSH_BUTTON_A);
+    buttonBStatus.init(PUSH_BUTTON_B);
 
-#if defined(V1_PCB) || defined(V2_PCB)
     int val{HIGH};
     val = digitalRead(PUSH_BUTTON_A);
     if (val != LOW) // val == LOW)
@@ -123,40 +119,9 @@ void BatteryController::setup()
         saveConfig();
     }
 
-    pinMode(PUSH_BUTTON_ON, INPUT_PULLUP);
-    pinMode(PUSH_BUTTON_B, INPUT_PULLUP);
-
-    buttonONStatus.init(PUSH_BUTTON_ON);
-    buttonBStatus.init(PUSH_BUTTON_B);
-#else
-
-    int val{HIGH};
-    val = digitalRead(PUSH_BUTTON_D);
-    if (val != LOW) // val == LOW)
-    {
-        loadMain();
-        loadConfig();
-    }
-    else
-    {
-        saveMain();
-        saveConfig();
-    }
-
-#endif
-
     updateBatterySaveData();
     updateConfigSaveData();
 };
-
-void BatteryController::preSetup()
-{
-    analogWrite(WRITE1_PIN, 0);
-    analogWrite(WRITE2_PIN, 0);
-    analogWrite(WRITE3_PIN, 0);
-    analogWrite(WRITE4_PIN, 0);
-}
-
 
 void BatteryController::updateConfigSaveData()
 {
@@ -297,12 +262,13 @@ void BatteryController::setDisplayData() const
 
 void BatteryController::writePinReset()
 {
-    for (auto &batteryStatus : batteryStatuses)
-    {
-        batteryStatus.writePinReset();
-    }
+    analogWrite(WRITE1_PIN, 0);
+    analogWrite(WRITE2_PIN, 0);
+    analogWrite(WRITE3_PIN, 0);
+    analogWrite(WRITE4_PIN, 0);
 }
 
+/*
 void BatteryController::goDeepSleep()
 {
     drawAdafruit.clearDisplay();
@@ -313,6 +279,7 @@ void BatteryController::goDeepSleep()
 
     LowPower.deepSleep(365 * 24 * 3600 * 1000); // 7 * 24 * 3600 * 1000 // one week
 }
+*/
 
 void BatteryController::shiftTargetBattery(int shift)
 {
@@ -417,7 +384,6 @@ void BatteryController::updateButtonStatus()
     buttonDStatus.update();
     buttonAStatus.update();
     buttonBStatus.update();
-    buttonONStatus.update();
 
     MainMode nextMode{mainMode};
     if (mainMode == MainMode::DischargerMode)
@@ -620,15 +586,6 @@ void BatteryController::updateButtonStatus()
             cachedMainMode = mainMode;
             nextMode = MainMode::ConfigMode;
         }
-    }
-
-    if (buttonONStatus.getVal() == PushType::PushLong)
-    {
-        clearDisplayFlag = true;
-    }
-    else if (buttonONStatus.getVal() == PushType::ReleaseLong)
-    {
-        goDeepSleep();
     }
 
     mainMode = nextMode;

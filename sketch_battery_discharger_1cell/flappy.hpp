@@ -10,8 +10,8 @@ namespace flappy
   constexpr int16_t OLED_RESET{-1};
   Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-  constexpr int16_t BTN_FLAP{D13};
-  constexpr int16_t BTN_RESTART{D16};
+  constexpr int16_t BTN_FLAP1{D13};
+  constexpr int16_t BTN_FLAP2{D16};
   constexpr int16_t ANALOG_READ{D9};
 
   // ゲーム状態
@@ -21,16 +21,16 @@ namespace flappy
 
   // 物理 (固定小数点 x16)
   constexpr int16_t GRAVITY{3};    // フレームごとの加速 (x16)
-  constexpr int16_t FLAP_VEL{-44}; // 羽ばたき速度 (x16)
+  constexpr int16_t FLAP_VEL{-40}; // 羽ばたき速度 (x16)
   constexpr int16_t BIRD_X{20};
   constexpr int16_t BIRD_W{6};
   constexpr int16_t BIRD_H{5};
 
-  constexpr int16_t INIT_PIPE_SPEED{2};
+  constexpr int16_t INIT_PIPE_SPEED{1};
 
   // パイプ
   constexpr int16_t PIPE_WIDTH{8};
-  constexpr int16_t PIPE_GAP{30};    // 通り抜ける隙間
+  constexpr int16_t PIPE_GAP{25};    // 通り抜ける隙間
   constexpr int16_t PIPE_GAP_MIN{8}; // 上下の壁との最小距離
   constexpr int16_t NUM_PIPES{2};
   constexpr int16_t PIPE_SPACING{SCREEN_WIDTH / NUM_PIPES}; // 64px間隔
@@ -46,6 +46,8 @@ namespace flappy
       int gapY; // 隙間の上端Y
       bool scored;
     };
+
+    bool gameEnd{false};
 
     int gameState;
     int score;
@@ -138,9 +140,17 @@ namespace flappy
 
   public:
     // -----------------------------------------------
+    void clearDisplay()
+    {
+      gameEnd = true;
+      display.clearDisplay();
+      display.display();
+    }
+    // -----------------------------------------------
     void setup()
     {
-      pinMode(BTN_FLAP, INPUT_PULLUP);
+      pinMode(BTN_FLAP1, INPUT_PULLUP);
+      pinMode(BTN_FLAP2, INPUT_PULLUP);
       prevFlap = false;
       prevRestart = false;
 
@@ -148,15 +158,20 @@ namespace flappy
       display.clearDisplay();
       display.display();
 
-      randomSeed(3); // analogRead(ANALOG_READ)
+      randomSeed(analogRead(ANALOG_READ)); // analogRead(ANALOG_READ)
       highScore = 0;
       gameState = STATE_TITLE;
     }
 
     void loop()
     {
-      bool flap = (digitalRead(BTN_FLAP) == LOW);
-      bool restart = (digitalRead(BTN_FLAP) == LOW);
+      if (gameEnd)
+      {
+        return;
+      }
+
+      bool flap = ((digitalRead(BTN_FLAP1) == LOW) || (digitalRead(BTN_FLAP2) == LOW));
+      bool restart = ((digitalRead(BTN_FLAP1) == LOW) || (digitalRead(BTN_FLAP2) == LOW));
       bool flapPressed = flap && !prevFlap;
       bool restartPressed = restart && !prevRestart;
       prevFlap = flap;
@@ -192,13 +207,13 @@ namespace flappy
         display.setTextColor(WHITE);
         display.setCursor(30, 8);
         display.print(F("GAME OVER"));
-        display.setCursor(20, 24);
+        display.setCursor(30, 24);
         display.print(F("Score : "));
         display.print(score);
-        display.setCursor(20, 36);
+        display.setCursor(30, 36);
         display.print(F("Best  : "));
         display.print(highScore);
-        display.setCursor(12, 52);
+        display.setCursor(24, 52);
         display.print(F("Press RESTART"));
         display.display();
         if (restartPressed)
@@ -233,7 +248,7 @@ namespace flappy
           if (score > highScore)
             highScore = score;
           // 5点ごとに速度アップ（最大4）
-          pipeSpeed = min(4, INIT_PIPE_SPEED + score / 5);
+          pipeSpeed = min(1, INIT_PIPE_SPEED + score / 10);
         }
 
         // 画面外に出たら再生成
