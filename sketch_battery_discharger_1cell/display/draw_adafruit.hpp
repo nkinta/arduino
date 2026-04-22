@@ -36,6 +36,11 @@ public:
 
   Adafruit_SSD1306 _display{SCREEN_WIDTH, SCREEN_HEIGHT, &Wire}; // 
 
+  void displaySleep()
+  {
+    _display.ssd1306_command(SSD1306_DISPLAYOFF);
+  }
+
   void setupDisplay(void) {
     // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
     // adaDisplay.clearDisplay();

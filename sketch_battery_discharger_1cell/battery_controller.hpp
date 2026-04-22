@@ -46,6 +46,7 @@ private:
     ButtonStatus buttonDStatus{};
     ButtonStatus buttonAStatus{};
     ButtonStatus buttonBStatus{};
+    ButtonStatus buttonONStatus{};
 
     std::vector<BatteryInfo> batteryStatuses{
         BatteryInfo{READ1_PIN, WRITE1_PIN, 0},
@@ -167,6 +168,8 @@ private:
     };
 
 public:
+    void displaySleep();
+
     void clearDisplay()
     {
         clearDisplayFlag = true;

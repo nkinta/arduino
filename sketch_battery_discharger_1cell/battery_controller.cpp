@@ -5,7 +5,6 @@
 #include "display/draw_adafruit.hpp"
 
 extern DrawAdafruit drawAdafruit;
-extern ButtonStatus buttonONStatus;
 
 template <typename T>
 void saveCustomData(byte *p)
@@ -97,7 +96,7 @@ void BatteryController::setup()
     pinMode(PUSH_BUTTON_R, INPUT_PULLUP);
     pinMode(PUSH_BUTTON_A, INPUT_PULLUP);
     pinMode(PUSH_BUTTON_B, INPUT_PULLUP);
-
+    pinMode(PUSH_BUTTON_ON, INPUT_PULLUP);
 
     buttonLStatus.init(PUSH_BUTTON_L);
     buttonRStatus.init(PUSH_BUTTON_R);
@@ -105,6 +104,7 @@ void BatteryController::setup()
     buttonDStatus.init(PUSH_BUTTON_D);
     buttonAStatus.init(PUSH_BUTTON_A);
     buttonBStatus.init(PUSH_BUTTON_B);
+    buttonONStatus.init(PUSH_BUTTON_ON);
 
     int val{HIGH};
     val = digitalRead(PUSH_BUTTON_A);
@@ -268,6 +268,13 @@ void BatteryController::writePinReset()
     analogWrite(WRITE4_PIN, 0);
 }
 
+void  BatteryController::displaySleep()
+{
+    drawAdafruit.clearDisplay();
+    drawAdafruit.display();
+    drawAdafruit.displaySleep();
+}
+
 /*
 void BatteryController::goDeepSleep()
 {
@@ -384,6 +391,7 @@ void BatteryController::updateButtonStatus()
     buttonDStatus.update();
     buttonAStatus.update();
     buttonBStatus.update();
+    buttonONStatus.update();
 
     MainMode nextMode{mainMode};
     if (mainMode == MainMode::DischargerMode)

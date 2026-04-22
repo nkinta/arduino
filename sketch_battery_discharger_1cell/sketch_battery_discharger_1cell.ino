@@ -81,7 +81,7 @@ void loopSub()
     }
     else
     {
-      controller.clearDisplay();
+      controller.displaySleep();
     }
   }
   else if (buttonONStatus.getVal() == PushType::ReleaseLong)

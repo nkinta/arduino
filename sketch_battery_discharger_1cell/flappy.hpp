@@ -146,6 +146,13 @@ namespace flappy
       display.clearDisplay();
       display.display();
     }
+
+    void displaySleep()
+    {
+      clearDisplay();
+      display.ssd1306_command(SSD1306_DISPLAYOFF);
+    }
+
     // -----------------------------------------------
     void setup()
     {
