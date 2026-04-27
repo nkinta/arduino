@@ -5,6 +5,17 @@
 #include "save_config_data.hpp"
 #include "battery_controller.hpp"
 
+#include "display/fonts/BBHBogle-Regular_9.h"
+#include "display/fonts/BBHBogle-Regular_12.h"
+
+#include "display/fonts/Quicksand-VariableFont_wght_12.h"
+#include "display/fonts/Quicksand-VariableFont_wght_9.h"
+
+#include "display/fonts/Roboto-VariableFont_wdth_wght_12.h"
+#include "display/fonts/Roboto-VariableFont_wdth_wght_9.h"
+#include "display/fonts/Roboto-VariableFont_wdth_wght_6.h"
+
+
 extern DrawAdafruit drawAdafruit;
 
 const std::vector<String> DISC_MODE_NAMES{String("Keep"), String("KeepMin"), String("Stop")};
@@ -364,9 +375,9 @@ void BatteryInfo::setDisplayVoltOnly() const
     drawAdafruit.drawFillLine(line + 4);
 
     ++line;
-    drawAdafruit.setFont();
+    drawAdafruit.setFont(&BBHBogle_Regular12pt7b);
 
-    drawAdafruit.setCursor(28, 32);
+    drawAdafruit.setCursor(32, 36);
     drawAdafruit.printString(String(sleepV, 3) + String("V"));
 
     drawAdafruit.removeFont();
@@ -516,11 +527,27 @@ void BatteryInfo::setDisplayPushData() const
     }
     else
     {
-        int batterySetIndex{batteryIndex / 2};
-        int vir_offset{10 * batterySetIndex + (batteryIndex % 2) * 0 + 8};
-        int line{(batteryIndex % 2) + 2};
-        drawAdafruit.drawFloatR(V, vir_offset, line, 4, batteryController->decimal);
-        drawAdafruit.drawString("V", vir_offset, line);
+        if (true)
+        {
+            constexpr std::pair<int, int> positionArray[4] = {{12, 28}, {12, 46}, {72, 28}, {72, 46}};
+
+            drawAdafruit.setFont(&BBHBogle_Regular9pt7b);
+
+            {
+                const std::pair<int, int>& position{positionArray[batteryIndex]};
+                drawAdafruit.setCursor(position.first, position.second);
+                drawAdafruit.printString(String(V, batteryController->decimal) + String("V"));
+            }
+            drawAdafruit.removeFont();
+        }
+        else
+        {
+            int batterySetIndex{batteryIndex / 2};
+            int vir_offset{10 * batterySetIndex + (batteryIndex % 2) * 0 + 8};
+            int line{(batteryIndex % 2) + 2};
+            drawAdafruit.drawFloatR(V, vir_offset, line, 4, batteryController->decimal);
+            drawAdafruit.drawString("V", vir_offset, line);
+        }
     }
 
     if (displayFlag)

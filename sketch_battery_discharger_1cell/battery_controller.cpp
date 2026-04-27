@@ -226,8 +226,6 @@ void BatteryController::setDisplayPushDischarge() const
         drawAdafruit.drawString("V", vir_offset, line);
     }
 
-    line += 1;
-    vir_offset = 18;
     const BatteryInfo *targetBatteryStatus{nullptr};
     for (auto &batteryStatus : batteryStatuses)
     {
@@ -237,8 +235,11 @@ void BatteryController::setDisplayPushDischarge() const
             continue;
         }
     }
+    vir_offset = 16;    
+    line = 6;
     if (targetBatteryStatus)
     {
+        drawAdafruit.drawFillR(vir_offset, line, 6);
         drawAdafruit.drawFloatR(targetBatteryStatus->ohm, vir_offset, line, 4, 1);
         static constexpr char CHAR_DATA_OHM[] = {0x6D, 0xe9, 0x00};
         drawAdafruit.drawChar(&CHAR_DATA_OHM[0], vir_offset, line);
@@ -268,7 +269,7 @@ void BatteryController::writePinReset()
     analogWrite(WRITE4_PIN, 0);
 }
 
-void  BatteryController::displaySleep()
+void BatteryController::displaySleep()
 {
     drawAdafruit.clearDisplay();
     drawAdafruit.display();
@@ -594,6 +595,11 @@ void BatteryController::updateButtonStatus()
             cachedMainMode = mainMode;
             nextMode = MainMode::ConfigMode;
         }
+    }
+
+    if (mainMode != nextMode)
+    {
+        drawAdafruit.clearDisplay();
     }
 
     mainMode = nextMode;

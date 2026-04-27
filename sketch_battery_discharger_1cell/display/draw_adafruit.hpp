@@ -6,6 +6,8 @@
 #include <Adafruit_SSD1306.h>
 #undef ARDUINO_ARCH_RP2040
 
+/*
+#include <Fonts/FreeMono9pt7b.h>
 #include <Fonts/FreeMono9pt7b.h>
 #include <Fonts/FreeMonoBoldOblique9pt7b.h>
 #include <Fonts/FreeMonoOblique9pt7b.h>
@@ -13,9 +15,9 @@
 #include <Fonts/FreeSerif9pt7b.h>
 #include <Fonts/FreeSansBold9pt7b.h>
 #include <Fonts/FreeSerifBoldItalic9pt7b.h>
-
 #include <Fonts/Org_01.h>
 #include <Fonts/PicoPixel.h>
+*/
 
 class DrawAdafruit
 {
@@ -74,14 +76,15 @@ public:
     _display.print(val);
   }
 
-  void setFont()
+  void setFont(const GFXfont* f)
   {
     // FreeSerif9pt7b
     // FreeMonoBoldOblique9pt7b
     // FreeMonoOblique9pt7b
     // FreeSerifBoldItalic9pt7b
     // FreeMono9pt7b
-    _display.setFont(&FreeMono9pt7b);
+    _display.setFont(f);
+
   }
 
   void removeFont()
@@ -115,6 +118,9 @@ public:
 	    0x7f, 0xfc, 0x80, 0x02, 0x80, 0x03, 0x80, 0x01, 0x80, 0x01, 0x80, 0x03, 0x80, 0x02, 0x7f, 0xfc,
     };
 
+    const unsigned char clear[] PROGMEM = {
+	    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    };
 
     const unsigned char* bat_meter[4] = {
       bat0, bat1, bat2, bat3
@@ -138,8 +144,9 @@ public:
       index = 0;
     }
 
-    drawFillLine(6);
+    // drawFillLine(6);
     // drawFloat(voltage, 10, 6);
+    _display.drawBitmap(110, 55, clear, 16, 8, BLACK);
     _display.drawBitmap(110, 55, bat_meter[index], 16, 8, WHITE);
   }
 
@@ -185,6 +192,11 @@ public:
 
   void drawStringR(const String& string, int offsetX, int offsetY) {
     drawChar(string.c_str(), offsetX - string.length(), offsetY);
+  }
+
+  void drawFillR(int offsetX, int offsetY, int width)
+  {
+    _display.fillRect(CHARSIZEX * (offsetX - width), CHARSIZEY * offsetY, CHARSIZEX * width, CHARSIZEY, BLACK);
   }
 
   void drawFloat(float value, float offsetX, float offsetY, int decimal = 2) {
@@ -272,5 +284,11 @@ public:
     _display.print(chr);
   }
 
+  void drawCharRefreshBack(const char* chr, int offsetX, int offsetY, int sizeChar) {
+    _display.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * sizeChar, CHARSIZEY * 1, BLACK);
+    _display.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
+    _display.print(chr);
+  }
+  
 
 };
