@@ -9,6 +9,7 @@
 #include "display/draw_adafruit.hpp"
 
 #include "flappy.hpp"
+#include "stopwatch.hpp"
 
 DrawAdafruit drawAdafruit;
 
@@ -17,10 +18,19 @@ BatteryController controller;
 ButtonStatus buttonONStatus{};
 
 flappy::Game flappyGame;
+stopwatch::Stopwatch stopWatch;
+
 
 unsigned long loopSubMillis{0};;
 
-bool gameModeFlag{false};
+enum class StartupMode : uint8_t
+{
+  BatteryController,
+  FlappyGame,
+  Stopwatch,
+};
+
+StartupMode startupMode{StartupMode::BatteryController};
 
 // the setup function runs once when you press reset or power the board
 void setup()
@@ -37,11 +47,30 @@ void setup()
   buttonONStatus.init(PUSH_BUTTON_ON);
 
   BatteryController::writePinReset();
-  int PUSH_BUTTON_GAME{PUSH_BUTTON_D};
-  pinMode(PUSH_BUTTON_GAME, INPUT_PULLUP);
-  gameModeFlag = !digitalRead(PUSH_BUTTON_GAME);
-  // gameModeFlag = true;
-  if (gameModeFlag)
+  pinMode(PUSH_BUTTON_D, INPUT_PULLUP);
+  pinMode(PUSH_BUTTON_U, INPUT_PULLUP);
+
+  const bool flappyRequested{!digitalRead(PUSH_BUTTON_D)};
+  const bool stopwatchRequested{!digitalRead(PUSH_BUTTON_U)};
+
+  if (stopwatchRequested)
+  {
+    startupMode = StartupMode::Stopwatch;
+  }
+  else if (flappyRequested)
+  {
+    startupMode = StartupMode::FlappyGame;
+  }
+  else
+  {
+    startupMode = StartupMode::BatteryController;
+  }
+
+  if (startupMode == StartupMode::Stopwatch)
+  {
+    stopWatch.setup();
+  }
+  else if (startupMode == StartupMode::FlappyGame)
   {
     flappyGame.setup();
   }
@@ -75,7 +104,11 @@ void loopSub()
 
   if (buttonONStatus.getVal() == PushType::PushLong)
   {
-    if (gameModeFlag)
+    if (startupMode == StartupMode::Stopwatch)
+    {
+      stopWatch.clearDisplay();
+    }
+    else if (startupMode == StartupMode::FlappyGame)
     {
       flappyGame.clearDisplay();
     }
@@ -116,7 +149,11 @@ void loop()
   {
     loopWhile();
 
-    if (gameModeFlag)
+    if (startupMode == StartupMode::Stopwatch)
+    {
+      stopWatch.loop();
+    }
+    else if (startupMode == StartupMode::FlappyGame)
     {
       flappyGame.loop();
     }
