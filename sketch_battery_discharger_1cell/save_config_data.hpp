@@ -11,7 +11,7 @@ struct SaveConfigData
   };
   int _id{SAVEDATA_ID};
   int _ver{5};
-  int _voltDatas[VOLT_DATA_SIZE] = {-10, 0, 0, 0, 0};
+  int _voltDatas[VOLT_DATA_SIZE] = {-10, 0, 0, 0, 0}; // 電圧キャリブレーション
   uint8_t _ledOnFlag{0};
   float _dischargeI{2.f};
   float _calibI{1.f};

@@ -21,15 +21,15 @@ enum class MainMode : uint8_t
 
 enum class ConfigSettingMode : uint8_t
 {
-    Volt00Setting,
-    Volt05Setting,
-    Volt10Setting,
-    Volt15Setting,
-    Volt20Setting,
-    LedOnSetting,
-    discISetting,
-    tuneISetting,
-    decimalSetting,
+    tuneVolt00Setting, // 0.0V付近の電圧値のキャリブレーション
+    tuneVolt05Setting, // 0.5V付近の電圧値のキャリブレーション
+    tuneVolt10Setting, // 1.0V付近の電圧値のキャリブレーション
+    tuneVolt15Setting, // 1.5V付近の電圧値のキャリブレーション
+    tuneVolt20Setting, // 2.0V付近の電圧値のキャリブレーション
+    LedOnSetting, // 放電機能が正常時にLEDをチカチカさせる
+    discISetting, // 放電用電流
+    tuneISetting, // 電流値のキャリブレーション
+    decimalSetting, // 小数点何桁まで表示するか
     Max,
 };
 
@@ -66,7 +66,7 @@ private:
         BatteryInfo{READ3_PIN, WRITE3_PIN, 2},
         BatteryInfo{READ4_PIN, WRITE4_PIN, 3}};
 
-    ConfigSettingMode _configSettingMode{ConfigSettingMode::Volt00Setting};
+    ConfigSettingMode _configSettingMode{ConfigSettingMode::tuneVolt00Setting};
     BatteryConfigSettingMode _batteryConfigSettingMode{BatteryConfigSettingMode::DischargeVSetting};
 
     unsigned long _loopSubMillis{0};

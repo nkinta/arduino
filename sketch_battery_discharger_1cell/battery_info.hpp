@@ -19,30 +19,32 @@ enum class TimeStatus : uint8_t
   Max,
 };
 
+// 放電モード
 enum class DisChargeMode : uint8_t
 {
-  DischargeHold,
-  DischargeHoldP,
-  DischargeStop,
+  DischargeHold, // 放電後、電圧値を保持する
+  DischargeHoldMin, // 放電後、（指定分）電圧値を保持する
+  DischargeStop, // 放電後、電圧を保持せず終了する
   Max,
 };
 
+// 絞り放電
 enum class ReduceMode : uint8_t
 {
-  Soft,
-  Normal,
-  Hard,
-  None,
+  Soft, // 絞り、緩やか 
+  Normal, // 絞り、標準
+  Hard, // 絞り、急
+  None, // 絞らない
   Max,
 };
 
 enum class BatteryConfigSettingMode : uint8_t
 {
-  DischargeVSetting,
-  DischargeISetting,
-  ModeChangeSetting,
-  ApatureChangeSetting,
-  HoldMinSetting,
+  DischargeVSetting, // 電圧値
+  DischargeISetting, // 放電電流値
+  ModeChangeSetting, // 放電モード
+  ReduceModeChangeSetting, // 絞り放電の絞り強さ
+  HoldMinSetting, // 放電後の、電圧保持する時間（分）
   Max,
 };
 

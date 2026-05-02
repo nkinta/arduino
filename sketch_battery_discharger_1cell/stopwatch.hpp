@@ -8,7 +8,6 @@
 
 #include "button_status.hpp"
 #include "discharger_define.hpp"
-#include "display/fonts/BBHBogle-Regular_16.h"
 #include "display/fonts/BBHBogle-Regular_14.h"
 
 namespace stopwatch

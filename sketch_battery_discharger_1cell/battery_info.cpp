@@ -80,7 +80,7 @@ void SaveBattery::shiftParam(BatteryConfigSettingMode settingMode, int shift)
     {
         _holdMin = std::clamp(_holdMin + shift, HOLDMIN_MIN, HOLDMIN_MAX);
     }
-    else if (settingMode == BatteryConfigSettingMode::ApatureChangeSetting)
+    else if (settingMode == BatteryConfigSettingMode::ReduceModeChangeSetting)
     {
         const int nextModeIndex{(static_cast<int>(ReduceMode::Max) + static_cast<int>(_reduceMode) + shift) % static_cast<int>(ReduceMode::Max)};
         _reduceMode = static_cast<ReduceMode>(nextModeIndex);
@@ -269,7 +269,7 @@ void BatteryInfo::loopSubNormalDischarge()
                 {
                     stopContinueFlag = true;
                 }
-                else if (_disChargeMode == DisChargeMode::DischargeHoldP)
+                else if (_disChargeMode == DisChargeMode::DischargeHoldMin)
                 {
                     if (_endSeconds > (_holdMin * 60))
                     {

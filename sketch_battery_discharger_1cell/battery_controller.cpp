@@ -330,23 +330,23 @@ void BatteryController::shiftParam(int shift)
     }
     else if (_mainMode == MainMode::ConfigMode)
     {
-        if (_configSettingMode == ConfigSettingMode::Volt00Setting)
+        if (_configSettingMode == ConfigSettingMode::tuneVolt00Setting)
         {
             _saveConfigData._voltDatas[0] = SaveConfigData::voltClamp(_saveConfigData._voltDatas[0] + shift);
         }
-        else if (_configSettingMode == ConfigSettingMode::Volt05Setting)
+        else if (_configSettingMode == ConfigSettingMode::tuneVolt05Setting)
         {
             _saveConfigData._voltDatas[1] = SaveConfigData::voltClamp(_saveConfigData._voltDatas[1] + shift);
         }
-        else if (_configSettingMode == ConfigSettingMode::Volt10Setting)
+        else if (_configSettingMode == ConfigSettingMode::tuneVolt10Setting)
         {
             _saveConfigData._voltDatas[2] = SaveConfigData::voltClamp(_saveConfigData._voltDatas[2] + shift);
         }
-        else if (_configSettingMode == ConfigSettingMode::Volt15Setting)
+        else if (_configSettingMode == ConfigSettingMode::tuneVolt15Setting)
         {
             _saveConfigData._voltDatas[3] = SaveConfigData::voltClamp(_saveConfigData._voltDatas[3] + shift);
         }
-        else if (_configSettingMode == ConfigSettingMode::Volt15Setting)
+        else if (_configSettingMode == ConfigSettingMode::tuneVolt20Setting)
         {
             _saveConfigData._voltDatas[4] = SaveConfigData::voltClamp(_saveConfigData._voltDatas[4] + shift);
         }
