@@ -29,13 +29,13 @@ void loadCustomData(byte *p)
 
 void BatteryController::saveConfig()
 {
-    _saveConfigData._id = SAVEDATA_ID;
+    _saveConfigData._id = SaveConfigData::SAVEDATA_ID;
     saveCustomData<SaveConfigData>((byte *)&_saveConfigData);
 }
 
 void BatteryController::saveMain()
 {
-    _saveBatteryConfigData._id = SAVEDATA_ID;
+    _saveBatteryConfigData._id = SaveBatteryConfigData::SAVEDATA_ID;
     saveCustomData<SaveBatteryConfigData>((byte *)&_saveBatteryConfigData);
 }
 
@@ -43,7 +43,7 @@ void BatteryController::loadConfig()
 {
     SaveConfigData tempData;
     loadCustomData<SaveConfigData>((byte *)&tempData);
-    if (tempData._id != SAVEDATA_ID)
+    if (tempData._id != SaveConfigData::SAVEDATA_ID)
     {
         return;
     }
@@ -58,7 +58,7 @@ void BatteryController::loadMain()
 {
     SaveBatteryConfigData tempData;
     loadCustomData<SaveBatteryConfigData>((byte *)&tempData);
-    if (tempData._id != SAVEDATA_ID)
+    if (tempData._id != SaveBatteryConfigData::SAVEDATA_ID)
     {
         return;
     }
@@ -142,7 +142,7 @@ void BatteryController::updateConfigSaveData()
 {
 
     const static SaveConfigData defaultSaveConfigData{};
-    if (_saveConfigData._id != SAVEDATA_ID)
+    if (_saveConfigData._id != SaveConfigData::SAVEDATA_ID)
     {
         _saveConfigData = defaultSaveConfigData;
     }
@@ -168,7 +168,7 @@ void BatteryController::updateBatterySaveData()
 
         const static SaveBattery defaultSaveBattery{};
         auto *saveBattery{batteryStatus._saveBattery};
-        if (_saveBatteryConfigData._id != SAVEDATA_ID)
+        if (_saveBatteryConfigData._id != SaveBatteryConfigData::SAVEDATA_ID)
         {
             *saveBattery = defaultSaveBattery;
         }
@@ -195,6 +195,8 @@ float BatteryController::readAndDrawXiaoBattery()
 
 void BatteryController::setDisplayConfig() const
 {
+    _saveConfigData.setDisplayConfig(drawAdafruit, _configSettingMode);
+    /*
     std::vector<String> menuList{"0.0V", "0.5V", "1.0V", "1.5V", "2.0V", "LedOn", "DiscI", "AmpTune", "Decimal"};
 
     std::vector<String> valueList{
@@ -210,6 +212,7 @@ void BatteryController::setDisplayConfig() const
     };
 
     setDisplayTuneMenu(drawAdafruit, "Config", menuList, valueList, static_cast<int>(_configSettingMode));
+    */
 }
 
 void BatteryController::setDisplayPushDischarge() const
@@ -330,42 +333,7 @@ void BatteryController::shiftParam(int shift)
     }
     else if (_mainMode == MainMode::ConfigMode)
     {
-        if (_configSettingMode == ConfigSettingMode::tuneVolt00Setting)
-        {
-            _saveConfigData._voltDatas[0] = SaveConfigData::voltClamp(_saveConfigData._voltDatas[0] + shift);
-        }
-        else if (_configSettingMode == ConfigSettingMode::tuneVolt05Setting)
-        {
-            _saveConfigData._voltDatas[1] = SaveConfigData::voltClamp(_saveConfigData._voltDatas[1] + shift);
-        }
-        else if (_configSettingMode == ConfigSettingMode::tuneVolt10Setting)
-        {
-            _saveConfigData._voltDatas[2] = SaveConfigData::voltClamp(_saveConfigData._voltDatas[2] + shift);
-        }
-        else if (_configSettingMode == ConfigSettingMode::tuneVolt15Setting)
-        {
-            _saveConfigData._voltDatas[3] = SaveConfigData::voltClamp(_saveConfigData._voltDatas[3] + shift);
-        }
-        else if (_configSettingMode == ConfigSettingMode::tuneVolt20Setting)
-        {
-            _saveConfigData._voltDatas[4] = SaveConfigData::voltClamp(_saveConfigData._voltDatas[4] + shift);
-        }
-        else if (_configSettingMode == ConfigSettingMode::LedOnSetting)
-        {
-            _saveConfigData._ledOnFlag = ((_saveConfigData._ledOnFlag == 0) ? 1 : 0);
-        }
-        else if (_configSettingMode == ConfigSettingMode::discISetting)
-        {
-            _saveConfigData._dischargeI = std::clamp(_saveConfigData._dischargeI + (shift * 0.1f), 0.4f, 3.f);
-        }
-        else if (_configSettingMode == ConfigSettingMode::tuneISetting)
-        {
-            _saveConfigData._calibI = std::clamp(_saveConfigData._calibI + (shift * 0.1f), 0.8f, 1.2f);
-        }
-        else if (_configSettingMode == ConfigSettingMode::decimalSetting)
-        {
-            _saveConfigData._decimal = std::clamp(_saveConfigData._decimal + shift, 2, 3);
-        }
+        _saveConfigData.shiftParam(_configSettingMode, shift);
     }
 };
 
@@ -385,13 +353,10 @@ void BatteryController::changeSettingMode(int shift)
 
 void BatteryController::updateButtonStatus()
 {
-    _buttonLStatus.update();
-    _buttonRStatus.update();
-    _buttonUStatus.update();
-    _buttonDStatus.update();
-    _buttonAStatus.update();
-    _buttonBStatus.update();
-    _buttonOnStatus.update();
+    for (ButtonStatus* buttonStatus :_buttonStatuses)
+    {
+        buttonStatus->update();
+    }
 
     MainMode nextMode{_mainMode};
     if (_mainMode == MainMode::DischargerMode)
@@ -571,6 +536,11 @@ void BatteryController::updateButtonStatus()
     _mainMode = nextMode;
 }
 
+void BatteryController::setDisplayBatteryConfig(DrawAdafruit& drawAdafruit) const
+{
+    _saveBatteryConfigData._battery[_currentBatterySettingIndex].setDisplayBatteryConfig(drawAdafruit, _currentBatterySettingIndex, _batteryConfigSettingMode);
+}
+
 void BatteryController::loopSub()
 {
     ++_loopSubCount;
@@ -578,23 +548,23 @@ void BatteryController::loopSub()
     {
         const float xiaoVolt{readAndDrawXiaoBattery()};
 
-        if (_xiaoVoltFlag)
+        if (_xiaoVoltValidFlag)
         {
-            if (xiaoVolt < (VOLT3_3 + 0.2f))
+            if (xiaoVolt < XIAO_MIN_VOLT)
             {
-                _xiaoVoltFlag = false;
+                _xiaoVoltValidFlag = false;
             }
         }
         else
         {
-            if (xiaoVolt > (VOLT3_3 + 0.3f))
+            if (xiaoVolt > (XIAO_MIN_VOLT + 0.1f))
             {
-                _xiaoVoltFlag = true;
+                _xiaoVoltValidFlag = true;
             }
         }
     }
 
-    if (!_xiaoVoltFlag)
+    if (!_xiaoVoltValidFlag)
     {
         drawAdafruit.display();
         return;
@@ -641,7 +611,7 @@ void BatteryController::loopSub()
         {
             if ((_loopSubCount % 3) == 0)
             {
-                setDisplayBatteryConfig();
+                setDisplayBatteryConfig(drawAdafruit);
                 drawAdafruit.display();
             }
         }

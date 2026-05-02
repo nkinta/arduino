@@ -19,7 +19,7 @@ namespace DisplayConst
 }
 
 static constexpr float VOLT3_3{3.3f};
-static constexpr int SAVEDATA_ID{0xABCE};
+static constexpr float XIAO_MIN_VOLT{3.7f};
 
 #if defined(V1_PCB) || defined(V2_PCB)
     static constexpr uint8_t READ1_PIN{18};
@@ -41,7 +41,7 @@ static constexpr int SAVEDATA_ID{0xABCE};
     static constexpr int PUSH_BUTTON_D{0}; // Down
     static constexpr int PUSH_BUTTON_U{10}; // Up
     static constexpr int PUSH_BUTTON_R{13}; // Right
-    static constexpr int PUSH_BUTTON_A{14}; // A Button 誤ってDeepsleepの無限ループ状態になった場合、書き込みできるようになる // Arduino15\packages\SiliconLabs\hardware\silabs\3.0.0\variants\xiao_mg24\pins_arduino.h // DEEP_SLEEP_ESCAPE_PIN
+    static constexpr int PUSH_BUTTON_A{14}; // A Button 押した状態で起動させると、誤ってDeepsleepの無限ループ状態になった場合、書き込みできるようになる // Arduino15\packages\SiliconLabs\hardware\silabs\3.0.0\variants\xiao_mg24\pins_arduino.h // DEEP_SLEEP_ESCAPE_PIN
     static constexpr int PUSH_BUTTON_B{16}; // B Button
     static constexpr int PUSH_BUTTON_ON{1};
 
@@ -56,7 +56,7 @@ static constexpr int SAVEDATA_ID{0xABCE};
     static constexpr int PUSH_BUTTON_L{15}; // Left
     static constexpr int PUSH_BUTTON_D{0}; // Down
     static constexpr int PUSH_BUTTON_U{1}; // Up
-    static constexpr int PUSH_BUTTON_R{14}; // Right,誤ってDeepsleepの無限ループ状態になった場合、書き込みできるようになる // Arduino15\packages\SiliconLabs\hardware\silabs\3.0.0\variants\xiao_mg24\pins_arduino.h // DEEP_SLEEP_ESCAPE_PIN
+    static constexpr int PUSH_BUTTON_R{14}; // Right 押した状態で起動させると、誤ってDeepsleepの無限ループ状態になった場合、書き込みできるようになる // Arduino15\packages\SiliconLabs\hardware\silabs\3.0.0\variants\xiao_mg24\pins_arduino.h // DEEP_SLEEP_ESCAPE_PIN
     static constexpr int PUSH_BUTTON_A{13}; // A Button
     static constexpr int PUSH_BUTTON_B{16}; // B Button
     static constexpr int PUSH_BUTTON_ON{10};

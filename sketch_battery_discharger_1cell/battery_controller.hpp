@@ -19,20 +19,6 @@ enum class MainMode : uint8_t
     Max,
 };
 
-enum class ConfigSettingMode : uint8_t
-{
-    tuneVolt00Setting, // 0.0V付近の電圧値のキャリブレーション
-    tuneVolt05Setting, // 0.5V付近の電圧値のキャリブレーション
-    tuneVolt10Setting, // 1.0V付近の電圧値のキャリブレーション
-    tuneVolt15Setting, // 1.5V付近の電圧値のキャリブレーション
-    tuneVolt20Setting, // 2.0V付近の電圧値のキャリブレーション
-    LedOnSetting, // 放電機能が正常時にLEDをチカチカさせる
-    discISetting, // 放電用電流
-    tuneISetting, // 電流値のキャリブレーション
-    decimalSetting, // 小数点何桁まで表示するか
-    Max,
-};
-
 class BatteryController
 {
 
@@ -83,7 +69,7 @@ private:
 
     float _dischargeI{2.f};
 
-    bool _xiaoVoltFlag{true};
+    bool _xiaoVoltValidFlag{true}; // xiaoの電圧値が正常かどうか
 
     bool _clearDisplayFlag{false};
 
@@ -136,10 +122,7 @@ private:
 
     void setDisplayConfig() const;
 
-    void setDisplayBatteryConfig() const
-    {
-        _saveBatteryConfigData._battery[_currentBatterySettingIndex].setDisplayBatteryConfig(_currentBatterySettingIndex, _batteryConfigSettingMode);
-    }
+    void setDisplayBatteryConfig(DrawAdafruit& drawAdafruit) const;
 
     void setDisplayPushDischarge() const;
 
@@ -179,13 +162,13 @@ private:
         }
     };
 
-public:
-    void displaySleep();
-
     void clearDisplay()
     {
         _clearDisplayFlag = true;
     }
+
+public:
+    void displaySleep();
 
     void setup();
 
