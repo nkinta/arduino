@@ -1,5 +1,5 @@
 #include "save_battery_config_data.hpp"
-#include "display/draw_adafruit.hpp"
+#include "src/display/draw_adafruit.hpp"
 #include "battery_info.hpp"
 
 void SaveBattery::setDisplayBatteryConfig(DrawAdafruit &drawAdafruit, int index, BatteryConfigSettingMode settingMode) const

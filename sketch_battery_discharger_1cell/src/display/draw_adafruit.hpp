@@ -38,7 +38,7 @@ class DrawAdafruit
 
 public:
 
-  Adafruit_SSD1306 _display{SCREEN_WIDTH, SCREEN_HEIGHT, &Wire}; // 
+  Adafruit_SSD1306 _display{SCREEN_WIDTH, SCREEN_HEIGHT, &Wire}; //
 
   static void setDisplayTuneMenu(DrawAdafruit &adafruit, String &&title, std::vector<String> &menuList, std::vector<String> &valueList, int targetIndex);
 
@@ -107,7 +107,7 @@ public:
   {
     // 'untitled', 16x16px
     unsigned char epd_bitmap_untitled[] PROGMEM = {
-      0xff, 0xff, 0x7f, 0xff, 0xbf, 0xff, 0xa0, 0x3f, 0xdf, 0xdf, 0xbf, 0x23, 0xbf, 0xfd, 0xbf, 0xfe, 
+      0xff, 0xff, 0x7f, 0xff, 0xbf, 0xff, 0xa0, 0x3f, 0xdf, 0xdf, 0xbf, 0x23, 0xbf, 0xfd, 0xbf, 0xfe,
       0xa7, 0xe6, 0xdb, 0xda, 0xd8, 0x19, 0xe7, 0xe7, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
     };
 
@@ -168,14 +168,14 @@ public:
   {
     drawFloatR(value, offsetX, offsetY);
     _display.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
-    _display.print(chr);   
+    _display.print(chr);
   }
 
   void drawIntUnit(const char* chr, int value, float offsetX, float offsetY)
   {
     drawIntR(value, offsetX, offsetY);
     _display.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
-    _display.print(chr);   
+    _display.print(chr);
   }
 
   void drawRPM(int value, float offsetX, float offsetY)
@@ -199,9 +199,9 @@ public:
      const char chr[]{"km/h"};
     drawFloatR(value, offsetX, offsetY);
     _display.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
-    _display.print(chr);   
+    _display.print(chr);
   }
-  
+
   void drawI(float value, float offsetX, float offsetY)
   {
     const char chr[]{"a"};
@@ -242,6 +242,4 @@ public:
     _display.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
     _display.print(chr);
   }
-  
-
 };

@@ -2,7 +2,7 @@
 
 // #define DEEP_SLEEP_ESCAPE_PIN   D14
 #include <EEPROM.h>
-#include "display/draw_adafruit.hpp"
+#include "src/display/draw_adafruit.hpp"
 
 extern DrawAdafruit drawAdafruit;
 

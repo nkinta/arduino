@@ -6,7 +6,7 @@
 #include <ArduinoLowPower.h>
 
 #include "battery_controller.hpp"
-#include "display/draw_adafruit.hpp"
+#include "src/display/draw_adafruit.hpp"
 
 #include "flappy.hpp"
 #include "stopwatch.hpp"

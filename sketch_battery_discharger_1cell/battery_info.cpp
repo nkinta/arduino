@@ -1,6 +1,6 @@
 #include <string>
 #include "battery_info.hpp"
-#include "display/draw_adafruit.hpp"
+#include "src/display/draw_adafruit.hpp"
 #include "voltage_mapping.hpp"
 #include "save_config_data.hpp"
 #include "battery_controller.hpp"
