@@ -12,10 +12,10 @@ static constexpr float ONE_FRAME_MS{(1.f / FPS) * SEC};
 
 enum class MainMode : uint8_t
 {
-    DischargerMode,
-    PushDischargerMode,
-    ConfigMode,
-    BatteryConfigMode,
+    DischargerMode, // ノーマル放電モード（指定電圧放電モード）
+    PushDischargerMode, // ボタン押す放電モード
+    ConfigMode, // 設定モード（電圧値のキャリブレーション等）
+    BatteryConfigMode, // ーマル放電モード時の設定モード
     Max,
 };
 
@@ -47,6 +47,18 @@ private:
     ButtonStatus _buttonAStatus{};
     ButtonStatus _buttonBStatus{};
     ButtonStatus _buttonOnStatus{};
+
+    std::vector<ButtonStatus*> _buttonStatuses{
+        &_buttonLStatus,
+        &_buttonRStatus,
+        &_buttonUStatus,
+        &_buttonDStatus,
+        &_buttonAStatus,
+        &_buttonBStatus,
+        &_buttonOnStatus
+    };
+
+    std::vector<ButtonStatus*> _dischargeButtonStatuses;
 
     std::vector<BatteryInfo> _batteryStatuses{
         BatteryInfo{READ1_PIN, WRITE1_PIN, 0},

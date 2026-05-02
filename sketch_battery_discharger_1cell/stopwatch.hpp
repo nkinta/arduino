@@ -9,6 +9,7 @@
 #include "button_status.hpp"
 #include "discharger_define.hpp"
 #include "display/fonts/BBHBogle-Regular_16.h"
+#include "display/fonts/BBHBogle-Regular_14.h"
 
 namespace stopwatch
 {
@@ -217,7 +218,7 @@ namespace stopwatch
 
       drawCenteredText("STOPWATCH", 2, 1);
 
-      _display.setFont(&BBHBogle_Regular16pt7b);
+      _display.setFont(&BBHBogle_Regular14pt7b);
       _display.setTextSize(1);
       drawAlignedElapsed(timeText, 36);
       _display.setFont();

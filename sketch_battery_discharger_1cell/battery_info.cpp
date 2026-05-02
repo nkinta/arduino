@@ -8,13 +8,6 @@
 #include "display/fonts/BBHBogle-Regular_9.h"
 #include "display/fonts/BBHBogle-Regular_12.h"
 
-#include "display/fonts/Quicksand-VariableFont_wght_12.h"
-#include "display/fonts/Quicksand-VariableFont_wght_9.h"
-
-#include "display/fonts/Roboto-VariableFont_wdth_wght_12.h"
-#include "display/fonts/Roboto-VariableFont_wdth_wght_9.h"
-#include "display/fonts/Roboto-VariableFont_wdth_wght_6.h"
-
 extern DrawAdafruit drawAdafruit;
 
 const std::vector<String> DISC_MODE_NAMES{String("Keep"), String("KeepMin"), String("Stop")};

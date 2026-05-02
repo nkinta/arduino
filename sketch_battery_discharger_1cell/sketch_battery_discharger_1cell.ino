@@ -53,6 +53,7 @@ void setup()
   const bool flappyRequested{!digitalRead(PUSH_BUTTON_D)};
   const bool stopwatchRequested{!digitalRead(PUSH_BUTTON_U)};
 
+  // 開始時にどのボタンを押しているかで、ゲームモード、ストップウォッチモードを起動するか決定する
   if (stopwatchRequested)
   {
     startupMode = StartupMode::Stopwatch;

@@ -106,6 +106,21 @@ void BatteryController::setup()
     _buttonBStatus.init(PUSH_BUTTON_B);
     _buttonOnStatus.init(PUSH_BUTTON_ON);
 
+    static const std::vector<int> dischargeButtonIndices{PUSH_DISCHARGE_NO1, PUSH_DISCHARGE_NO2, PUSH_DISCHARGE_NO3, PUSH_DISCHARGE_NO4};
+
+    _dischargeButtonStatuses.resize(dischargeButtonIndices.size(), nullptr);
+    for (int index = 0; index < dischargeButtonIndices.size(); ++index)
+    {
+        for (ButtonStatus* buttonStatus: _buttonStatuses)
+        {
+            if (buttonStatus->_pinId == dischargeButtonIndices[index])
+            {
+                _dischargeButtonStatuses[index] = buttonStatus;
+                break;
+            }
+        }
+    }
+
     int val{HIGH};
     val = digitalRead(PUSH_BUTTON_A);
     if (val != LOW) // val == LOW)
@@ -510,60 +525,26 @@ void BatteryController::updateButtonStatus()
     }
     else if (_mainMode == MainMode::PushDischargerMode)
     {
-        PushType pushType{PushType::None};
-        int numBattery{0};
-        numBattery = 0;
-        pushType = _buttonLStatus.getVal();
-        if (pushType == PushType::PushLong || pushType == PushType::PushShort || pushType == PushType::Pushed)
+
+        for (int buttonIndex = 0; buttonIndex < _dischargeButtonStatuses.size(); ++buttonIndex)
         {
-            _batteryStatuses[numBattery].pushOn(_dischargeI);
-        }
-        else if (pushType == PushType::None)
-        {
-            _batteryStatuses[numBattery].pushOff();
+            ButtonStatus* butonStatus = _dischargeButtonStatuses[buttonIndex];
+            if (butonStatus == nullptr)
+            {
+                continue;
+            }
+            PushType pushType{butonStatus->getVal()};
+            if (pushType == PushType::PushLong || pushType == PushType::PushShort || pushType == PushType::Pushed)
+            {
+                _batteryStatuses[buttonIndex].pushOn(_dischargeI);
+            }
+            else if (pushType == PushType::None)
+            {
+                _batteryStatuses[buttonIndex].pushOff();
+            }
         }
 
-#if defined(V1_PCB)
-        numBattery = 2;
-#else
-        numBattery = 1;
-#endif
-        pushType = _buttonRStatus.getVal();
-        if (pushType == PushType::PushLong || pushType == PushType::PushShort || pushType == PushType::Pushed)
-        {
-            _batteryStatuses[numBattery].pushOn(_dischargeI);
-        }
-        else if (pushType == PushType::None)
-        {
-            _batteryStatuses[numBattery].pushOff();
-        }
-
-#if defined(V1_PCB)
-        numBattery = 1;
-#else
-        numBattery = 2;
-#endif
-        pushType = _buttonAStatus.getVal();
-        if (pushType == PushType::PushLong || pushType == PushType::PushShort || pushType == PushType::Pushed)
-        {
-            _batteryStatuses[numBattery].pushOn(_dischargeI);
-        }
-        else if (pushType == PushType::None)
-        {
-            _batteryStatuses[numBattery].pushOff();
-        }
-
-        numBattery = 3;
-        pushType = _buttonBStatus.getVal();
-        if (pushType == PushType::PushLong || pushType == PushType::PushShort || pushType == PushType::Pushed)
-        {
-            _batteryStatuses[numBattery].pushOn(_dischargeI);
-        }
-        else if (pushType == PushType::None)
-        {
-            _batteryStatuses[numBattery].pushOff();
-        }
-
+        PushType pushType{0};
         pushType = _buttonOnStatus.getVal();
         if (pushType == PushType::ReleaseShort)
         {
