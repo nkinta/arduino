@@ -106,11 +106,11 @@ void loopSub()
   {
     if (startupMode == StartupMode::Stopwatch)
     {
-      stopWatch.clearDisplay();
+      stopWatch.displaySleep();
     }
     else if (startupMode == StartupMode::FlappyGame)
     {
-      flappyGame.clearDisplay();
+      flappyGame.displaySleep();
     }
     else
     {

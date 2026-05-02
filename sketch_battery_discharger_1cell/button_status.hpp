@@ -5,6 +5,7 @@ enum class PushType : uint8_t
     None,
     ReleaseShort,
     ReleaseLong,
+    Pushed,
     PushShort,
     PushLong,
     Max,
@@ -63,14 +64,19 @@ struct ButtonStatus
         }
         else if (buttonFlag)
         {
-            if ((millis() - pushedMillis) > LONG_PUSH_MILLIS)
+            if (millis() - pushedMillis == 0)
             {
-                cachedType = PushType::PushLong;
+                cachedType = PushType::Pushed;
+                return;
+            }
+            else if ((millis() - pushedMillis) < LONG_PUSH_MILLIS)
+            {
+                cachedType = PushType::PushShort;
                 return;
             }
             else
             {
-                cachedType = PushType::PushShort;
+                cachedType = PushType::PushLong;
                 return;
             }
         }

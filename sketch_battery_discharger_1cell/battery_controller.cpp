@@ -530,7 +530,7 @@ void BatteryController::updateButtonStatus()
         int numBattery{0};
         numBattery = 0;
         pushType = buttonLStatus.getVal();
-        if (pushType == PushType::PushLong || pushType == PushType::PushShort)
+        if (pushType == PushType::PushLong || pushType == PushType::PushShort || pushType == PushType::Pushed)
         {
             batteryStatuses[numBattery].pushOn(dischargeI);
         }
@@ -545,7 +545,7 @@ void BatteryController::updateButtonStatus()
         numBattery = 1;
 #endif
         pushType = buttonRStatus.getVal();
-        if (pushType == PushType::PushLong || pushType == PushType::PushShort)
+        if (pushType == PushType::PushLong || pushType == PushType::PushShort || pushType == PushType::Pushed)
         {
             batteryStatuses[numBattery].pushOn(dischargeI);
         }
@@ -560,7 +560,7 @@ void BatteryController::updateButtonStatus()
         numBattery = 2;
 #endif
         pushType = buttonAStatus.getVal();
-        if (pushType == PushType::PushLong || pushType == PushType::PushShort)
+        if (pushType == PushType::PushLong || pushType == PushType::PushShort || pushType == PushType::Pushed)
         {
             batteryStatuses[numBattery].pushOn(dischargeI);
         }
@@ -571,7 +571,7 @@ void BatteryController::updateButtonStatus()
 
         numBattery = 3;
         pushType = buttonBStatus.getVal();
-        if (pushType == PushType::PushLong || pushType == PushType::PushShort)
+        if (pushType == PushType::PushLong || pushType == PushType::PushShort || pushType == PushType::Pushed)
         {
             batteryStatuses[numBattery].pushOn(dischargeI);
         }
@@ -587,7 +587,8 @@ void BatteryController::updateButtonStatus()
         }
     }
 
-    if ((buttonUStatus.getVal() == PushType::PushShort || buttonUStatus.getVal() == PushType::PushLong) && (buttonDStatus.getVal() == PushType::PushShort || buttonDStatus.getVal() == PushType::PushLong))
+    if ((buttonUStatus.getVal() == PushType::Pushed || buttonUStatus.getVal() == PushType::PushShort || buttonUStatus.getVal() == PushType::PushLong)
+    && (buttonDStatus.getVal() == PushType::Pushed || buttonDStatus.getVal() == PushType::PushShort || buttonDStatus.getVal() == PushType::PushLong))
     {
         if (mainMode == MainMode::DischargerMode || mainMode == MainMode::PushDischargerMode)
         {

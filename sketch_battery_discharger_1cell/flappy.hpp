@@ -138,17 +138,17 @@ namespace flappy
       lastFrame = millis();
     }
 
-  public:
-    // -----------------------------------------------
     void clearDisplay()
     {
-      gameEnd = true;
       display.clearDisplay();
       display.display();
     }
 
+  public:
+    // -----------------------------------------------
     void displaySleep()
     {
+      gameEnd = true;
       clearDisplay();
       display.ssd1306_command(SSD1306_DISPLAYOFF);
     }

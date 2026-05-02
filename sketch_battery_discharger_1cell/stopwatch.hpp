@@ -31,6 +31,8 @@ namespace stopwatch
     bool lapValid{false};
     unsigned long lastDrawMillis{0};
 
+    bool stopWatchEnd{false};
+
     static constexpr unsigned long DRAW_INTERVAL_MS{33};
 
     unsigned long currentElapsedMillis() const
@@ -243,12 +245,13 @@ namespace stopwatch
       display.display();
     }
 
-  public:
     void clearDisplay()
     {
       display.clearDisplay();
       display.display();
     }
+
+  public:
 
     void displaySleep()
     {
@@ -276,21 +279,26 @@ namespace stopwatch
 
     void loop()
     {
+      if (stopWatchEnd)
+      {
+        return;
+      }
+
       buttonLStatus.update();
       buttonAStatus.update();
       buttonBStatus.update();
 
-      if (buttonAStatus.getVal() == PushType::ReleaseShort)
+      if (buttonAStatus.getVal() == PushType::Pushed)
       {
         toggleRunning();
       }
 
-      if (buttonBStatus.getVal() == PushType::ReleaseShort)
+      if (buttonBStatus.getVal() == PushType::Pushed)
       {
         reset();
       }
 
-      if (buttonLStatus.getVal() == PushType::ReleaseShort)
+      if (buttonLStatus.getVal() == PushType::Pushed)
       {
         captureLap();
       }

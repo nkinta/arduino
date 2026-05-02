@@ -6,8 +6,8 @@
 // #define SERIAL_DEBUG_ON
 
 #undef  OLD_PCB
-#undef  V1_PCB
 #define V2_PCB
+#undef V1_PCB
 
 namespace DisplayConst
 {
