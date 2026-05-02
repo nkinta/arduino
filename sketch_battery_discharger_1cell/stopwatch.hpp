@@ -18,65 +18,65 @@ namespace stopwatch
     static constexpr int16_t SCREEN_HEIGHT{64};
     static constexpr int16_t OLED_RESET{-1};
 
-    Adafruit_SSD1306 display{SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET};
+    Adafruit_SSD1306 _display{SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET};
 
-    ButtonStatus buttonLStatus{};
-    ButtonStatus buttonAStatus{};
-    ButtonStatus buttonBStatus{};
+    ButtonStatus _buttonLStatus{};
+    ButtonStatus _buttonAStatus{};
+    ButtonStatus _buttonBStatus{};
 
-    bool running{false};
-    unsigned long startMillis{0};
-    unsigned long elapsedMillis{0};
-    unsigned long lapMillis{0};
-    bool lapValid{false};
-    unsigned long lastDrawMillis{0};
+    bool _running{false};
+    unsigned long _startMillis{0};
+    unsigned long _elapsedMillis{0};
+    unsigned long _lapMillis{0};
+    bool _lapValid{false};
+    unsigned long _lastDrawMillis{0};
 
-    bool stopWatchEnd{false};
+    bool _stopWatchEnd{false};
 
     static constexpr unsigned long DRAW_INTERVAL_MS{33};
 
     unsigned long currentElapsedMillis() const
     {
-      if (!running)
+      if (!_running)
       {
-        return elapsedMillis;
+        return _elapsedMillis;
       }
 
-      return elapsedMillis + (millis() - startMillis);
+      return _elapsedMillis + (millis() - _startMillis);
     }
 
     void reset()
     {
-      running = false;
-      startMillis = 0;
-      elapsedMillis = 0;
-      lapMillis = 0;
-      lapValid = false;
+      _running = false;
+      _startMillis = 0;
+      _elapsedMillis = 0;
+      _lapMillis = 0;
+      _lapValid = false;
     }
 
     void toggleRunning()
     {
-      if (running)
+      if (_running)
       {
-        elapsedMillis = currentElapsedMillis();
-        running = false;
+        _elapsedMillis = currentElapsedMillis();
+        _running = false;
       }
       else
       {
-        startMillis = millis();
-        running = true;
+        _startMillis = millis();
+        _running = true;
       }
     }
 
     void captureLap()
     {
-      if (!running)
+      if (!_running)
       {
         return;
       }
 
-      lapMillis = currentElapsedMillis();
-      lapValid = true;
+      _lapMillis = currentElapsedMillis();
+      _lapValid = true;
     }
 
     static void formatElapsed(unsigned long totalMillis, char *buffer, size_t bufferSize)
@@ -97,10 +97,10 @@ namespace stopwatch
       uint16_t w{};
       uint16_t h{};
 
-      display.setTextSize(textSize);
-      display.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
-      display.setCursor((SCREEN_WIDTH - static_cast<int16_t>(w)) / 2, y);
-      display.print(text);
+      _display.setTextSize(textSize);
+      _display.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
+      _display.setCursor((SCREEN_WIDTH - static_cast<int16_t>(w)) / 2, y);
+      _display.print(text);
     }
 
     int16_t measureGlyphWidth(char c)
@@ -110,7 +110,7 @@ namespace stopwatch
       int16_t y1{};
       uint16_t w{};
       uint16_t h{};
-      display.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
+      _display.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
       return static_cast<int16_t>(w);
     }
 
@@ -198,9 +198,9 @@ namespace stopwatch
         int16_t y1{};
         uint16_t w{};
         uint16_t h{};
-        display.getTextBounds(glyph, 0, 0, &x1, &y1, &w, &h);
-        display.setCursor(cursorX + (slotWidth - static_cast<int16_t>(w)) / 2 - x1, baselineY);
-        display.print(glyph);
+        _display.getTextBounds(glyph, 0, 0, &x1, &y1, &w, &h);
+        _display.setCursor(cursorX + (slotWidth - static_cast<int16_t>(w)) / 2 - x1, baselineY);
+        _display.print(glyph);
         cursorX += slotWidth;
         firstGlyph = false;
       }
@@ -212,43 +212,43 @@ namespace stopwatch
       char lapText[22]{};
       formatElapsed(currentElapsedMillis(), timeText, sizeof(timeText));
 
-      display.clearDisplay();
-      display.setTextColor(SSD1306_WHITE);
+      _display.clearDisplay();
+      _display.setTextColor(SSD1306_WHITE);
 
       drawCenteredText("STOPWATCH", 2, 1);
 
-      display.setFont(&BBHBogle_Regular16pt7b);
-      display.setTextSize(1);
+      _display.setFont(&BBHBogle_Regular16pt7b);
+      _display.setTextSize(1);
       drawAlignedElapsed(timeText, 36);
-      display.setFont();
+      _display.setFont();
 
-      display.setTextSize(1);
-      display.setCursor(0, 46);
-      display.print(running ? F("A:STOP") : F("A:START"));
+      _display.setTextSize(1);
+      _display.setCursor(0, 46);
+      _display.print(_running ? F("A:STOP") : F("A:START"));
 
-      display.setCursor(74, 46);
-      display.print(F("B:RESET"));
+      _display.setCursor(74, 46);
+      _display.print(F("B:RESET"));
 
-      display.setCursor(0, 56);
-      if (lapValid)
+      _display.setCursor(0, 56);
+      if (_lapValid)
       {
         char lapTime[16]{};
-        formatElapsed(lapMillis, lapTime, sizeof(lapTime));
+        formatElapsed(_lapMillis, lapTime, sizeof(lapTime));
         snprintf(lapText, sizeof(lapText), "LAP %s", lapTime);
-        display.print(lapText);
+        _display.print(lapText);
       }
       else
       {
-        display.print(F("L:LAP"));
+        _display.print(F("L:LAP"));
       }
 
-      display.display();
+      _display.display();
     }
 
     void clearDisplay()
     {
-      display.clearDisplay();
-      display.display();
+      _display.clearDisplay();
+      _display.display();
     }
 
   public:
@@ -256,7 +256,7 @@ namespace stopwatch
     void displaySleep()
     {
       clearDisplay();
-      display.ssd1306_command(SSD1306_DISPLAYOFF);
+      _display.ssd1306_command(SSD1306_DISPLAYOFF);
     }
 
     void setup()
@@ -265,13 +265,13 @@ namespace stopwatch
       pinMode(PUSH_BUTTON_A, INPUT_PULLUP);
       pinMode(PUSH_BUTTON_B, INPUT_PULLUP);
 
-      buttonLStatus.init(PUSH_BUTTON_L);
-      buttonAStatus.init(PUSH_BUTTON_A);
-      buttonBStatus.init(PUSH_BUTTON_B);
+      _buttonLStatus.init(PUSH_BUTTON_L);
+      _buttonAStatus.init(PUSH_BUTTON_A);
+      _buttonBStatus.init(PUSH_BUTTON_B);
 
-      display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-      display.clearDisplay();
-      display.display();
+      _display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+      _display.clearDisplay();
+      _display.display();
 
       reset();
       draw();
@@ -279,40 +279,40 @@ namespace stopwatch
 
     void loop()
     {
-      if (stopWatchEnd)
+      if (_stopWatchEnd)
       {
         return;
       }
 
-      buttonLStatus.update();
-      buttonAStatus.update();
-      buttonBStatus.update();
+      _buttonLStatus.update();
+      _buttonAStatus.update();
+      _buttonBStatus.update();
 
-      if (buttonAStatus.getVal() == PushType::Pushed)
+      if (_buttonAStatus.getVal() == PushType::Pushed)
       {
         toggleRunning();
       }
 
-      if (buttonBStatus.getVal() == PushType::Pushed)
+      if (_buttonBStatus.getVal() == PushType::Pushed)
       {
         reset();
       }
 
-      if (buttonLStatus.getVal() == PushType::Pushed)
+      if (_buttonLStatus.getVal() == PushType::Pushed)
       {
         captureLap();
       }
 
       const unsigned long now{millis()};
-      if ((now - lastDrawMillis) < DRAW_INTERVAL_MS &&
-          buttonAStatus.getVal() == PushType::None &&
-          buttonBStatus.getVal() == PushType::None &&
-          buttonLStatus.getVal() == PushType::None)
+      if ((now - _lastDrawMillis) < DRAW_INTERVAL_MS &&
+          _buttonAStatus.getVal() == PushType::None &&
+          _buttonBStatus.getVal() == PushType::None &&
+          _buttonLStatus.getVal() == PushType::None)
       {
         return;
       }
 
-      lastDrawMillis = now;
+      _lastDrawMillis = now;
       draw();
     }
   };

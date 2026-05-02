@@ -11,7 +11,7 @@ struct VoltageMapping
   float getVoltage(int input) const
   {
     const VoltPair *before{nullptr};
-    for (const VoltPair &current : mappingData)
+    for (const VoltPair &current : _mappingData)
     {
       if (before)
       {
@@ -28,10 +28,10 @@ struct VoltageMapping
 
   void initMapping(const std::vector<int> &customOffsetVolt)
   {
-    mappingData = defaultMappingData;
+    _mappingData = _defaultMappingData;
     for (int i{0}; i < customOffsetVolt.size(); ++i)
     {
-      mappingData[i].input -= customOffsetVolt[i];
+      _mappingData[i].input -= customOffsetVolt[i];
     }
   }
 
@@ -39,6 +39,6 @@ private:
   static constexpr float REG_A = 1.f;
   static constexpr float REG_B = 100.f;
   static constexpr float REG_RATE = REG_B / (REG_A + REG_B);
-  const std::vector<VoltPair> defaultMappingData{{0, 0.f}, {static_cast<int>(621 * REG_RATE), 0.5f}, {static_cast<int>(1241 * REG_RATE), 1.0f}, {static_cast<int>(1862 * REG_RATE), 1.5f}, {static_cast<int>(2482 * REG_RATE), 2.0f}, {static_cast<int>(4094 * REG_RATE), VOLT3_3}};
-  std::vector<VoltPair> mappingData{defaultMappingData};
+  const std::vector<VoltPair> _defaultMappingData{{0, 0.f}, {static_cast<int>(621 * REG_RATE), 0.5f}, {static_cast<int>(1241 * REG_RATE), 1.0f}, {static_cast<int>(1862 * REG_RATE), 1.5f}, {static_cast<int>(2482 * REG_RATE), 2.0f}, {static_cast<int>(4094 * REG_RATE), VOLT3_3}};
+  std::vector<VoltPair> _mappingData{_defaultMappingData};
 };

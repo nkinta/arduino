@@ -36,7 +36,6 @@ enum class ReduceMode : uint8_t
   Max,
 };
 
-
 enum class BatteryConfigSettingMode : uint8_t
 {
   DischargeVSetting,
@@ -51,30 +50,30 @@ void setDisplayTuneMenu(DrawAdafruit &adafruit, String &&title, std::vector<Stri
 
 class ValueCounter
 {
-  unsigned long totalValue{0};
+  unsigned long _totalValue{0};
 
-  int count{0};
+  int _count{0};
 
 public:
   void readVolt(int inVolt)
   {
-    totalValue += inVolt;
-    count += 1;
+    _totalValue += inVolt;
+    _count += 1;
   }
 
   void reset()
   {
-    totalValue = 0;
-    count = 0;
+    _totalValue = 0;
+    _count = 0;
   }
 
   unsigned long calcValue()
   {
-    if (count == 0)
+    if (_count == 0)
     {
       return 0;
     }
-    unsigned long result{totalValue / count};
+    unsigned long result{_totalValue / _count};
     reset();
     return result;
   }
@@ -82,21 +81,20 @@ public:
 
 struct SaveBattery
 {
-
   static constexpr float TARGET_V_MAX{1.60f};
   static constexpr float TARGET_V_MIN{0.9f};
-  static constexpr float TARGET_I_MAX{2.0f}; // 2SK4017 MOSFETの特性上 0.1Aの時に2.24V 0.5Aの時に2.6V 1.0Aの時に2.8V 2Aの時にMOSのゲート電圧が3.2V
+  static constexpr float TARGET_I_MAX{2.0f}; // 2SK4017 MOSFET の特性上、0.1A で約 2.24V、0.5A で約 2.6V、1.0A で約 2.8V、2A でゲート電圧は約 3.2V
   static constexpr float TARGET_I_MIN{0.4f};
   static constexpr int HOLDMIN_MIN{1};
   static constexpr int HOLDMIN_MAX{180};
 
-  float targetV{1.4f};
-  float targetI{1.f};
-  DisChargeMode disChargeMode{DisChargeMode::DischargeHold};
-  ReduceMode reduceMode{ReduceMode::Normal};
-  int holdMin{30};
+  float _targetV{1.4f};
+  float _targetI{1.f};
+  DisChargeMode _disChargeMode{DisChargeMode::DischargeHold};
+  ReduceMode _reduceMode{ReduceMode::Normal};
+  int _holdMin{30};
 
-  bool padding{true};
+  bool _padding{true};
 
   void shiftParam(BatteryConfigSettingMode settingMode, int shift);
 
@@ -157,20 +155,20 @@ class BatteryInfo
     1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
  };
 
-  unsigned long loopCount{0};
+  unsigned long _loopCount{0};
 
-  // チカチカ表示用
-  mutable unsigned long displayCount{0};
+  // 点滅表示用
+  mutable unsigned long _displayCount{0};
 
-  TimeStatus currentTimeStatus{TimeStatus::Active};
+  TimeStatus _currentTimeStatus{TimeStatus::Active};
 
-  static float calcI(const float targetI, const float V, const float targetV, const ReduceMode reduceMode);
+  static float calcI(const float targetI, const float v, const float targetV, const ReduceMode reduceMode);
 
-  static int calcPWMValue(float ampere, float active_rate, float calibI);
+  static int calcPWMValue(float ampere, float activeRate, float calibI);
 
 public:
   BatteryInfo(uint8_t inReadPin, uint8_t inWritePin, uint8_t inBatteryIndex)
-      : readPin{inReadPin}, writePin{inWritePin}, batteryIndex{inBatteryIndex} {};
+      : _batteryIndex{inBatteryIndex}, _readPin{inReadPin}, _writePin{inWritePin} {};
 
   void read();
 
@@ -184,49 +182,49 @@ public:
 
   void miniReset()
   {
-    tunedI = -1;
-    I = 0;
-    loopCount = 0;
+    _tunedI = -1;
+    _i = 0;
+    _loopCount = 0;
   };
 
   void reset()
   {
     miniReset();
-    milliAmpereHour = 0.f;
-    startMillis = millis();
-    endMillis = millis();
-    startSeconds = 0;
-    endSeconds = 0;
-    dischargedCount = 0;
-    milliAmpereHour = 0;
-    ohm = 0;
+    _milliAmpereHour = 0.f;
+    _startMillis = millis();
+    _endMillis = millis();
+    _startSeconds = 0;
+    _endSeconds = 0;
+    _dischargedCount = 0;
+    _milliAmpereHour = 0;
+    _ohm = 0;
   }
 
   void pushOn(float inI)
   {
-    if (tunedI == 0.f)
+    if (_tunedI == 0.f)
     {
-      startMillis = millis();
+      _startMillis = millis();
     }
-    tunedI = inI;
+    _tunedI = inI;
   }
 
   void pushOff()
   {
-    tunedI = 0.f;
+    _tunedI = 0.f;
   }
 
   void changeActive(int shift)
   {
-    if (activeFlag)
+    if (_activeFlag)
     {
-      activeFlag = false;
+      _activeFlag = false;
     }
     else
     {
-      nextBatteryStatus = BatteryStatus::None;
+      _nextBatteryStatus = BatteryStatus::None;
       reset();
-      activeFlag = true;
+      _activeFlag = true;
     }
   }
 
@@ -238,38 +236,37 @@ public:
 
   void setDisplayDetail() const;
 
-  ValueCounter valueCounter{};
+  ValueCounter _valueCounter{};
 
-  BatteryStatus currentBatteryStatus{BatteryStatus::None};
-  BatteryStatus nextBatteryStatus{BatteryStatus::None};
+  BatteryStatus _currentBatteryStatus{BatteryStatus::None};
+  BatteryStatus _nextBatteryStatus{BatteryStatus::None};
 
-  bool displayFlag{false};
-  bool activeFlag{false};
+  bool _displayFlag{false};
+  bool _activeFlag{false};
 
-  uint8_t batteryIndex{0};
-  uint8_t readPin{0};
-  uint8_t writePin{0};
-  unsigned long startMillis{0}; // 放電開始時
-  unsigned long endMillis{0}; // 放電終了時
-  int startSeconds{0};
-  int endSeconds{0};
+  uint8_t _batteryIndex{0};
+  uint8_t _readPin{0};
+  uint8_t _writePin{0};
+  unsigned long _startMillis{0}; // 放電開始時刻
+  unsigned long _endMillis{0}; // 放電終了時刻
+  int _startSeconds{0};
+  int _endSeconds{0};
 
-  int dischargedCount{0}; // 放電完了した回数
-  float V{0.f};
-  float sleepV{0.f};
-  float targetV{1.40f};
-  float I{0.0f};
-  float tunedI{1.f};
-  float ohm{0.f};
-  float targetI{0.2f};
-  float milliAmpereHour{0.0f};
-  unsigned long ampereHourTime{0};
-  DisChargeMode disChargeMode{DisChargeMode::DischargeHold};
-  ReduceMode reduceMode{ReduceMode::Normal};
-  int holdMin{30};
+  int _dischargedCount{0}; // 放電停止した回数
+  float _v{0.f};
+  float _sleepV{0.f};
+  float _targetV{1.40f};
+  float _i{0.0f};
+  float _tunedI{1.f};
+  float _ohm{0.f};
+  float _targetI{0.2f};
+  float _milliAmpereHour{0.0f};
+  unsigned long _ampereHourTime{0};
+  DisChargeMode _disChargeMode{DisChargeMode::DischargeHold};
+  ReduceMode _reduceMode{ReduceMode::Normal};
+  int _holdMin{30};
 
-  SaveBattery* saveBattery{nullptr};
+  SaveBattery* _saveBattery{nullptr};
 
-  const BatteryController* batteryController{nullptr};
-
+  const BatteryController* _batteryController{nullptr};
 };

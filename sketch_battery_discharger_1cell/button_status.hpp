@@ -17,76 +17,76 @@ struct ButtonStatus
 
     void init(const int inPinID)
     {
-        pinID = inPinID;
+        _pinId = inPinID;
     }
 
     PushType getVal() const
     {
-        return cachedType;
+        return _cachedType;
     }
 
     void update()
     {
-        int val = digitalRead(pinID);
+        int val = digitalRead(_pinId);
         if (val == LOW)
         {
-            buttonFlag = true;
+            _buttonFlag = true;
         }
         else
         {
-            buttonFlag = false;
+            _buttonFlag = false;
         }
 
         bool releaseFlag{false};
 
-        if (buttonFlag && (buttonOldFlag != buttonFlag))
+        if (_buttonFlag && (_buttonOldFlag != _buttonFlag))
         {
-            pushedMillis = millis();
+            _pushedMillis = millis();
         }
-        else if (!buttonFlag && (buttonOldFlag != buttonFlag))
+        else if (!_buttonFlag && (_buttonOldFlag != _buttonFlag))
         {
             releaseFlag = true;
         }
-        buttonOldFlag = buttonFlag;
+        _buttonOldFlag = _buttonFlag;
 
         if (releaseFlag)
         {
-            if ((millis() - pushedMillis) > LONG_PUSH_MILLIS)
+            if ((millis() - _pushedMillis) > LONG_PUSH_MILLIS)
             {
-                cachedType = PushType::ReleaseLong;
+                _cachedType = PushType::ReleaseLong;
                 return;
             }
             else
             {
-                cachedType = PushType::ReleaseShort;
+                _cachedType = PushType::ReleaseShort;
                 return;
             }
         }
-        else if (buttonFlag)
+        else if (_buttonFlag)
         {
-            if (millis() - pushedMillis == 0)
+            if (millis() - _pushedMillis == 0)
             {
-                cachedType = PushType::Pushed;
+                _cachedType = PushType::Pushed;
                 return;
             }
-            else if ((millis() - pushedMillis) < LONG_PUSH_MILLIS)
+            else if ((millis() - _pushedMillis) < LONG_PUSH_MILLIS)
             {
-                cachedType = PushType::PushShort;
+                _cachedType = PushType::PushShort;
                 return;
             }
             else
             {
-                cachedType = PushType::PushLong;
+                _cachedType = PushType::PushLong;
                 return;
             }
         }
 
-        cachedType = PushType::None;
+        _cachedType = PushType::None;
     }
 
-    PushType cachedType{0};
-    int pinID{0};
-    bool buttonFlag{false};
-    bool buttonOldFlag{false};
-    unsigned long pushedMillis{0};
+    PushType _cachedType{0};
+    int _pinId{0};
+    bool _buttonFlag{false};
+    bool _buttonOldFlag{false};
+    unsigned long _pushedMillis{0};
 };

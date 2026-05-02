@@ -40,70 +40,70 @@ class BatteryController
     static constexpr uint8_t XIAO_READ_BAT_SWITCH{PD3};
 
 private:
-    ButtonStatus buttonLStatus{};
-    ButtonStatus buttonRStatus{};
-    ButtonStatus buttonUStatus{};
-    ButtonStatus buttonDStatus{};
-    ButtonStatus buttonAStatus{};
-    ButtonStatus buttonBStatus{};
-    ButtonStatus buttonONStatus{};
+    ButtonStatus _buttonLStatus{};
+    ButtonStatus _buttonRStatus{};
+    ButtonStatus _buttonUStatus{};
+    ButtonStatus _buttonDStatus{};
+    ButtonStatus _buttonAStatus{};
+    ButtonStatus _buttonBStatus{};
+    ButtonStatus _buttonOnStatus{};
 
-    std::vector<BatteryInfo> batteryStatuses{
+    std::vector<BatteryInfo> _batteryStatuses{
         BatteryInfo{READ1_PIN, WRITE1_PIN, 0},
         BatteryInfo{READ2_PIN, WRITE2_PIN, 1},
         BatteryInfo{READ3_PIN, WRITE3_PIN, 2},
         BatteryInfo{READ4_PIN, WRITE4_PIN, 3}};
 
-    ConfigSettingMode configSettingMode{ConfigSettingMode::Volt00Setting};
-    BatteryConfigSettingMode batteryConfigSettingMode{BatteryConfigSettingMode::DischargeVSetting};
+    ConfigSettingMode _configSettingMode{ConfigSettingMode::Volt00Setting};
+    BatteryConfigSettingMode _batteryConfigSettingMode{BatteryConfigSettingMode::DischargeVSetting};
 
-    unsigned long loopSubMillis{0};
+    unsigned long _loopSubMillis{0};
 
-    size_t currentBatteryIndex{0};
+    size_t _currentBatteryIndex{0};
 
-    size_t currentBatterySettingIndex{0};
+    size_t _currentBatterySettingIndex{0};
 
-    unsigned long loopSubCount{0};
+    unsigned long _loopSubCount{0};
 
-    size_t batteryConfigNum{2};
+    size_t _batteryConfigNum{2};
 
-    uint8_t ledOnFlag{0};
+    uint8_t _ledOnFlag{0};
 
-    float dischargeI{2.f};
+    float _dischargeI{2.f};
 
-    bool xiaoVoltFlag{true};
+    bool _xiaoVoltFlag{true};
 
-    bool clearDisplayFlag{false};
+    bool _clearDisplayFlag{false};
 
-    SaveBatteryConfigData saveBatteryConfigData{};
+    SaveBatteryConfigData _saveBatteryConfigData{};
 
-    SaveConfigData saveConfigData{};
+    SaveConfigData _saveConfigData{};
 
-    MainMode mainMode{MainMode::DischargerMode};
+    MainMode _mainMode{MainMode::DischargerMode};
 
-    MainMode cachedMainMode{MainMode::DischargerMode};
+    MainMode _cachedMainMode{MainMode::DischargerMode};
 
 public:
     BatteryController()
     {
-        batteryStatuses[0].saveBattery = &(saveBatteryConfigData.battery[0]);
-        batteryStatuses[1].saveBattery = &(saveBatteryConfigData.battery[0]);
-        batteryStatuses[2].saveBattery = &(saveBatteryConfigData.battery[1]);
-        batteryStatuses[3].saveBattery = &(saveBatteryConfigData.battery[1]);
+        _batteryStatuses[0]._saveBattery = &(_saveBatteryConfigData._battery[0]);
+        _batteryStatuses[1]._saveBattery = &(_saveBatteryConfigData._battery[0]);
+        _batteryStatuses[2]._saveBattery = &(_saveBatteryConfigData._battery[1]);
+        _batteryStatuses[3]._saveBattery = &(_saveBatteryConfigData._battery[1]);
 
-        for (auto &batteryStatus : batteryStatuses)
+        for (auto &batteryStatus : _batteryStatuses)
         {
-            batteryStatus.batteryController = this;
+            batteryStatus._batteryController = this;
         }
 
-        batteryStatuses[currentBatteryIndex].displayFlag = true;
+        _batteryStatuses[_currentBatteryIndex]._displayFlag = true;
     }
 
-    float calibI{1.f};
+    float _calibI{1.f};
 
-    int decimal{3};
+    int _decimal{3};
 
-    VoltageMapping voltageMapping;
+    VoltageMapping _voltageMapping;
 
 private:
     float readAndDrawXiaoBattery();
@@ -126,7 +126,7 @@ private:
 
     void setDisplayBatteryConfig() const
     {
-        saveBatteryConfigData.battery[currentBatterySettingIndex].setDisplayBatteryConfig(currentBatterySettingIndex, batteryConfigSettingMode);
+        _saveBatteryConfigData._battery[_currentBatterySettingIndex].setDisplayBatteryConfig(_currentBatterySettingIndex, _batteryConfigSettingMode);
     }
 
     void setDisplayPushDischarge() const;
@@ -141,7 +141,7 @@ private:
 
     void changeTargetBatterySetting(int shift)
     {
-        currentBatterySettingIndex = (currentBatterySettingIndex + shift) % batteryConfigNum;
+        _currentBatterySettingIndex = (_currentBatterySettingIndex + shift) % _batteryConfigNum;
     }
 
     void shiftTargetBattery(int shift);
@@ -152,7 +152,7 @@ private:
 
     void changeActive(int shift)
     {
-        batteryStatuses[currentBatteryIndex].changeActive(shift);
+        _batteryStatuses[_currentBatteryIndex].changeActive(shift);
     };
 
     void shiftParam(int shift);
@@ -161,7 +161,7 @@ private:
 
     void loopMain()
     {
-        for (auto &batteryStatus : batteryStatuses)
+        for (auto &batteryStatus : _batteryStatuses)
         {
             batteryStatus.read();
         }
@@ -172,7 +172,7 @@ public:
 
     void clearDisplay()
     {
-        clearDisplayFlag = true;
+        _clearDisplayFlag = true;
     }
 
     void setup();
@@ -185,11 +185,10 @@ public:
         loopMain();
 
         const unsigned long tempMillis{millis()};
-        if (tempMillis - loopSubMillis > ONE_FRAME_MS)
+        if (tempMillis - _loopSubMillis > ONE_FRAME_MS)
         {
             loopSub();
-            loopSubMillis = tempMillis;
+            _loopSubMillis = tempMillis;
         }
     };
-
 };
