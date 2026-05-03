@@ -390,7 +390,7 @@ void BatteryInfo::setDisplayDetail() const
     {
         virOffset = DISPLAY_MENU_START_COL;
         virOffset += DISPLAY_MENU_OFFSET_COL;
-        drawAdafruit.drawFloatR(_ohm, virOffset, line, DISPLAY_MENU_OFFSET_COL, 1);
+        drawAdafruit.drawFloatR(_ohm, virOffset - 1, line, DISPLAY_MENU_OFFSET_COL, 1);
 
         static constexpr char CHAR_DATA_OHM[] = {0x6D, 0xe9, 0x00};
         drawAdafruit.drawChar(&CHAR_DATA_OHM[0], virOffset, line);

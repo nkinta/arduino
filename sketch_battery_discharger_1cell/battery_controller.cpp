@@ -71,7 +71,7 @@ void BatteryController::loadMain()
 
 void BatteryController::clearEEPROM()
 {
-    const uint8_t clearSize{64};
+    const uint8_t clearSize{256};
     for (int i = 0; i < clearSize; ++i)
     {
         EEPROM.write(i, 0xFF);
