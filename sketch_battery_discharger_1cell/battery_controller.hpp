@@ -21,11 +21,6 @@ enum class MainMode : uint8_t
 
 class BatteryController
 {
-    static constexpr unsigned long LOW_BATTERY_SLEEP_DELAY_MS{30000};
-
-    static constexpr uint8_t XIAO_READ_BAT{PD4};
-    static constexpr uint8_t XIAO_READ_BAT_SWITCH{PD3};
-
 private:
     ButtonStatus _buttonLStatus{};
     ButtonStatus _buttonRStatus{};
@@ -70,8 +65,6 @@ private:
 
     float _dischargeI{2.f};
 
-    unsigned long _lowBatteryDetectedMillis{0};
-
     bool _xiaoVoltValidFlag{true}; // xiaoの電圧値が正常かどうか
 
     bool _clearDisplayFlag{false};
@@ -107,8 +100,6 @@ public:
     VoltageMapping _voltageMapping;
 
 private:
-    float readAndDrawXiaoBattery();
-
     void saveConfig();
 
     void saveMain();
@@ -130,8 +121,6 @@ private:
     void setDisplayPushDischarge() const;
 
     void setDisplayData() const;
-
-    void setDisplayLowBattery() const;
 
     void setDisplayNone() const;
 
@@ -175,6 +164,8 @@ private:
     }
 
 public:
+    void drawXiaoBattery(float xiaoVolt) const;
+
     void displaySleep();
 
     void setup();

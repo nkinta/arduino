@@ -5,7 +5,6 @@
 #include "src/display/draw_adafruit.hpp"
 
 extern DrawAdafruit drawAdafruit;
-extern void goDeepSleep();
 
 template <typename T>
 void saveCustomData(byte *p)
@@ -84,11 +83,6 @@ void BatteryController::setup()
     drawAdafruit.setupDisplay();
 
     digitalWrite(PA6, HIGH); // FLASH
-
-    // BatteryReadSetting
-    pinMode(XIAO_READ_BAT_SWITCH, OUTPUT);
-    digitalWrite(XIAO_READ_BAT_SWITCH, HIGH);
-    pinMode(XIAO_READ_BAT, INPUT);
 
     // MemReset
     pinMode(MEM_RESET_PIN, INPUT_PULLUP);
@@ -187,12 +181,8 @@ void BatteryController::updateBatterySaveData()
     }
 }
 
-float BatteryController::readAndDrawXiaoBattery()
+void BatteryController::drawXiaoBattery(float xiaoVolt) const
 {
-    constexpr static float R_RATE{2.f};
-    const int readValue{analogRead(XIAO_READ_BAT)};
-    const float xiaoVolt{(static_cast<float>(readValue) / 4096.f) * R_RATE * VOLT3_3};
-
     uint8_t index{0};
     if (xiaoVolt > XIAO_FULL_VOLT)
     {
@@ -212,8 +202,6 @@ float BatteryController::readAndDrawXiaoBattery()
     }
 
     drawAdafruit.drawBat(index);
-
-    return xiaoVolt;
 }
 
 void BatteryController::setDisplayConfig() const
@@ -271,13 +259,6 @@ void BatteryController::setDisplayPushDischarge() const
 void BatteryController::setDisplayNone() const
 {
     drawAdafruit.clearDisplay();
-}
-
-void BatteryController::setDisplayLowBattery() const
-{
-    drawAdafruit.clearDisplay();
-    drawAdafruit.drawStringC("Low Battery", 3);
-    // drawAdafruit.drawStringC("Sleep in 30 sec", 4);
 }
 
 void BatteryController::setDisplayData() const
@@ -559,44 +540,6 @@ void BatteryController::setDisplayBatteryConfig(DrawAdafruit& drawAdafruit) cons
 void BatteryController::loopSub()
 {
     ++_loopSubCount;
-    if ((_loopSubCount % 60) == 0)
-    {
-        const float xiaoVolt{readAndDrawXiaoBattery()};
-
-        if (_xiaoVoltValidFlag)
-        {
-            if (xiaoVolt < XIAO_MIN_VOLT)
-            {
-                _xiaoVoltValidFlag = false;
-            }
-        }
-        else
-        {
-            if (xiaoVolt > (XIAO_MIN_VOLT + 0.1f))
-            {
-                _xiaoVoltValidFlag = true;
-            }
-        }
-    }
-
-    if (!_xiaoVoltValidFlag)
-    {
-        if (_lowBatteryDetectedMillis == 0)
-        {
-            _lowBatteryDetectedMillis = millis();
-        }
-
-        setDisplayLowBattery();
-        drawAdafruit.display();
-
-        if ((millis() - _lowBatteryDetectedMillis) >= LOW_BATTERY_SLEEP_DELAY_MS)
-        {
-            displaySleep();
-            goDeepSleep();
-        }
-        return;
-    }
-    _lowBatteryDetectedMillis = 0;
 
     if (_ledOnFlag > 0)
     {
