@@ -89,6 +89,21 @@ void BatteryController::setup()
     digitalWrite(XIAO_READ_BAT_SWITCH, HIGH);
     pinMode(XIAO_READ_BAT, INPUT);
 
+    // MemReset
+    pinMode(MEM_RESET_PIN, INPUT_PULLUP);
+    int val{HIGH};
+    val = digitalRead(MEM_RESET_PIN);
+    if (val != LOW)
+    {
+        loadMain();
+        loadConfig();
+    }
+    else
+    {
+        saveMain();
+        saveConfig();
+    }
+
     // Button
     pinMode(PUSH_BUTTON_L, INPUT_PULLUP);
     pinMode(PUSH_BUTTON_D, INPUT_PULLUP);
@@ -106,6 +121,7 @@ void BatteryController::setup()
     _buttonBStatus.init(PUSH_BUTTON_B);
     _buttonOnStatus.init(PUSH_BUTTON_ON);
 
+    // PushDischargeのボタン割り当て初期化
     static const std::vector<int> dischargeButtonIndices{PUSH_DISCHARGE_NO1, PUSH_DISCHARGE_NO2, PUSH_DISCHARGE_NO3, PUSH_DISCHARGE_NO4};
 
     _dischargeButtonStatuses.resize(dischargeButtonIndices.size(), nullptr);
@@ -119,19 +135,6 @@ void BatteryController::setup()
                 break;
             }
         }
-    }
-
-    int val{HIGH};
-    val = digitalRead(PUSH_BUTTON_A);
-    if (val != LOW) // val == LOW)
-    {
-        loadMain();
-        loadConfig();
-    }
-    else
-    {
-        saveMain();
-        saveConfig();
     }
 
     updateBatterySaveData();
@@ -188,7 +191,26 @@ float BatteryController::readAndDrawXiaoBattery()
     constexpr static float R_RATE{2.f};
     const int readValue{analogRead(XIAO_READ_BAT)};
     const float xiaoVolt{(static_cast<float>(readValue) / 4096.f) * R_RATE * VOLT3_3};
-    drawAdafruit.drawBat(xiaoVolt);
+
+    uint8_t index{0};
+    if (xiaoVolt > XIAO_FULL_VOLT)
+    {
+      index = 3;
+    }
+    else if (xiaoVolt > XIAO_LEVEL2_VOLT)
+    {
+      index = 2;
+    }
+    else if (xiaoVolt > XIAO_MIN_VOLT)
+    {
+      index = 1;
+    }
+    else
+    {
+      index = 0;
+    }
+
+    drawAdafruit.drawBat(index);
 
     return xiaoVolt;
 }
@@ -196,23 +218,6 @@ float BatteryController::readAndDrawXiaoBattery()
 void BatteryController::setDisplayConfig() const
 {
     _saveConfigData.setDisplayConfig(drawAdafruit, _configSettingMode);
-    /*
-    std::vector<String> menuList{"0.0V", "0.5V", "1.0V", "1.5V", "2.0V", "LedOn", "DiscI", "AmpTune", "Decimal"};
-
-    std::vector<String> valueList{
-        String(_saveConfigData._voltDatas[0]),
-        String(_saveConfigData._voltDatas[1]),
-        String(_saveConfigData._voltDatas[2]),
-        String(_saveConfigData._voltDatas[3]),
-        String(_saveConfigData._voltDatas[4]),
-        String(_saveConfigData._ledOnFlag == 0 ? false : true),
-        String(_saveConfigData._dischargeI),
-        String(_saveConfigData._calibI),
-        String(_saveConfigData._decimal),
-    };
-
-    setDisplayTuneMenu(drawAdafruit, "Config", menuList, valueList, static_cast<int>(_configSettingMode));
-    */
 }
 
 void BatteryController::setDisplayPushDischarge() const

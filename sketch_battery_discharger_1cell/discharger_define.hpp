@@ -9,6 +9,8 @@
 #define V2_PCB
 #undef V1_PCB
 
+// MG24の WakeUp 可能なpinメモ(14 16 0 10)
+
 namespace DisplayConst
 {
   static constexpr char CHAR_DATA_ARROW[] = ">";
@@ -19,6 +21,9 @@ namespace DisplayConst
 }
 
 static constexpr float VOLT3_3{3.3f};
+
+static constexpr float XIAO_FULL_VOLT{4.f};
+static constexpr float XIAO_LEVEL2_VOLT{3.9f};
 static constexpr float XIAO_MIN_VOLT{3.7f};
 
 #if defined(V1_PCB) || defined(V2_PCB)
@@ -50,7 +55,8 @@ static constexpr float XIAO_MIN_VOLT{3.7f};
     static constexpr int PUSH_DISCHARGE_NO3{PUSH_BUTTON_R};
     static constexpr int PUSH_DISCHARGE_NO4{PUSH_BUTTON_B};
 
-    static constexpr int WAKE_UP_PIN{PUSH_BUTTON_U}; // 14 16 0 10
+    static constexpr int WAKE_UP_PIN{PUSH_BUTTON_U}; 
+    static constexpr int MEM_RESET_PIN{PUSH_BUTTON_A};
 
 #elif defined(V2_PCB)
     static constexpr int PUSH_BUTTON_L{15}; // Left
@@ -66,7 +72,9 @@ static constexpr float XIAO_MIN_VOLT{3.7f};
     static constexpr int PUSH_DISCHARGE_NO3{PUSH_BUTTON_A};
     static constexpr int PUSH_DISCHARGE_NO4{PUSH_BUTTON_B};
 
-    static constexpr int WAKE_UP_PIN{PUSH_BUTTON_ON}; // 14 16 0 10
+    static constexpr int WAKE_UP_PIN{PUSH_BUTTON_ON};
+    static constexpr int MEM_RESET_PIN{PUSH_BUTTON_A};
+ 
 #else
     static constexpr int PUSH_BUTTON_L{15};
     static constexpr int PUSH_BUTTON_D{14};

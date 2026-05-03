@@ -96,6 +96,16 @@ void goDeepSleep()
 
     BatteryController::writePinReset();
 
+    pinMode(PD3, OUTPUT);
+    pinMode(PB5, OUTPUT);
+    pinMode(PB1, OUTPUT);
+    pinMode(PB0, OUTPUT);
+
+    digitalWrite(PD3, LOW); //VBAT
+    digitalWrite(PB5, LOW); //RF_SW
+    digitalWrite(PB1, LOW); //IMU
+    digitalWrite(PB0, LOW); //MIC
+    
     LowPower.deepSleep(365 * 24 * 3600 * 1000); // 7 * 24 * 3600 * 1000 // one week // 365 * 24 * 3600 * 1000
 }
 

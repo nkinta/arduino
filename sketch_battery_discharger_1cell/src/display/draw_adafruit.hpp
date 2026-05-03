@@ -101,7 +101,7 @@ public:
     _display.setTextSize(size);
   }
 
-  void drawBat(const float voltage);
+  void drawBat(const int index);
 
   void drawCar()
   {

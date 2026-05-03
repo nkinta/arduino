@@ -43,7 +43,7 @@ void DrawAdafruit::setDisplayTuneMenu(DrawAdafruit &drawAdafruit, String &&title
     }
 }
 
-void DrawAdafruit::drawBat(const float voltage)
+void DrawAdafruit::drawBat(const int index)
 {
 
     // https://javl.github.io/image2cpp/
@@ -65,30 +65,12 @@ void DrawAdafruit::drawBat(const float voltage)
     };
 
     const unsigned char clear[] PROGMEM = {
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
     };
 
     const unsigned char* bat_meter[4] = {
       bat0, bat1, bat2, bat3
     };
-
-    uint8_t index{0};
-    if (voltage > 4.05f)
-    {
-      index = 3;
-    }
-    else if (voltage > 3.85f)
-    {
-      index = 2;
-    }
-    else if (voltage > 3.6f)
-    {
-      index = 1;
-    }
-    else
-    {
-      index = 0;
-    }
 
     // drawFillLine(6);
     // drawFloat(voltage, 10, 6);
