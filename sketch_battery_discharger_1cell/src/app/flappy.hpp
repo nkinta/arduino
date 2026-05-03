@@ -2,6 +2,9 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
+#include "../../button_status.hpp"
+#include "../../discharger_define.hpp"
+
 namespace flappy
 {
 
@@ -10,8 +13,6 @@ namespace flappy
   constexpr int16_t OLED_RESET{-1};
   Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-  constexpr int16_t BTN_FLAP1{D13};
-  constexpr int16_t BTN_FLAP2{D16};
   constexpr int16_t ANALOG_READ{D9};
 
   // ゲーム状態
@@ -59,8 +60,8 @@ namespace flappy
 
     Pipe _pipes[NUM_PIPES];
 
-    bool _prevFlap;
-    bool _prevRestart;
+    ButtonStatus _buttonFlapStatus{};
+    ButtonStatus _buttonRestartStatus{};
     unsigned long _lastFrame;
 
     void drawBird(int y)
@@ -153,10 +154,10 @@ namespace flappy
 
     void setup()
     {
-      pinMode(BTN_FLAP1, INPUT_PULLUP);
-      pinMode(BTN_FLAP2, INPUT_PULLUP);
-      _prevFlap = false;
-      _prevRestart = false;
+      pinMode(PUSH_BUTTON_A, INPUT_PULLUP);
+      pinMode(PUSH_BUTTON_B, INPUT_PULLUP);
+      _buttonFlapStatus.init(PUSH_BUTTON_A);
+      _buttonRestartStatus.init(PUSH_BUTTON_B);
 
       display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
       display.clearDisplay();
@@ -174,12 +175,11 @@ namespace flappy
         return;
       }
 
-      bool flap = ((digitalRead(BTN_FLAP1) == LOW) || (digitalRead(BTN_FLAP2) == LOW));
-      bool restart = ((digitalRead(BTN_FLAP1) == LOW) || (digitalRead(BTN_FLAP2) == LOW));
-      bool flapPressed = flap && !_prevFlap;
-      bool restartPressed = restart && !_prevRestart;
-      _prevFlap = flap;
-      _prevRestart = restart;
+      _buttonFlapStatus.update();
+      _buttonRestartStatus.update();
+
+      const bool flapPressed{_buttonFlapStatus.getVal() == PushType::Pushed};
+      const bool restartPressed{_buttonRestartStatus.getVal() == PushType::Pushed};
 
       // ---- タイトル ----
       if (_gameState == STATE_TITLE)

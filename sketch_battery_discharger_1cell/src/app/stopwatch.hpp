@@ -6,9 +6,9 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
-#include "button_status.hpp"
-#include "discharger_define.hpp"
-#include "display/fonts/BBHBogle-Regular_14.h"
+#include "../../button_status.hpp"
+#include "../../discharger_define.hpp"
+#include "../../display/fonts/BBHBogle-Regular_14.h"
 
 namespace stopwatch
 {

@@ -9,8 +9,8 @@
 #include "battery_controller.hpp"
 #include "src/display/draw_adafruit.hpp"
 
-#include "flappy.hpp"
-#include "stopwatch.hpp"
+#include "src/app/flappy.hpp"
+#include "src/app/stopwatch.hpp"
 
 DrawAdafruit drawAdafruit;
 
