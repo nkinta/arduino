@@ -21,6 +21,7 @@ enum class MainMode : uint8_t
 
 class BatteryController
 {
+    static constexpr unsigned long LOW_BATTERY_SLEEP_DELAY_MS{30000};
 
     static constexpr uint8_t XIAO_READ_BAT{PD4};
     static constexpr uint8_t XIAO_READ_BAT_SWITCH{PD3};
@@ -68,6 +69,8 @@ private:
     uint8_t _ledOnFlag{0};
 
     float _dischargeI{2.f};
+
+    unsigned long _lowBatteryDetectedMillis{0};
 
     bool _xiaoVoltValidFlag{true}; // xiaoの電圧値が正常かどうか
 
@@ -128,6 +131,8 @@ private:
 
     void setDisplayData() const;
 
+    void setDisplayLowBattery() const;
+
     void setDisplayNone() const;
 
     // void goDeepSleep();
@@ -136,7 +141,9 @@ private:
 
     void changeTargetBatterySetting(int shift)
     {
-        _currentBatterySettingIndex = (_currentBatterySettingIndex + shift) % _batteryConfigNum;
+        const int count{static_cast<int>(_batteryConfigNum)};
+        const int currentIndex{static_cast<int>(_currentBatterySettingIndex)};
+        _currentBatterySettingIndex = static_cast<size_t>((count + currentIndex + shift) % count);
     }
 
     void shiftTargetBattery(int shift);

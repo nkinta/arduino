@@ -5,6 +5,7 @@
 #include "src/display/draw_adafruit.hpp"
 
 extern DrawAdafruit drawAdafruit;
+extern void goDeepSleep();
 
 template <typename T>
 void saveCustomData(byte *p)
@@ -272,6 +273,13 @@ void BatteryController::setDisplayNone() const
     drawAdafruit.clearDisplay();
 }
 
+void BatteryController::setDisplayLowBattery() const
+{
+    drawAdafruit.clearDisplay();
+    drawAdafruit.drawStringC("Low Battery", 3);
+    // drawAdafruit.drawStringC("Sleep in 30 sec", 4);
+}
+
 void BatteryController::setDisplayData() const
 {
     drawAdafruit.drawFillLine(0);
@@ -298,7 +306,9 @@ void BatteryController::displaySleep()
 
 void BatteryController::shiftTargetBattery(int shift)
 {
-    _currentBatteryIndex = (_currentBatteryIndex + shift) % _batteryStatuses.size();
+    const int count{static_cast<int>(_batteryStatuses.size())};
+    const int currentIndex{static_cast<int>(_currentBatteryIndex)};
+    _currentBatteryIndex = static_cast<size_t>((count + currentIndex + shift) % count);
 
     for (size_t index{0}; index < _batteryStatuses.size(); ++index)
     {
@@ -571,9 +581,22 @@ void BatteryController::loopSub()
 
     if (!_xiaoVoltValidFlag)
     {
+        if (_lowBatteryDetectedMillis == 0)
+        {
+            _lowBatteryDetectedMillis = millis();
+        }
+
+        setDisplayLowBattery();
         drawAdafruit.display();
+
+        if ((millis() - _lowBatteryDetectedMillis) >= LOW_BATTERY_SLEEP_DELAY_MS)
+        {
+            displaySleep();
+            goDeepSleep();
+        }
         return;
     }
+    _lowBatteryDetectedMillis = 0;
 
     if (_ledOnFlag > 0)
     {
