@@ -41,6 +41,7 @@ public:
   Adafruit_SSD1306 _display{SCREEN_WIDTH, SCREEN_HEIGHT, &Wire}; //
 
   static void setDisplayTuneMenu(DrawAdafruit &adafruit, String &&title, std::vector<String> &menuList, std::vector<String> &valueList, int targetIndex);
+  static String formatFloatZeroPad(float value, int integerDigits, int decimalDigits);
 
   void displaySleep()
   {
@@ -60,7 +61,6 @@ public:
     // the library initializes this with an Adafruit splash screen.
 
     // Clear the buffer
-
     // adaDisplay.setFont(&Picopixel);
 
     _display.clearDisplay();
@@ -82,13 +82,7 @@ public:
 
   void setFont(const GFXfont* f)
   {
-    // FreeSerif9pt7b
-    // FreeMonoBoldOblique9pt7b
-    // FreeMonoOblique9pt7b
-    // FreeSerifBoldItalic9pt7b
-    // FreeMono9pt7b
     _display.setFont(f);
-
   }
 
   void removeFont()
@@ -103,22 +97,7 @@ public:
 
   void drawBat(const int index);
 
-  void drawCar()
-  {
-    // 'untitled', 16x16px
-    unsigned char epd_bitmap_untitled[] PROGMEM = {
-      0xff, 0xff, 0x7f, 0xff, 0xbf, 0xff, 0xa0, 0x3f, 0xdf, 0xdf, 0xbf, 0x23, 0xbf, 0xfd, 0xbf, 0xfe,
-      0xa7, 0xe6, 0xdb, 0xda, 0xd8, 0x19, 0xe7, 0xe7, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
-    };
-
-    // Array of all bitmaps for convenience. (Total bytes used to store images in PROGMEM = 48)
-    const int epd_bitmap_allArray_LEN = 1;
-    const unsigned char* epd_bitmap_allArray[1] = {
-      epd_bitmap_untitled
-    };
-
-    _display.drawBitmap(3, 3, &epd_bitmap_untitled[0], 16, 16, WHITE);
-  }
+  void drawCar();
 
   void clearDisplay()
   {
@@ -130,7 +109,11 @@ public:
   void drawFillLine(int line)
   {
     _display.fillRect(0, CHARSIZEY * line, SCREEN_WIDTH, CHARSIZEY, BLACK);
-    // _display.drawFastHLine(0, CHARSIZEY + 5, 128, BLACK);
+  }
+
+  void drawFillR(int offsetX, int offsetY, int width)
+  {
+    _display.fillRect(CHARSIZEX * (offsetX - width), CHARSIZEY * offsetY, CHARSIZEX * width, CHARSIZEY, BLACK);
   }
 
   void drawStringC(const String& string, int offsetY)
@@ -143,80 +126,27 @@ public:
     drawChar(string.c_str(), offsetX, offsetY);
   }
 
-  void drawStringR(const String& string, int offsetX, int offsetY) {
-    drawChar(string.c_str(), offsetX - string.length(), offsetY);
-  }
-
-  void drawFillR(int offsetX, int offsetY, int width)
-  {
-    _display.fillRect(CHARSIZEX * (offsetX - width), CHARSIZEY * offsetY, CHARSIZEX * width, CHARSIZEY, BLACK);
-  }
-
-  void drawFloat(float value, float offsetX, float offsetY, int decimal = 2) {
+  void drawFloat(float value, float offsetX, float offsetY, int decimal = 2, int integerDigit = 1) {
     _display.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
-
-    _display.print(String(value, decimal));
+    _display.print(formatFloatZeroPad(value, integerDigit, decimal));
   }
 
   void drawInt(int value, float offsetX, float offsetY) {
     _display.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
-
     _display.print(value);
   }
 
-  void drawFloatUnit(const char* chr, float value, float offsetX, float offsetY)
-  {
-    drawFloatR(value, offsetX, offsetY);
-    _display.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
-    _display.print(chr);
+  void drawStringR(const String& string, int offsetX, int offsetY) {
+    drawChar(string.c_str(), offsetX - string.length(), offsetY);
   }
 
-  void drawIntUnit(const char* chr, int value, float offsetX, float offsetY)
-  {
-    drawIntR(value, offsetX, offsetY);
-    _display.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
-    _display.print(chr);
-  }
-
-  void drawRPM(int value, float offsetX, float offsetY)
-  {
-    const char chr[]{"rpm"};
-    drawIntR(value, offsetX, offsetY);
-    _display.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
-    _display.print(chr);
-  }
-
-  void drawV(float value, float offsetX, float offsetY)
-  {
-    const char chr[]{"v"};
-    drawFloatR(value, offsetX, offsetY);
-    _display.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
-    _display.print(chr);
-  }
-
-  void drawKm(float value, float offsetX, float offsetY)
-  {
-     const char chr[]{"km/h"};
-    drawFloatR(value, offsetX, offsetY);
-    _display.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
-    _display.print(chr);
-  }
-
-  void drawI(float value, float offsetX, float offsetY)
-  {
-    const char chr[]{"a"};
-    drawFloatR(value, offsetX, offsetY);
-    _display.setCursor(CHARSIZEX * offsetX + UNIT_OFFSET, CHARSIZEY * offsetY);
-    _display.print(chr);
-  }
-
-  void drawFloatR(float value, float offsetX, float offsetY, int size = 4, int decimal = 2) {
-    String valueStr{String(value, decimal)};
+  void drawFloatR(float value, float offsetX, float offsetY, int size = 4, int decimal = 2, int integerDigit = 1) {
+    String valueStr{formatFloatZeroPad(value, integerDigit, decimal)};
     const int offset{valueStr.length()};
     const int clearOffset{max(offset, size)};
 
     _display.setCursor(CHARSIZEX * (offsetX - offset), CHARSIZEY * offsetY);
-    _display.print(String(value, decimal));
+    _display.print(valueStr);
   }
 
   void drawIntR(int value, float offsetX, float offsetY) {
@@ -233,15 +163,8 @@ public:
   void dumpDisplayAsPbm(Stream& out);
 
   void drawChar(const char* chr, int offsetX, int offsetY) {
-    // display.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * sizeChar, CHARSIZEY * 1, BLACK);
     _display.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
-    // display.setTextColor(SSD1306_WHITE); // Draw 'inverse' text
     _display.print(chr);
   }
 
-  void drawCharRefreshBack(const char* chr, int offsetX, int offsetY, int sizeChar) {
-    _display.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * sizeChar, CHARSIZEY * 1, BLACK);
-    _display.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
-    _display.print(chr);
-  }
 };

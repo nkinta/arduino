@@ -2,6 +2,46 @@
 
 #include "../../discharger_define.hpp"
 
+String DrawAdafruit::formatFloatZeroPad(float value, int integerDigits, int decimalDigits)
+{
+    if (integerDigits < 1)
+    {
+        integerDigits = 1;
+    }
+
+    if (decimalDigits < 0)
+    {
+        decimalDigits = 0;
+    }
+
+    String formatted{String(value, decimalDigits)};
+    const bool isNegative{formatted.startsWith("-")};
+    const int signOffset{isNegative ? 1 : 0};
+    const int dotIndex{formatted.indexOf('.')};
+    const int integerEnd{dotIndex >= 0 ? dotIndex : formatted.length()};
+    const int currentIntegerDigits{integerEnd - signOffset};
+    const int zeroCount{max(0, integerDigits - currentIntegerDigits)};
+
+    if (zeroCount <= 0)
+    {
+        return formatted;
+    }
+
+    String zeros;
+    zeros.reserve(zeroCount);
+    for (int i = 0; i < zeroCount; ++i)
+    {
+        zeros += '0';
+    }
+
+    if (isNegative)
+    {
+        return "-" + zeros + formatted.substring(1);
+    }
+
+    return zeros + formatted;
+}
+
 void DrawAdafruit::setDisplayTuneMenu(DrawAdafruit &drawAdafruit, String &&title, std::vector<String> &menuList, std::vector<String> &valueList, int targetIndex)
 {
     int virOffset1{0};
@@ -41,6 +81,23 @@ void DrawAdafruit::setDisplayTuneMenu(DrawAdafruit &drawAdafruit, String &&title
         drawAdafruit.drawFillLine(line);
         line++;
     }
+}
+
+void DrawAdafruit::drawCar()
+{
+// 'untitled', 16x16px
+unsigned char epd_bitmap_untitled[] PROGMEM = {
+    0xff, 0xff, 0x7f, 0xff, 0xbf, 0xff, 0xa0, 0x3f, 0xdf, 0xdf, 0xbf, 0x23, 0xbf, 0xfd, 0xbf, 0xfe,
+    0xa7, 0xe6, 0xdb, 0xda, 0xd8, 0x19, 0xe7, 0xe7, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+};
+
+// Array of all bitmaps for convenience. (Total bytes used to store images in PROGMEM = 48)
+const int epd_bitmap_allArray_LEN = 1;
+const unsigned char* epd_bitmap_allArray[1] = {
+    epd_bitmap_untitled
+};
+
+_display.drawBitmap(3, 3, &epd_bitmap_untitled[0], 16, 16, WHITE);
 }
 
 void DrawAdafruit::drawBat(const int index)

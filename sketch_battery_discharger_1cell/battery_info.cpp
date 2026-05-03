@@ -339,7 +339,7 @@ void BatteryInfo::setDisplayDetail() const
     ++line;
     drawAdafruit.drawFillLine(line);
 
-    virOffset = DISPLAY_MENU_START_COL;
+    virOffset = DISPLAY_MENU_START_COL + 1;
 
     float displayStartSeconds{_startSeconds};
     float displayEndSeconds{_endSeconds};
@@ -355,7 +355,7 @@ void BatteryInfo::setDisplayDetail() const
     printMinuteSecond(displayEndSeconds, endSecondsStr);
 
     drawAdafruit.drawChar(startSecondsStr, virOffset, line);
-    drawAdafruit.drawChar(endSecondsStr, virOffset + 9, line);
+    drawAdafruit.drawChar(endSecondsStr, virOffset + 8, line);
 
     if (0)
     {
@@ -390,14 +390,15 @@ void BatteryInfo::setDisplayDetail() const
     {
         virOffset = DISPLAY_MENU_START_COL;
         virOffset += DISPLAY_MENU_OFFSET_COL;
-        drawAdafruit.drawFloatR(_ohm, virOffset - 1, line, DISPLAY_MENU_OFFSET_COL, 1);
+        virOffset -= 1;
+        drawAdafruit.drawFloatR(_ohm, virOffset, line, DISPLAY_MENU_OFFSET_COL, 1);
 
         static constexpr char CHAR_DATA_OHM[] = {0x6D, 0xe9, 0x00};
         drawAdafruit.drawChar(&CHAR_DATA_OHM[0], virOffset, line);
 
-        virOffset += 2;
+        virOffset += 5;
         virOffset += DISPLAY_MENU_OFFSET_COL;
-        drawAdafruit.drawFloatR(displayMilliAmpereHour, virOffset, line, DISPLAY_MENU_OFFSET_COL, 1);
+        drawAdafruit.drawFloatR(displayMilliAmpereHour, virOffset, line, DISPLAY_MENU_OFFSET_COL, 1, 3);
         drawAdafruit.drawString("mah", virOffset, line);
     }
 
