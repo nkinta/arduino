@@ -22,7 +22,7 @@
 
 ## ボタン配置
 
-<img src="readme_capture/button.png" width="200%">
+<img src="readme_capture/button.png" width="100%">
 
 - L、R、U、D の十字キー移動
 - A、Bボタン
@@ -30,7 +30,7 @@
 
 ## 基本の使い方
 
-![電圧表示画面](readme_capture/normal_discharge.png)
+<img src="readme_capture/normal_discharge.png" width="200%">
 
 1. 電池をセットして電源を入れます
 2. 画面上段に4本分の電圧が表示されます
@@ -40,7 +40,7 @@
 
 放電中は、選択中の電池について次の情報が表示されます。
 
-![放電中の画面](readme_capture/normal_discharge_detail.png)
+<img src="readme_capture/normal_discharge_detail.png" width="200%">
 
 - 現在電圧
 - 目標電圧
@@ -62,7 +62,7 @@
 
 ## 電池設定
 
-![電池設定の画面](readme_capture/battery_config_mode.png)
+<img src="readme_capture/battery_config_mode.png" width="200%">
 
 通常画面で `B` ボタンを押すと、電池設定画面に入ります。  
 設定はペア単位で保存されます。
@@ -103,7 +103,7 @@
 通常画面で `ON` ボタンを短押しすると、押し放電モードに入ります。  
 画面上部に `Discharge x.xA` と表示され、その電流でボタンを押している間だけ放電します。
 
-![押し放電モード画面](readme_capture/push_discharge.png)
+<img src="readme_capture/push_discharge.png" width="200%">
 
 現在のコードでは `V2_PCB` 設定が有効で、ボタン割り当ては次の通りです。
 
@@ -116,7 +116,7 @@
 
 ## 全体設定
 
-![電池設定の画面](readme_capture/config_mode.png)
+<img src="readme_capture/config_mode.png" width="200%">
 
 通常画面または押し放電モード画面で `U + D` を同時押しすると、全体設定画面に入ります。
 
