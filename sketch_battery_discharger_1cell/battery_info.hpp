@@ -6,7 +6,7 @@
 #include "discharger_define.hpp"
 #include "save_battery_config_data.hpp"
 
-class DrawAdafruit;
+class Adafruit_SSD1306;
 class SaveConfigData;
 class BatteryController;
 
@@ -22,8 +22,6 @@ enum class TimeStatus : uint8_t
   SleepEnd = 4,
   Max,
 };
-
-// void setDisplayTuneMenu(DrawAdafruit &adafruit, String &&title, std::vector<String> &menuList, std::vector<String> &valueList, int targetIndex);
 
 class ValueCounter
 {
@@ -184,13 +182,13 @@ public:
     }
   }
 
-  void setDisplayPushData() const;
+  void setDisplayPushData(Adafruit_SSD1306 &display) const;
 
-  void setDisplayData() const;
+  void setDisplayData(Adafruit_SSD1306 &display) const;
 
-  void setDisplayVoltOnly() const;
+  void setDisplayVoltOnly(Adafruit_SSD1306 &display) const;
 
-  void setDisplayDetail() const;
+  void setDisplayDetail(Adafruit_SSD1306 &display) const;
 
   ValueCounter _valueCounter{};
 

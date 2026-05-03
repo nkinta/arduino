@@ -4,7 +4,6 @@
 
 #include <Wire.h>
 #define ARDUINO_ARCH_RP2040 // undef HAVE_PORTREG
-// #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #undef ARDUINO_ARCH_RP2040
 
@@ -23,148 +22,138 @@
 
 class DrawAdafruit
 {
+public:
   static constexpr uint8_t SCREEN_WIDTH{128};
   static constexpr uint8_t SCREEN_HEIGHT{64};
+  static constexpr int8_t OLED_RESET{-1};
 
-  // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
-  static const uint8_t OLED_RESET{-1}; // Reset pin # (or -1 if sharing Arduino reset pin)
-
-  static const uint8_t CHARSIZEX{6};
-  static const uint8_t CHARSIZEY{9};
-  static const uint8_t TEXT_SIZE{1};
-  static const uint8_t UNIT_OFFSET{2};
-
-  // static const uint8_t LINE_OFFSET{2};
+private:
+  static constexpr uint8_t CHARSIZEX{6};
+  static constexpr uint8_t CHARSIZEY{9};
+  static constexpr uint8_t TEXT_SIZE{1};
 
 public:
-
-  Adafruit_SSD1306 _display{SCREEN_WIDTH, SCREEN_HEIGHT, &Wire}; //
-
-  static void setDisplayTuneMenu(DrawAdafruit &adafruit, String &&title, std::vector<String> &menuList, std::vector<String> &valueList, int targetIndex);
+  static void setDisplayTuneMenu(Adafruit_SSD1306 &display, String &&title, std::vector<String> &menuList, std::vector<String> &valueList, int targetIndex);
   static String formatFloatZeroPad(float value, int integerDigits, int decimalDigits);
 
-  void displaySleep()
+  static void displaySleep(Adafruit_SSD1306 &display)
   {
-    _display.ssd1306_command(SSD1306_DISPLAYOFF);
+    display.ssd1306_command(SSD1306_DISPLAYOFF);
   }
 
-  void setupDisplay(void) {
-    // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-    // adaDisplay.clearDisplay();
-    if (!_display.begin(SSD1306_SWITCHCAPVCC, 0x3C, true, true)) { // Address 0x3C for 128x32
+  static void setupDisplay(Adafruit_SSD1306 &display)
+  {
+    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C, true, true)) {
       Serial.println(F("SSD1306 allocation failed"));
-      for (;;); // Don't proceed, loop forever
+      for (;;);
     }
 
-    // Wire.setClock(1000);
-    // Show initial display buffer contents on the screen --
-    // the library initializes this with an Adafruit splash screen.
-
-    // Clear the buffer
-    // adaDisplay.setFont(&Picopixel);
-
-    _display.clearDisplay();
-    // drawCar();
-    _display.display();
-    _display.setTextSize(TEXT_SIZE);
-    _display.setTextColor(SSD1306_WHITE);
+    display.clearDisplay();
+    display.display();
+    display.setTextSize(TEXT_SIZE);
+    display.setTextColor(SSD1306_WHITE);
   }
 
-  void setCursor(int16_t x, int16_t y)
+  static void setCursor(Adafruit_SSD1306 &display, int16_t x, int16_t y)
   {
-    _display.setCursor(x, y);
+    display.setCursor(x, y);
   }
 
-  void printString(const String& val)
+  static void printString(Adafruit_SSD1306 &display, const String& val)
   {
-    _display.print(val);
+    display.print(val);
   }
 
-  void setFont(const GFXfont* f)
+  static void setFont(Adafruit_SSD1306 &display, const GFXfont* f)
   {
-    _display.setFont(f);
+    display.setFont(f);
   }
 
-  void removeFont()
+  static void removeFont(Adafruit_SSD1306 &display)
   {
-    _display.setFont(nullptr);
+    display.setFont(nullptr);
   }
 
-  void setTextSize(uint8_t size)
+  static void setTextSize(Adafruit_SSD1306 &display, uint8_t size)
   {
-    _display.setTextSize(size);
+    display.setTextSize(size);
   }
 
-  void drawBat(const int index);
+  static void drawBat(Adafruit_SSD1306 &display, int index);
 
-  void drawCar();
+  static void drawCar(Adafruit_SSD1306 &display);
 
-  void clearDisplay()
+  static void clearDisplay(Adafruit_SSD1306 &display)
   {
-    _display.clearDisplay();
-    _display.setTextSize(TEXT_SIZE);
-    _display.setTextColor(SSD1306_WHITE);
+    display.clearDisplay();
+    display.setTextSize(TEXT_SIZE);
+    display.setTextColor(SSD1306_WHITE);
   }
 
-  void drawFillLine(int line)
+  static void drawFillLine(Adafruit_SSD1306 &display, int line)
   {
-    _display.fillRect(0, CHARSIZEY * line, SCREEN_WIDTH, CHARSIZEY, BLACK);
+    display.fillRect(0, CHARSIZEY * line, SCREEN_WIDTH, CHARSIZEY, BLACK);
   }
 
-  void drawFillR(int offsetX, int offsetY, int width)
+  static void drawFillR(Adafruit_SSD1306 &display, int offsetX, int offsetY, int width)
   {
-    _display.fillRect(CHARSIZEX * (offsetX - width), CHARSIZEY * offsetY, CHARSIZEX * width, CHARSIZEY, BLACK);
+    display.fillRect(CHARSIZEX * (offsetX - width), CHARSIZEY * offsetY, CHARSIZEX * width, CHARSIZEY, BLACK);
   }
 
-  void drawStringC(const String& string, int offsetY)
+  static void drawStringC(Adafruit_SSD1306 &display, const String& string, int offsetY)
   {
     const int offsetX{(SCREEN_WIDTH - (CHARSIZEX * string.length())) / (2 * CHARSIZEX)};
-    drawChar(string.c_str(), offsetX, offsetY);
+    drawChar(display, string.c_str(), offsetX, offsetY);
   }
 
-  void drawString(const String& string, int offsetX, int offsetY) {
-    drawChar(string.c_str(), offsetX, offsetY);
+  static void drawString(Adafruit_SSD1306 &display, const String& string, int offsetX, int offsetY)
+  {
+    drawChar(display, string.c_str(), offsetX, offsetY);
   }
 
-  void drawFloat(float value, float offsetX, float offsetY, int decimal = 2, int integerDigit = 1) {
-    _display.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
-    _display.print(formatFloatZeroPad(value, integerDigit, decimal));
+  static void drawFloat(Adafruit_SSD1306 &display, float value, float offsetX, float offsetY, int decimal = 2, int integerDigit = 1)
+  {
+    display.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
+    display.print(formatFloatZeroPad(value, integerDigit, decimal));
   }
 
-  void drawInt(int value, float offsetX, float offsetY) {
-    _display.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
-    _display.print(value);
+  static void drawInt(Adafruit_SSD1306 &display, int value, float offsetX, float offsetY)
+  {
+    display.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
+    display.print(value);
   }
 
-  void drawStringR(const String& string, int offsetX, int offsetY) {
-    drawChar(string.c_str(), offsetX - string.length(), offsetY);
+  static void drawStringR(Adafruit_SSD1306 &display, const String& string, int offsetX, int offsetY)
+  {
+    drawChar(display, string.c_str(), offsetX - string.length(), offsetY);
   }
 
-  void drawFloatR(float value, float offsetX, float offsetY, int size = 4, int decimal = 2, int integerDigit = 1) {
+  static void drawFloatR(Adafruit_SSD1306 &display, float value, float offsetX, float offsetY, int size = 4, int decimal = 2, int integerDigit = 1)
+  {
     String valueStr{formatFloatZeroPad(value, integerDigit, decimal)};
     const int offset{valueStr.length()};
-    const int clearOffset{max(offset, size)};
 
-    _display.setCursor(CHARSIZEX * (offsetX - offset), CHARSIZEY * offsetY);
-    _display.print(valueStr);
+    display.setCursor(CHARSIZEX * (offsetX - offset), CHARSIZEY * offsetY);
+    display.print(valueStr);
   }
 
-  void drawIntR(int value, float offsetX, float offsetY) {
-    String valueInt{String(value)};
-    _display.setCursor(CHARSIZEX * (offsetX - valueInt.length()), CHARSIZEY * offsetY);
-    _display.print(valueInt);
-  }
-
-  void display()
+  static void drawIntR(Adafruit_SSD1306 &display, int value, float offsetX, float offsetY)
   {
-    _display.display();
+    String valueInt{String(value)};
+    display.setCursor(CHARSIZEX * (offsetX - valueInt.length()), CHARSIZEY * offsetY);
+    display.print(valueInt);
   }
 
-  void dumpDisplayAsPbm(Stream& out);
-
-  void drawChar(const char* chr, int offsetX, int offsetY) {
-    _display.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
-    _display.print(chr);
+  static void display(Adafruit_SSD1306 &display)
+  {
+    display.display();
   }
 
+  static void dumpDisplayAsPbm(Adafruit_SSD1306 &display, Stream& out);
+
+  static void drawChar(Adafruit_SSD1306 &display, const char* chr, int offsetX, int offsetY)
+  {
+    display.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
+    display.print(chr);
+  }
 };

@@ -5,6 +5,7 @@
 #include "save_config_data.hpp"
 #include "voltage_mapping.hpp"
 #include "button_status.hpp"
+#include "src/display/draw_adafruit.hpp"
 
 static constexpr float FPS{30.f};
 static constexpr float SEC{1000.f};
@@ -118,7 +119,7 @@ private:
 
     void setDisplayConfig() const;
 
-    void setDisplayBatteryConfig(DrawAdafruit& drawAdafruit) const;
+    void setDisplayBatteryConfig(Adafruit_SSD1306& display) const;
 
     void setDisplayPushDischarge() const;
 

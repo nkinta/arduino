@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-class DrawAdafruit;
+class Adafruit_SSD1306;
 
 enum class BatteryConfigSettingMode : uint8_t
 {
@@ -52,7 +52,7 @@ struct SaveBattery
 
     void shiftParam(BatteryConfigSettingMode settingMode, int shift);
 
-    void setDisplayBatteryConfig(DrawAdafruit &drawAdafruit, int index, BatteryConfigSettingMode settingMode) const;
+    void setDisplayBatteryConfig(Adafruit_SSD1306 &display, int index, BatteryConfigSettingMode settingMode) const;
 
 };
 

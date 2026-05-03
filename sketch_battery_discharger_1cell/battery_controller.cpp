@@ -4,7 +4,7 @@
 #include <EEPROM.h>
 #include "src/display/draw_adafruit.hpp"
 
-extern DrawAdafruit drawAdafruit;
+extern Adafruit_SSD1306 oledDisplay;
 
 template <typename T>
 void saveCustomData(byte *p)
@@ -80,7 +80,7 @@ void BatteryController::clearEEPROM()
 
 void BatteryController::setup()
 {
-    drawAdafruit.setupDisplay();
+    DrawAdafruit::setupDisplay(oledDisplay);
 
     digitalWrite(PA6, HIGH); // FLASH
 
@@ -201,24 +201,24 @@ void BatteryController::drawXiaoBattery(float xiaoVolt) const
       index = 0;
     }
 
-    drawAdafruit.drawBat(index);
+    DrawAdafruit::drawBat(oledDisplay, index);
 }
 
 void BatteryController::setDisplayConfig() const
 {
-    _saveConfigData.setDisplayConfig(drawAdafruit, _configSettingMode);
+    _saveConfigData.setDisplayConfig(oledDisplay, _configSettingMode);
 }
 
 void BatteryController::setDisplayPushDischarge() const
 {
     for (int i = 0; i < 6; ++i)
     {
-        drawAdafruit.drawFillLine(i);
+        DrawAdafruit::drawFillLine(oledDisplay, i);
     }
-    drawAdafruit.drawStringC(String("Discharge ") + String(_dischargeI) + String("A"), 0);
+    DrawAdafruit::drawStringC(oledDisplay, String("Discharge ") + String(_dischargeI) + String("A"), 0);
     for (auto &batteryStatus : _batteryStatuses)
     {
-        batteryStatus.setDisplayPushData();
+        batteryStatus.setDisplayPushData(oledDisplay);
     }
 
     int line{4};
@@ -229,11 +229,11 @@ void BatteryController::setDisplayPushDischarge() const
         float rV{_batteryStatuses[2]._v + _batteryStatuses[3]._v};
 
         virOffset += 10;
-        drawAdafruit.drawFloatR(lV, virOffset, line, 4, _saveConfigData._decimal);
-        drawAdafruit.drawString("V", virOffset, line);
+        DrawAdafruit::drawFloatR(oledDisplay, lV, virOffset, line, 4, _saveConfigData._decimal);
+        DrawAdafruit::drawString(oledDisplay, "V", virOffset, line);
         virOffset += 10;
-        drawAdafruit.drawFloatR(rV, virOffset, line, 4, _saveConfigData._decimal);
-        drawAdafruit.drawString("V", virOffset, line);
+        DrawAdafruit::drawFloatR(oledDisplay, rV, virOffset, line, 4, _saveConfigData._decimal);
+        DrawAdafruit::drawString(oledDisplay, "V", virOffset, line);
     }
 
     const BatteryInfo *targetBatteryStatus{nullptr};
@@ -249,24 +249,24 @@ void BatteryController::setDisplayPushDischarge() const
     line = 6;
     if (targetBatteryStatus)
     {
-        drawAdafruit.drawFillR(virOffset, line, 6);
-        drawAdafruit.drawFloatR(targetBatteryStatus->_ohm, virOffset, line, 4, 1);
+        DrawAdafruit::drawFillR(oledDisplay, virOffset, line, 6);
+        DrawAdafruit::drawFloatR(oledDisplay, targetBatteryStatus->_ohm, virOffset, line, 4, 1);
         static constexpr char CHAR_DATA_OHM[] = {0x6D, 0xe9, 0x00};
-        drawAdafruit.drawChar(&CHAR_DATA_OHM[0], virOffset, line);
+        DrawAdafruit::drawChar(oledDisplay, &CHAR_DATA_OHM[0], virOffset, line);
     }
 }
 
 void BatteryController::setDisplayNone() const
 {
-    drawAdafruit.clearDisplay();
+    oledDisplay.clearDisplay();
 }
 
 void BatteryController::setDisplayData() const
 {
-    drawAdafruit.drawFillLine(0);
+    DrawAdafruit::drawFillLine(oledDisplay, 0);
     for (auto &batteryStatus : _batteryStatuses)
     {
-        batteryStatus.setDisplayData();
+        batteryStatus.setDisplayData(oledDisplay);
     }
 };
 
@@ -280,9 +280,9 @@ void BatteryController::writePinReset()
 
 void BatteryController::displaySleep()
 {
-    drawAdafruit.clearDisplay();
-    drawAdafruit.display();
-    drawAdafruit.displaySleep();
+    oledDisplay.clearDisplay();
+    oledDisplay.display();
+    DrawAdafruit::displaySleep(oledDisplay);
 }
 
 void BatteryController::shiftTargetBattery(int shift)
@@ -363,7 +363,7 @@ void BatteryController::updateButtonStatus()
     {
         if (!_dumpDisplayButtonLock)
         {
-            drawAdafruit.dumpDisplayAsPbm(Serial);
+            DrawAdafruit::dumpDisplayAsPbm(oledDisplay, Serial);
             _dumpDisplayButtonLock = true;
         }
     }
@@ -550,15 +550,15 @@ void BatteryController::updateButtonStatus()
 
     if (_mainMode != nextMode)
     {
-        drawAdafruit.clearDisplay();
+        oledDisplay.clearDisplay();
     }
 
     _mainMode = nextMode;
 }
 
-void BatteryController::setDisplayBatteryConfig(DrawAdafruit& drawAdafruit) const
+void BatteryController::setDisplayBatteryConfig(Adafruit_SSD1306& display) const
 {
-    _saveBatteryConfigData._battery[_currentBatterySettingIndex].setDisplayBatteryConfig(drawAdafruit, _currentBatterySettingIndex, _batteryConfigSettingMode);
+    _saveBatteryConfigData._battery[_currentBatterySettingIndex].setDisplayBatteryConfig(display, _currentBatterySettingIndex, _batteryConfigSettingMode);
 }
 
 void BatteryController::loopSub()
@@ -587,7 +587,7 @@ void BatteryController::loopSub()
     if (_clearDisplayFlag)
     {
         setDisplayNone();
-        drawAdafruit.display();
+        oledDisplay.display();
     }
     else
     {
@@ -601,15 +601,15 @@ void BatteryController::loopSub()
             if ((_loopSubCount % 3) == 0)
             {
                 setDisplayData();
-                drawAdafruit.display();
+                oledDisplay.display();
             }
         }
         else if (_mainMode == MainMode::BatteryConfigMode)
         {
             if ((_loopSubCount % 3) == 0)
             {
-                setDisplayBatteryConfig(drawAdafruit);
-                drawAdafruit.display();
+                setDisplayBatteryConfig(oledDisplay);
+                oledDisplay.display();
             }
         }
         else if (_mainMode == MainMode::ConfigMode)
@@ -617,7 +617,7 @@ void BatteryController::loopSub()
             if ((_loopSubCount % 3) == 0)
             {
                 setDisplayConfig();
-                drawAdafruit.display();
+                oledDisplay.display();
             }
         }
         else if (_mainMode == MainMode::PushDischargerMode)
@@ -630,7 +630,7 @@ void BatteryController::loopSub()
             if ((_loopSubCount % 3) == 0)
             {
                 setDisplayPushDischarge();
-                drawAdafruit.display();
+                oledDisplay.display();
             }
         }
     }

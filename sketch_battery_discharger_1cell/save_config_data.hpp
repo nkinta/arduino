@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-class DrawAdafruit;
+class Adafruit_SSD1306;
 
 enum class ConfigSettingMode : uint8_t
 {
@@ -36,7 +36,5 @@ struct SaveConfigData
 
   void shiftParam(const ConfigSettingMode &configMode, int shift);
 
-  void setDisplayConfig(DrawAdafruit &drawAdafruit, ConfigSettingMode settingMode) const;
-
-  // DrawAdafruit &adafruit,
+  void setDisplayConfig(Adafruit_SSD1306 &display, ConfigSettingMode settingMode) const;
 };

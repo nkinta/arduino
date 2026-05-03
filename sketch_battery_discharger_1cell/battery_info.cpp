@@ -8,8 +8,6 @@
 #include "display/fonts/BBHBogle-Regular_9.h"
 #include "display/fonts/BBHBogle-Regular_12.h"
 
-extern DrawAdafruit drawAdafruit;
-
 const std::vector<String> DISC_MODE_NAMES{String("Keep"), String("KeepMin"), String("Stop")};
 
 const std::vector<String> REDUCE_MODE_NAMES{String("Mild"), String("Normal"), String("Hard"), String("None")};
@@ -263,46 +261,46 @@ void BatteryInfo::loopSubNormalDischarge()
     analogWrite(_writePin, intValue);
 };
 
-void BatteryInfo::setDisplayVoltOnly() const
+void BatteryInfo::setDisplayVoltOnly(Adafruit_SSD1306 &display) const
 {
     static constexpr int DISPLAY_MENU_START_COL{3};
     static constexpr int DISPLAY_MENU_OFFSET_COL{5};
     int virOffset{0};
     int line{START_LINE};
 
-    drawAdafruit.drawFillLine(line);
-    drawAdafruit.drawFillLine(line + 1);
-    drawAdafruit.drawFillLine(line + 2);
-    drawAdafruit.drawFillLine(line + 3);
-    drawAdafruit.drawFillLine(line + 4);
+    DrawAdafruit::drawFillLine(display, line);
+    DrawAdafruit::drawFillLine(display, line + 1);
+    DrawAdafruit::drawFillLine(display, line + 2);
+    DrawAdafruit::drawFillLine(display, line + 3);
+    DrawAdafruit::drawFillLine(display, line + 4);
 
     ++line;
-    drawAdafruit.setFont(&BBHBogle_Regular12pt7b);
+    DrawAdafruit::setFont(display, &BBHBogle_Regular12pt7b);
 
-    drawAdafruit.setCursor(32, 36);
-    drawAdafruit.printString(String(_sleepV, 3) + String("V"));
+    DrawAdafruit::setCursor(display, 32, 36);
+    DrawAdafruit::printString(display, String(_sleepV, 3) + String("V"));
 
-    drawAdafruit.removeFont();
+    DrawAdafruit::removeFont(display);
 }
 
-void BatteryInfo::setDisplayDetail() const
+void BatteryInfo::setDisplayDetail(Adafruit_SSD1306 &display) const
 {
     static constexpr int DISPLAY_MENU_START_COL{3};
     static constexpr int DISPLAY_MENU_OFFSET_COL{5};
     int virOffset{0};
     int line{START_LINE};
-    drawAdafruit.drawFillLine(line);
+    DrawAdafruit::drawFillLine(display, line);
 
     virOffset = DISPLAY_MENU_START_COL;
-    drawAdafruit.drawStringC(DISC_MODE_NAMES[static_cast<uint8_t>(_disChargeMode)], line);
+    DrawAdafruit::drawStringC(display, DISC_MODE_NAMES[static_cast<uint8_t>(_disChargeMode)], line);
 
     ++line;
-    drawAdafruit.drawFillLine(line);
+    DrawAdafruit::drawFillLine(display, line);
 
     virOffset = DISPLAY_MENU_START_COL;
     virOffset += DISPLAY_MENU_OFFSET_COL;
-    drawAdafruit.drawFloatR(_sleepV, virOffset, line, DISPLAY_MENU_OFFSET_COL, 3);
-    drawAdafruit.drawString("V", virOffset, line);
+    DrawAdafruit::drawFloatR(display, _sleepV, virOffset, line, DISPLAY_MENU_OFFSET_COL, 3);
+    DrawAdafruit::drawString(display, "V", virOffset, line);
 
     virOffset += 2;
     if ((_tunedI > 0.f) && (_displayCount % 2))
@@ -310,34 +308,34 @@ void BatteryInfo::setDisplayDetail() const
     }
     else
     {
-        drawAdafruit.drawChar(&DisplayConst::CHAR_DATA_ARROW_NEW[0], virOffset, line);
+        DrawAdafruit::drawChar(display, &DisplayConst::CHAR_DATA_ARROW_NEW[0], virOffset, line);
     }
 
     virOffset += 2;
     virOffset += DISPLAY_MENU_OFFSET_COL;
-    drawAdafruit.drawFloatR(_targetV, virOffset, line, DISPLAY_MENU_OFFSET_COL, 3);
-    drawAdafruit.drawString("V", virOffset, line);
+    DrawAdafruit::drawFloatR(display, _targetV, virOffset, line, DISPLAY_MENU_OFFSET_COL, 3);
+    DrawAdafruit::drawString(display, "V", virOffset, line);
 
     ++line;
-    drawAdafruit.drawFillLine(line);
+    DrawAdafruit::drawFillLine(display, line);
 
     virOffset = DISPLAY_MENU_START_COL;
     virOffset += DISPLAY_MENU_OFFSET_COL;
     float displayI{std::max(0.f, _tunedI)};
-    drawAdafruit.drawFloatR(displayI, virOffset, line, DISPLAY_MENU_OFFSET_COL, 3);
-    drawAdafruit.drawString("A", virOffset, line);
+    DrawAdafruit::drawFloatR(display, displayI, virOffset, line, DISPLAY_MENU_OFFSET_COL, 3);
+    DrawAdafruit::drawString(display, "A", virOffset, line);
 
     virOffset += 2;
 
-    drawAdafruit.drawChar(&DisplayConst::CHAR_DATA_ARROW_NEW[0], virOffset, line);
+    DrawAdafruit::drawChar(display, &DisplayConst::CHAR_DATA_ARROW_NEW[0], virOffset, line);
 
     virOffset += 2;
     virOffset += SETTING_MENU_OFFSET_COL;
-    drawAdafruit.drawFloatR(_targetI, virOffset, line, SETTING_MENU_OFFSET_COL, 3);
-    drawAdafruit.drawString("A", virOffset, line);
+    DrawAdafruit::drawFloatR(display, _targetI, virOffset, line, SETTING_MENU_OFFSET_COL, 3);
+    DrawAdafruit::drawString(display, "A", virOffset, line);
 
     ++line;
-    drawAdafruit.drawFillLine(line);
+    DrawAdafruit::drawFillLine(display, line);
 
     virOffset = DISPLAY_MENU_START_COL + 1;
 
@@ -354,67 +352,67 @@ void BatteryInfo::setDisplayDetail() const
     char endSecondsStr[128];
     printMinuteSecond(displayEndSeconds, endSecondsStr);
 
-    drawAdafruit.drawChar(startSecondsStr, virOffset, line);
-    drawAdafruit.drawChar(endSecondsStr, virOffset + 8, line);
+    DrawAdafruit::drawChar(display, startSecondsStr, virOffset, line);
+    DrawAdafruit::drawChar(display, endSecondsStr, virOffset + 8, line);
 
     if (0)
     {
         ++line;
-        drawAdafruit.drawFillLine(line);
-        drawAdafruit.drawInt(calcPWMValue(_targetI, ACTIVE_RATE, _batteryController->_calibI), SETTING_MENU_START_COL, line);
-        drawAdafruit.drawString("PWM", SETTING_MENU_START_COL + SETTING_MENU_OFFSET_COL, line);
+        DrawAdafruit::drawFillLine(display, line);
+        DrawAdafruit::drawInt(display, calcPWMValue(_targetI, ACTIVE_RATE, _batteryController->_calibI), SETTING_MENU_START_COL, line);
+        DrawAdafruit::drawString(display, "PWM", SETTING_MENU_START_COL + SETTING_MENU_OFFSET_COL, line);
     }
 
     if (0)
     {
         ++line;
-        drawAdafruit.drawFillLine(line);
+        DrawAdafruit::drawFillLine(display, line);
         virOffset = DISPLAY_MENU_START_COL;
         virOffset += DISPLAY_MENU_OFFSET_COL;
-        drawAdafruit.drawFloatR(_sleepV, virOffset, line, DISPLAY_MENU_OFFSET_COL, 3);
-        drawAdafruit.drawString("V", virOffset, line);
+        DrawAdafruit::drawFloatR(display, _sleepV, virOffset, line, DISPLAY_MENU_OFFSET_COL, 3);
+        DrawAdafruit::drawString(display, "V", virOffset, line);
     }
 
     if (0)
     {
         ++line;
-        drawAdafruit.drawFillLine(line);
+        DrawAdafruit::drawFillLine(display, line);
         virOffset = DISPLAY_MENU_START_COL;
         virOffset += DISPLAY_MENU_OFFSET_COL;
-        drawAdafruit.drawFloatR(_i, virOffset, line, DISPLAY_MENU_OFFSET_COL, 3);
-        drawAdafruit.drawString("A", virOffset, line);
+        DrawAdafruit::drawFloatR(display, _i, virOffset, line, DISPLAY_MENU_OFFSET_COL, 3);
+        DrawAdafruit::drawString(display, "A", virOffset, line);
     }
 
     ++line;
-    drawAdafruit.drawFillLine(line);
+    DrawAdafruit::drawFillLine(display, line);
     {
         virOffset = DISPLAY_MENU_START_COL;
         virOffset += DISPLAY_MENU_OFFSET_COL;
         virOffset -= 1;
-        drawAdafruit.drawFloatR(_ohm, virOffset, line, DISPLAY_MENU_OFFSET_COL, 1);
+        DrawAdafruit::drawFloatR(display, _ohm, virOffset, line, DISPLAY_MENU_OFFSET_COL, 1);
 
         static constexpr char CHAR_DATA_OHM[] = {0x6D, 0xe9, 0x00};
-        drawAdafruit.drawChar(&CHAR_DATA_OHM[0], virOffset, line);
+        DrawAdafruit::drawChar(display, &CHAR_DATA_OHM[0], virOffset, line);
 
         virOffset += 5;
         virOffset += DISPLAY_MENU_OFFSET_COL;
-        drawAdafruit.drawFloatR(displayMilliAmpereHour, virOffset, line, DISPLAY_MENU_OFFSET_COL, 1, 3);
-        drawAdafruit.drawString("mah", virOffset, line);
+        DrawAdafruit::drawFloatR(display, displayMilliAmpereHour, virOffset, line, DISPLAY_MENU_OFFSET_COL, 1, 3);
+        DrawAdafruit::drawString(display, "mah", virOffset, line);
     }
 
     if (0)
     {
         ++line;
-        drawAdafruit.drawFillLine(line);
+        DrawAdafruit::drawFillLine(display, line);
         virOffset = DISPLAY_MENU_START_COL;
         virOffset += DISPLAY_MENU_OFFSET_COL;
-        drawAdafruit.drawInt(_loopCount % sizeof(DISCHARGE_MODE_LOOPS), virOffset, line);
+        DrawAdafruit::drawInt(display, _loopCount % sizeof(DISCHARGE_MODE_LOOPS), virOffset, line);
         static std::vector<String> modeNames{String("None"), String("Active"), String("Sleep"), String("Stop"), String("NoBat"), String("Max")};
-        drawAdafruit.drawString(modeNames[(uint8_t)_currentBatteryStatus], virOffset + 5, line);
+        DrawAdafruit::drawString(display, modeNames[(uint8_t)_currentBatteryStatus], virOffset + 5, line);
     }
 }
 
-void BatteryInfo::setDisplayPushData() const
+void BatteryInfo::setDisplayPushData(Adafruit_SSD1306 &display) const
 {
     ++_displayCount;
 
@@ -427,22 +425,22 @@ void BatteryInfo::setDisplayPushData() const
         {
             constexpr std::pair<int, int> positionArray[4] = {{12, 28}, {12, 46}, {72, 28}, {72, 46}};
 
-            drawAdafruit.setFont(&BBHBogle_Regular9pt7b);
+            DrawAdafruit::setFont(display, &BBHBogle_Regular9pt7b);
 
             {
                 const std::pair<int, int> &position{positionArray[_batteryIndex]};
-                drawAdafruit.setCursor(position.first, position.second);
-                drawAdafruit.printString(String(_v, _batteryController->_decimal) + String("V"));
+                DrawAdafruit::setCursor(display, position.first, position.second);
+                DrawAdafruit::printString(display, String(_v, _batteryController->_decimal) + String("V"));
             }
-            drawAdafruit.removeFont();
+            DrawAdafruit::removeFont(display);
         }
         else
         {
             int batterySetIndex{_batteryIndex / 2};
             int virOffset{10 * batterySetIndex + (_batteryIndex % 2) * 0 + 8};
             int line{(_batteryIndex % 2) + 2};
-            drawAdafruit.drawFloatR(_v, virOffset, line, 4, _batteryController->_decimal);
-            drawAdafruit.drawString("V", virOffset, line);
+            DrawAdafruit::drawFloatR(display, _v, virOffset, line, 4, _batteryController->_decimal);
+            DrawAdafruit::drawString(display, "V", virOffset, line);
         }
     }
 
@@ -451,13 +449,13 @@ void BatteryInfo::setDisplayPushData() const
     }
 };
 
-void BatteryInfo::setDisplayData() const
+void BatteryInfo::setDisplayData(Adafruit_SSD1306 &display) const
 {
     ++_displayCount;
 
     if (_displayFlag)
     {
-        drawAdafruit.drawString(">", 5 * _batteryIndex, 0);
+        DrawAdafruit::drawString(display, ">", 5 * _batteryIndex, 0);
     }
 
     if (_tunedI > 0 && (_displayCount % 2))
@@ -465,18 +463,18 @@ void BatteryInfo::setDisplayData() const
     }
     else
     {
-        drawAdafruit.drawFloatR(_sleepV, 5 * (_batteryIndex + 1), 0, 4, 2);
+        DrawAdafruit::drawFloatR(display, _sleepV, 5 * (_batteryIndex + 1), 0, 4, 2);
     }
 
     if (_displayFlag)
     {
         if (_activeFlag)
         {
-            setDisplayDetail();
+            setDisplayDetail(display);
         }
         else
         {
-            setDisplayVoltOnly();
+            setDisplayVoltOnly(display);
         }
     }
 };

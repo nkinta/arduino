@@ -2,7 +2,7 @@
 #include "src/display/draw_adafruit.hpp"
 #include "battery_info.hpp"
 
-void SaveBattery::setDisplayBatteryConfig(DrawAdafruit &drawAdafruit, int index, BatteryConfigSettingMode settingMode) const
+void SaveBattery::setDisplayBatteryConfig(Adafruit_SSD1306 &display, int index, BatteryConfigSettingMode settingMode) const
 {
     std::vector<String> menuList{"TargetV", "TargetI", "DiscMode", "ReduceI", "KeepMin"};
 
@@ -13,7 +13,7 @@ void SaveBattery::setDisplayBatteryConfig(DrawAdafruit &drawAdafruit, int index,
 
     String title{"Battery Pair."};
     title += String(index + 1);
-    DrawAdafruit::setDisplayTuneMenu(drawAdafruit, std::move(title), menuList, valueList, static_cast<int>(settingMode));
+    DrawAdafruit::setDisplayTuneMenu(display, std::move(title), menuList, valueList, static_cast<int>(settingMode));
 }
 
 void SaveBattery::shiftParam(BatteryConfigSettingMode settingMode, int shift)

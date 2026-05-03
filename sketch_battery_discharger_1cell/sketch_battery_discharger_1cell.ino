@@ -12,7 +12,7 @@
 #include "src/app/flappy.hpp"
 #include "src/app/stopwatch.hpp"
 
-DrawAdafruit drawAdafruit;
+Adafruit_SSD1306 oledDisplay{DrawAdafruit::SCREEN_WIDTH, DrawAdafruit::SCREEN_HEIGHT, &Wire, DrawAdafruit::OLED_RESET};
 
 BatteryController controller;
 
@@ -37,9 +37,9 @@ void goDeepSleep();
 
 void displayLowBattery()
 {
-  drawAdafruit.clearDisplay();
-  drawAdafruit.drawStringC("Low Battery", 3);
-  drawAdafruit.display();
+  oledDisplay.clearDisplay();
+  DrawAdafruit::drawStringC(oledDisplay, "Low Battery", 3);
+  oledDisplay.display();
 }
 
 void displayCurrentModeSleep()

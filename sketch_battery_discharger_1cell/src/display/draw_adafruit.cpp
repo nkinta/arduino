@@ -42,13 +42,13 @@ String DrawAdafruit::formatFloatZeroPad(float value, int integerDigits, int deci
     return zeros + formatted;
 }
 
-void DrawAdafruit::setDisplayTuneMenu(DrawAdafruit &drawAdafruit, String &&title, std::vector<String> &menuList, std::vector<String> &valueList, int targetIndex)
+void DrawAdafruit::setDisplayTuneMenu(Adafruit_SSD1306 &display, String &&title, std::vector<String> &menuList, std::vector<String> &valueList, int targetIndex)
 {
     int virOffset1{0};
     int virOffset2{0};
     int line{0};
-    drawAdafruit.drawFillLine(line);
-    drawAdafruit.drawStringC(title, line);
+    drawFillLine(display, line);
+    drawStringC(display, title, line);
     ++line;
 
     virOffset1 = 2;
@@ -65,25 +65,25 @@ void DrawAdafruit::setDisplayTuneMenu(DrawAdafruit &drawAdafruit, String &&title
             break;
         }
 
-        drawAdafruit.drawFillLine(line);
+        drawFillLine(display, line);
         if (i == targetIndex)
         {
-            drawAdafruit.drawChar(&DisplayConst::CHAR_DATA_ARROW[0], 0, line);
+            drawChar(display, &DisplayConst::CHAR_DATA_ARROW[0], 0, line);
         }
-        drawAdafruit.drawString(menuList[i], virOffset1, line);
-        drawAdafruit.drawString(valueList[i], virOffset2, line);
+        drawString(display, menuList[i], virOffset1, line);
+        drawString(display, valueList[i], virOffset2, line);
         ++index;
         ++line;
     }
 
     while (line < 7)
     {
-        drawAdafruit.drawFillLine(line);
+        drawFillLine(display, line);
         line++;
     }
 }
 
-void DrawAdafruit::drawCar()
+void DrawAdafruit::drawCar(Adafruit_SSD1306 &display)
 {
 // 'untitled', 16x16px
 unsigned char epd_bitmap_untitled[] PROGMEM = {
@@ -97,10 +97,10 @@ const unsigned char* epd_bitmap_allArray[1] = {
     epd_bitmap_untitled
 };
 
-_display.drawBitmap(3, 3, &epd_bitmap_untitled[0], 16, 16, WHITE);
+display.drawBitmap(3, 3, &epd_bitmap_untitled[0], 16, 16, WHITE);
 }
 
-void DrawAdafruit::drawBat(const int index)
+void DrawAdafruit::drawBat(Adafruit_SSD1306 &display, const int index)
 {
 
     // https://javl.github.io/image2cpp/
@@ -131,13 +131,13 @@ void DrawAdafruit::drawBat(const int index)
 
     // drawFillLine(6);
     // drawFloat(voltage, 10, 6);
-    _display.drawBitmap(110, 55, clear, 16, 8, BLACK);
-    _display.drawBitmap(110, 55, bat_meter[index], 16, 8, WHITE);
+    display.drawBitmap(110, 55, clear, 16, 8, BLACK);
+    display.drawBitmap(110, 55, bat_meter[index], 16, 8, WHITE);
 }
 
-void DrawAdafruit::dumpDisplayAsPbm(Stream& out)
+void DrawAdafruit::dumpDisplayAsPbm(Adafruit_SSD1306 &display, Stream& out)
 {
-    uint8_t* buffer{_display.getBuffer()};
+    uint8_t* buffer{display.getBuffer()};
 
     out.print("P4\n");
     out.print(SCREEN_WIDTH);

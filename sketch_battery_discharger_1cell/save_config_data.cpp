@@ -49,7 +49,7 @@ void SaveConfigData::shiftParam(const ConfigSettingMode &configMode, int shift)
     }
 };
 
-void SaveConfigData::setDisplayConfig(DrawAdafruit &drawAdafruit, ConfigSettingMode settingMode) const
+void SaveConfigData::setDisplayConfig(Adafruit_SSD1306 &display, ConfigSettingMode settingMode) const
 {
     std::vector<String> menuList{"0.0V", "0.5V", "1.0V", "1.5V", "2.0V", "LedOn", "DiscI", "AmpTune", "Decimal"};
 
@@ -65,5 +65,5 @@ void SaveConfigData::setDisplayConfig(DrawAdafruit &drawAdafruit, ConfigSettingM
         String(_decimal),
     };
 
-    DrawAdafruit::setDisplayTuneMenu(drawAdafruit, "Config", menuList, valueList, static_cast<int>(settingMode));
+    DrawAdafruit::setDisplayTuneMenu(display, "Config", menuList, valueList, static_cast<int>(settingMode));
 }
