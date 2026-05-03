@@ -1,2 +1,3 @@
 *.pyc
 /sketch_battery_discharger_1cell/display/fonts
+/sketch_battery_discharger_1cell/tools/receive_oled_pbm/captures
