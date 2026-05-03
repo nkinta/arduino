@@ -21,7 +21,8 @@
 - 異常発熱、膨らみ、液漏れなどがある電池は使用しないでください
 
 ## ボタン配置
-![ボタン配置](readme_capture/button.png)
+
+<img src="readme_capture/button.png" width="200%">
 
 - L、R、U、D の十字キー移動
 - A、Bボタン
