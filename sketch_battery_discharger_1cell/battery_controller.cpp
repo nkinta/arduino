@@ -354,7 +354,31 @@ void BatteryController::updateButtonStatus()
         buttonStatus->update();
     }
 
+    const auto isActivePush = [](PushType pushType) {
+        return pushType == PushType::Pushed || pushType == PushType::PushShort || pushType == PushType::PushLong;
+    };
+
+    const bool dumpDisplayRequested{isActivePush(_buttonLStatus.getVal()) && isActivePush(_buttonRStatus.getVal())};
+    if (dumpDisplayRequested)
+    {
+        if (!_dumpDisplayButtonLock)
+        {
+            drawAdafruit.dumpDisplayAsPbm(Serial);
+            _dumpDisplayButtonLock = true;
+        }
+    }
+    else
+    {
+        _dumpDisplayButtonLock = false;
+    }
+
     MainMode nextMode{_mainMode};
+    if (dumpDisplayRequested)
+    {
+        _mainMode = nextMode;
+        return;
+    }
+
     if (_mainMode == MainMode::DischargerMode)
     {
         PushType pushType{0};
@@ -550,11 +574,13 @@ void BatteryController::loopSub()
         digitalWrite(LED_BUILTIN, 1);
     }
 
-#ifdef SERIAL_DEBUG_ON
+#ifdef SERIAL_DEBUG_ON  
+    /*
     if ((_loopSubCount % 12) == 0)
     {
         Serial.printf("serial print test. %d\n", _loopSubCount);
     }
+    */
 #endif
     updateButtonStatus();
 

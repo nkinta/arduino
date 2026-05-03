@@ -77,3 +77,35 @@ void DrawAdafruit::drawBat(const int index)
     _display.drawBitmap(110, 55, clear, 16, 8, BLACK);
     _display.drawBitmap(110, 55, bat_meter[index], 16, 8, WHITE);
 }
+
+void DrawAdafruit::dumpDisplayAsPbm(Stream& out)
+{
+    uint8_t* buffer{_display.getBuffer()};
+
+    out.print("P4\n");
+    out.print(SCREEN_WIDTH);
+    out.print(" ");
+    out.print(SCREEN_HEIGHT);
+    out.print("\n");
+
+    for (int y = 0; y < SCREEN_HEIGHT; ++y)
+    {
+        for (int xByte = 0; xByte < (SCREEN_WIDTH / 8); ++xByte)
+        {
+            uint8_t outByte{0};
+            for (int bit = 0; bit < 8; ++bit)
+            {
+                const int x{xByte * 8 + bit};
+                const int page{y / 8};
+                const int bitInPage{y % 8};
+                const uint8_t src{buffer[page * SCREEN_WIDTH + x]};
+                const bool pixelOn{((src >> bitInPage) & 0x01) != 0};
+                if (pixelOn)
+                {
+                    outByte |= static_cast<uint8_t>(0x80 >> bit);
+                }
+            }
+            out.write(outByte);
+        }
+    }
+}

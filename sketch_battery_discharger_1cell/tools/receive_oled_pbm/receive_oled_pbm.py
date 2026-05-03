@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+from datetime import datetime
+from io import BytesIO
+from pathlib import Path
+
+import serial
+from PIL import Image
+
+
+def read_exact(ser: serial.Serial, size: int) -> bytes:
+    data = ser.read(size)
+    if len(data) != size:
+        raise RuntimeError(f"short read: {len(data)} / {size}")
+    return data
+
+
+def read_pbm_frame(ser: serial.Serial) -> bytes:
+    magic = ser.readline()
+    if magic != b"P4\n":
+        raise RuntimeError(f"unexpected magic: {magic!r}")
+
+    size_line = ser.readline().strip()
+    try:
+        width_str, height_str = size_line.split()
+        width = int(width_str)
+        height = int(height_str)
+    except Exception as exc:
+        raise RuntimeError(f"invalid size line: {size_line!r}") from exc
+
+    image_size = width * height // 8
+    image_data = read_exact(ser, image_size)
+
+    return b"P4\n" + f"{width} {height}\n".encode("ascii") + image_data
+
+
+def save_png_from_pbm(pbm_bytes: bytes, output_dir: Path, prefix: str) -> Path:
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    png_path = output_dir / f"{prefix}_{timestamp}.png"
+
+    with Image.open(BytesIO(pbm_bytes)) as image:
+        image.save(png_path, format="PNG")
+
+    return png_path
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Receive an OLED PBM frame over serial and save it as a timestamped PNG."
+    )
+    parser.add_argument("port", help="Serial port name, for example COM6")
+    parser.add_argument("--baud", type=int, default=115200, help="Serial baud rate")
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("captures"),
+        help="Directory to save PNG files into",
+    )
+    parser.add_argument(
+        "--prefix",
+        default="oled_capture",
+        help="Filename prefix for saved PNG files",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=10.0,
+        help="Serial read timeout in seconds",
+    )
+    parser.add_argument(
+        "--keep-pbm",
+        action="store_true",
+        help="Also save the received PBM alongside the PNG",
+    )
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+
+    with serial.Serial(args.port, args.baud, timeout=args.timeout) as ser:
+        print(f"waiting for PBM frame on {args.port} @ {args.baud}...")
+        pbm_bytes = read_pbm_frame(ser)
+
+    png_path = save_png_from_pbm(pbm_bytes, args.output_dir, args.prefix)
+    print(f"saved png: {png_path}")
+
+    if args.keep_pbm:
+        pbm_path = png_path.with_suffix(".pbm")
+        pbm_path.write_bytes(pbm_bytes)
+        print(f"saved pbm: {pbm_path}")
+
+
+if __name__ == "__main__":
+    main()

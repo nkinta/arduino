@@ -65,6 +65,8 @@ private:
 
     float _dischargeI{2.f};
 
+    bool _dumpDisplayButtonLock{false};
+
     bool _xiaoVoltValidFlag{true}; // xiaoの電圧値が正常かどうか
 
     bool _clearDisplayFlag{false};

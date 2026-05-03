@@ -230,6 +230,8 @@ public:
     _display.display();
   }
 
+  void dumpDisplayAsPbm(Stream& out);
+
   void drawChar(const char* chr, int offsetX, int offsetY) {
     // display.fillRect(CHARSIZEX * offsetX, CHARSIZEY * offsetY, CHARSIZEX * sizeChar, CHARSIZEY * 1, BLACK);
     _display.setCursor(CHARSIZEX * offsetX, CHARSIZEY * offsetY);
