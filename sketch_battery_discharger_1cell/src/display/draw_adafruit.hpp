@@ -54,41 +54,9 @@ public:
     display.setTextColor(SSD1306_WHITE);
   }
 
-  static void setCursor(Adafruit_SSD1306 &display, int16_t x, int16_t y)
-  {
-    display.setCursor(x, y);
-  }
-
-  static void printString(Adafruit_SSD1306 &display, const String& val)
-  {
-    display.print(val);
-  }
-
-  static void setFont(Adafruit_SSD1306 &display, const GFXfont* f)
-  {
-    display.setFont(f);
-  }
-
-  static void removeFont(Adafruit_SSD1306 &display)
-  {
-    display.setFont(nullptr);
-  }
-
-  static void setTextSize(Adafruit_SSD1306 &display, uint8_t size)
-  {
-    display.setTextSize(size);
-  }
-
   static void drawBat(Adafruit_SSD1306 &display, int index);
 
   static void drawCar(Adafruit_SSD1306 &display);
-
-  static void clearDisplay(Adafruit_SSD1306 &display)
-  {
-    display.clearDisplay();
-    display.setTextSize(TEXT_SIZE);
-    display.setTextColor(SSD1306_WHITE);
-  }
 
   static void drawFillLine(Adafruit_SSD1306 &display, int line)
   {
@@ -142,11 +110,6 @@ public:
     String valueInt{String(value)};
     display.setCursor(CHARSIZEX * (offsetX - valueInt.length()), CHARSIZEY * offsetY);
     display.print(valueInt);
-  }
-
-  static void display(Adafruit_SSD1306 &display)
-  {
-    display.display();
   }
 
   static void dumpDisplayAsPbm(Adafruit_SSD1306 &display, Stream& out);

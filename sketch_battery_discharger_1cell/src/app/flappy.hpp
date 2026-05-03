@@ -152,9 +152,7 @@ namespace flappy
     void setup()
     {
       pinMode(PUSH_BUTTON_A, INPUT_PULLUP);
-      pinMode(PUSH_BUTTON_B, INPUT_PULLUP);
       _buttonFlapStatus.init(PUSH_BUTTON_A);
-      _buttonRestartStatus.init(PUSH_BUTTON_B);
 
       DrawAdafruit::setupDisplay(oledDisplay);
 
@@ -171,10 +169,9 @@ namespace flappy
       }
 
       _buttonFlapStatus.update();
-      _buttonRestartStatus.update();
 
       const bool flapPressed{_buttonFlapStatus.getVal() == PushType::Pushed};
-      const bool restartPressed{_buttonRestartStatus.getVal() == PushType::Pushed};
+      const bool restartPressed{flapPressed};
 
       if (_gameState == STATE_TITLE)
       {

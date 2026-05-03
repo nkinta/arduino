@@ -275,12 +275,12 @@ void BatteryInfo::setDisplayVoltOnly(Adafruit_SSD1306 &display) const
     DrawAdafruit::drawFillLine(display, line + 4);
 
     ++line;
-    DrawAdafruit::setFont(display, &BBHBogle_Regular12pt7b);
+    display.setFont(&BBHBogle_Regular12pt7b);
 
-    DrawAdafruit::setCursor(display, 32, 36);
-    DrawAdafruit::printString(display, String(_sleepV, 3) + String("V"));
+    display.setCursor(32, 36);
+    display.print(String(_sleepV, 3) + String("V"));
 
-    DrawAdafruit::removeFont(display);
+    display.setFont(nullptr);
 }
 
 void BatteryInfo::setDisplayDetail(Adafruit_SSD1306 &display) const
@@ -425,14 +425,14 @@ void BatteryInfo::setDisplayPushData(Adafruit_SSD1306 &display) const
         {
             constexpr std::pair<int, int> positionArray[4] = {{12, 28}, {12, 46}, {72, 28}, {72, 46}};
 
-            DrawAdafruit::setFont(display, &BBHBogle_Regular9pt7b);
+            display.setFont(&BBHBogle_Regular9pt7b);
 
             {
                 const std::pair<int, int> &position{positionArray[_batteryIndex]};
-                DrawAdafruit::setCursor(display, position.first, position.second);
-                DrawAdafruit::printString(display, String(_v, _batteryController->_decimal) + String("V"));
+                display.setCursor(position.first, position.second);
+                display.print(String(_v, _batteryController->_decimal) + String("V"));
             }
-            DrawAdafruit::removeFont(display);
+            display.setFont(nullptr);
         }
         else
         {
