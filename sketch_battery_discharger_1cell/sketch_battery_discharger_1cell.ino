@@ -5,6 +5,7 @@
 
 #include <ArduinoLowPower.h>
 
+#include "battery_monitor.hpp"
 #include "battery_controller.hpp"
 #include "src/display/draw_adafruit.hpp"
 
@@ -19,19 +20,9 @@ ButtonStatus buttonONStatus{};
 
 flappy::Game flappyGame;
 stopwatch::Stopwatch stopWatch;
-
-bool xiaoVoltValidFlag{true};
-bool lowBatteryActive{false};
-
-static constexpr unsigned long LOW_BATTERY_SLEEP_DELAY_MS{30000};
-static constexpr unsigned long BATTERY_MONITOR_INTERVAL_FRAMES{60};
-static constexpr uint8_t XIAO_READ_BAT{PD4};
-static constexpr uint8_t XIAO_READ_BAT_SWITCH{PD3};
-static constexpr float XIAO_BATTERY_DIVIDER_RATE{2.f};
+BatteryMonitor batteryMonitor;
 
 unsigned long loopSubMillis{0};;
-unsigned long batteryMonitorCount{BATTERY_MONITOR_INTERVAL_FRAMES - 1};
-unsigned long lowBatteryDetectedMillis{0};
 
 enum class StartupMode : uint8_t
 {
@@ -43,12 +34,6 @@ enum class StartupMode : uint8_t
 StartupMode startupMode{StartupMode::BatteryController};
 
 void goDeepSleep();
-
-float readXiaoBatteryVolt()
-{
-  const int readValue{analogRead(XIAO_READ_BAT)};
-  return (static_cast<float>(readValue) / 4096.f) * XIAO_BATTERY_DIVIDER_RATE * VOLT3_3;
-}
 
 void displayLowBattery()
 {
@@ -73,52 +58,6 @@ void displayCurrentModeSleep()
   }
 }
 
-void updateBatteryMonitor()
-{
-  ++batteryMonitorCount;
-  if ((batteryMonitorCount % BATTERY_MONITOR_INTERVAL_FRAMES) == 0)
-  {
-    const float xiaoVolt{readXiaoBatteryVolt()};
-
-    if (startupMode == StartupMode::BatteryController)
-    {
-      controller.drawXiaoBattery(xiaoVolt);
-    }
-
-    if (xiaoVoltValidFlag)
-    {
-      if (xiaoVolt < XIAO_MIN_VOLT)
-      {
-        xiaoVoltValidFlag = false;
-        lowBatteryDetectedMillis = millis();
-      }
-    }
-    else if (xiaoVolt > (XIAO_MIN_VOLT + 0.1f))
-    {
-      xiaoVoltValidFlag = true;
-      lowBatteryDetectedMillis = 0;
-    }
-  }
-
-  lowBatteryActive = !xiaoVoltValidFlag;
-  if (!lowBatteryActive)
-  {
-    return;
-  }
-
-  if (lowBatteryDetectedMillis == 0)
-  {
-    lowBatteryDetectedMillis = millis();
-  }
-
-  displayLowBattery();
-  if ((millis() - lowBatteryDetectedMillis) >= LOW_BATTERY_SLEEP_DELAY_MS)
-  {
-    displayCurrentModeSleep();
-    goDeepSleep();
-  }
-}
-
 // the setup function runs once when you press reset or power the board
 void setup()
 {
@@ -134,9 +73,7 @@ void setup()
   buttonONStatus.init(PUSH_BUTTON_ON);
 
   BatteryController::writePinReset();
-  pinMode(XIAO_READ_BAT_SWITCH, OUTPUT);
-  digitalWrite(XIAO_READ_BAT_SWITCH, HIGH);
-  pinMode(XIAO_READ_BAT, INPUT);
+  batteryMonitor.setup();
   pinMode(PUSH_BUTTON_D, INPUT_PULLUP);
   pinMode(PUSH_BUTTON_U, INPUT_PULLUP);
 
@@ -201,7 +138,21 @@ void goDeepSleep()
 
 void loopSub()
 {
-  updateBatteryMonitor();
+  if (batteryMonitor.update() && startupMode == StartupMode::BatteryController)
+  {
+    controller.drawXiaoBattery(batteryMonitor.xiaoVolt());
+  }
+
+  if (batteryMonitor.isLowBatteryActive())
+  {
+    displayLowBattery();
+    if (batteryMonitor.shouldGoDeepSleep())
+    {
+      displayCurrentModeSleep();
+      goDeepSleep();
+    }
+  }
+
   buttonONStatus.update();
 
   if (buttonONStatus.getVal() == PushType::PushLong)
@@ -240,7 +191,7 @@ void loop()
   {
     loopWhile();
 
-    if (lowBatteryActive)
+    if (batteryMonitor.isLowBatteryActive())
     {
       continue;
     }
