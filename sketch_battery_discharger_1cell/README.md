@@ -22,6 +22,8 @@
 
 ## 基本の使い方
 
+![ボタン配置](readme_capture/button.png)
+
 ![電圧表示画面](readme_capture/normal_discharge.png)
 
 1. 電池をセットして電源を入れます
