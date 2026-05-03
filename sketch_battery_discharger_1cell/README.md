@@ -86,7 +86,7 @@
 通常画面で `ON` ボタンを短押しすると、押し放電モードに入ります。  
 画面上部に `Discharge x.xA` と表示され、その電流でボタンを押している間だけ放電します。
 
-![押し放電モード画面](readme_capture/captures/push_discharge.png)
+![押し放電モード画面](readme_capture/push_discharge.png)
 
 現在のコードでは `V2_PCB` 設定が有効で、ボタン割り当ては次の通りです。
 
