@@ -11,6 +11,7 @@ import serial
 from PIL import Image
 
 INVERT_IMAGE = True
+PNG_SCALE = 3
 
 
 def read_exact(ser: serial.Serial, size: int) -> bytes:
@@ -47,6 +48,12 @@ def save_png_from_pbm(pbm_bytes: bytes, output_dir: Path, prefix: str) -> Path:
     with Image.open(BytesIO(pbm_bytes)) as image:
         if INVERT_IMAGE:
             image = image.point(lambda value: 255 - value)
+        if PNG_SCALE != 1:
+            width, height = image.size
+            image = image.resize(
+                (width * PNG_SCALE, height * PNG_SCALE),
+                Image.Resampling.NEAREST,
+            )
         image.save(png_path, format="PNG")
 
     return png_path
