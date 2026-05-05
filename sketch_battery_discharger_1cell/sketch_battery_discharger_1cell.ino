@@ -17,12 +17,16 @@ Adafruit_SSD1306 oledDisplay{DrawAdafruit::SCREEN_WIDTH, DrawAdafruit::SCREEN_HE
 BatteryController controller;
 
 ButtonStatus buttonONStatus{};
+ButtonStatus buttonLStatus{};
+ButtonStatus buttonRStatus{};
 
 flappy::Game flappyGame;
 stopwatch::Stopwatch stopWatch;
 BatteryMonitor batteryMonitor;
 
 unsigned long loopSubMillis{0};;
+bool dumpDisplayButtonLock{false};
+bool skipModeLoopThisFrame{false};
 
 enum class StartupMode : uint8_t
 {
@@ -34,6 +38,7 @@ enum class StartupMode : uint8_t
 StartupMode startupMode{StartupMode::BatteryController};
 
 void goDeepSleep();
+bool updateDisplayDumpRequest();
 
 void displayLowBattery()
 {
@@ -69,7 +74,11 @@ void setup()
   Serial.print("Start!");
 #endif
 
+  pinMode(PUSH_BUTTON_L, INPUT_PULLUP);
+  pinMode(PUSH_BUTTON_R, INPUT_PULLUP);
   pinMode(PUSH_BUTTON_ON, INPUT_PULLUP);
+  buttonLStatus.init(PUSH_BUTTON_L);
+  buttonRStatus.init(PUSH_BUTTON_R);
   buttonONStatus.init(PUSH_BUTTON_ON);
 
   BatteryController::writePinReset();
@@ -117,6 +126,30 @@ void callback()
     count++;
 }
 
+bool updateDisplayDumpRequest()
+{
+  const auto isActivePush = [](PushType pushType) {
+    return pushType == PushType::Pushed || pushType == PushType::PushShort || pushType == PushType::PushLong;
+  };
+
+  buttonLStatus.update();
+  buttonRStatus.update();
+
+  const bool dumpDisplayRequested{isActivePush(buttonLStatus.getVal()) && isActivePush(buttonRStatus.getVal())};
+  if (dumpDisplayRequested)
+  {
+    if (!dumpDisplayButtonLock)
+    {
+      DrawAdafruit::dumpDisplayAsPbm(oledDisplay, Serial);
+      dumpDisplayButtonLock = true;
+    }
+    return true;
+  }
+
+  dumpDisplayButtonLock = false;
+  return false;
+}
+
 void goDeepSleep()
 {
     LowPower.attachInterruptWakeup(WAKE_UP_PIN, callback, RISING);
@@ -138,6 +171,17 @@ void goDeepSleep()
 
 void loopSub()
 {
+#ifdef SERIAL_DEBUG_ON
+
+  if (updateDisplayDumpRequest())
+  {
+    skipModeLoopThisFrame = true;
+    return;
+  }
+
+  skipModeLoopThisFrame = false;
+#endif
+
   if (batteryMonitor.update() && startupMode == StartupMode::BatteryController)
   {
     controller.drawXiaoBattery(batteryMonitor.xiaoVolt());
@@ -182,6 +226,11 @@ void loop()
   while (true)
   {
     loopWhile();
+
+    if (skipModeLoopThisFrame)
+    {
+      continue;
+    }
 
     if (batteryMonitor.isLowBatteryActive())
     {

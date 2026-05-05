@@ -2,8 +2,8 @@
 
 #include <cstdint>
 
-// #undef SERIAL_DEBUG_ON
-#define SERIAL_DEBUG_ON
+#undef SERIAL_DEBUG_ON
+// #define SERIAL_DEBUG_ON
 
 #undef  OLD_PCB
 #define V2_PCB

@@ -139,6 +139,9 @@
 
 ## おまけ機能
 
+![電池設定の画面](readme_capture/stop_watch.png)
+![電池設定の画面](readme_capture/flappy.png)
+
 起動時にボタンを押しながら電源を入れると、放電器以外のモードが起動します。
 
 - `D` を押しながら起動: Flappy Game

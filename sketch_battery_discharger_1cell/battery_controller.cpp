@@ -354,31 +354,7 @@ void BatteryController::updateButtonStatus()
         buttonStatus->update();
     }
 
-    const auto isActivePush = [](PushType pushType) {
-        return pushType == PushType::Pushed || pushType == PushType::PushShort || pushType == PushType::PushLong;
-    };
-
-    const bool dumpDisplayRequested{isActivePush(_buttonLStatus.getVal()) && isActivePush(_buttonRStatus.getVal())};
-    if (dumpDisplayRequested)
-    {
-        if (!_dumpDisplayButtonLock)
-        {
-            DrawAdafruit::dumpDisplayAsPbm(oledDisplay, Serial);
-            _dumpDisplayButtonLock = true;
-        }
-    }
-    else
-    {
-        _dumpDisplayButtonLock = false;
-    }
-
     MainMode nextMode{_mainMode};
-    if (dumpDisplayRequested)
-    {
-        _mainMode = nextMode;
-        return;
-    }
-
     if (_mainMode == MainMode::DischargerMode)
     {
         PushType pushType{0};
