@@ -7,12 +7,12 @@
 
 #include "battery_monitor.hpp"
 #include "battery_controller.hpp"
-#include "src/display/draw_adafruit.hpp"
+#include "src/display/adafruit_gfx_utility.hpp"
 
 #include "src/app/flappy.hpp"
 #include "src/app/stopwatch.hpp"
 
-Adafruit_SSD1306 oledDisplay{DrawAdafruit::SCREEN_WIDTH, DrawAdafruit::SCREEN_HEIGHT, &Wire, DrawAdafruit::OLED_RESET};
+Adafruit_SSD1306 oledDisplay{AdafruitGfxUtility::SCREEN_WIDTH, AdafruitGfxUtility::SCREEN_HEIGHT, &Wire, AdafruitGfxUtility::OLED_RESET};
 
 BatteryController controller;
 
@@ -43,7 +43,7 @@ bool updateDisplayDumpRequest();
 void displayLowBattery()
 {
   oledDisplay.clearDisplay();
-  DrawAdafruit::drawStringC(oledDisplay, "Low Battery", 3);
+  AdafruitGfxUtility::drawStringC(oledDisplay, "Low Battery", 3);
   oledDisplay.display();
 }
 
@@ -140,7 +140,7 @@ bool updateDisplayDumpRequest()
   {
     if (!dumpDisplayButtonLock)
     {
-      DrawAdafruit::dumpDisplayAsPbm(oledDisplay, Serial);
+      AdafruitGfxUtility::dumpDisplayAsPbm(oledDisplay, Serial);
       dumpDisplayButtonLock = true;
     }
     return true;

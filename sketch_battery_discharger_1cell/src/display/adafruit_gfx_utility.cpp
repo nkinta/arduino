@@ -1,8 +1,8 @@
-#include "draw_adafruit.hpp"
+#include "adafruit_gfx_utility.hpp"
 
 #include "../../discharger_define.hpp"
 
-String DrawAdafruit::formatFloatZeroPad(float value, int integerDigits, int decimalDigits)
+String AdafruitGfxUtility::formatFloatZeroPad(float value, int integerDigits, int decimalDigits)
 {
     if (integerDigits < 1)
     {
@@ -42,7 +42,7 @@ String DrawAdafruit::formatFloatZeroPad(float value, int integerDigits, int deci
     return zeros + formatted;
 }
 
-void DrawAdafruit::setDisplayTuneMenu(Adafruit_SSD1306 &display, String &&title, std::vector<String> &menuList, std::vector<String> &valueList, int targetIndex)
+void AdafruitGfxUtility::setDisplayTuneMenu(Adafruit_SSD1306 &display, String &&title, std::vector<String> &menuList, std::vector<String> &valueList, int targetIndex)
 {
     int virOffset1{0};
     int virOffset2{0};
@@ -83,7 +83,7 @@ void DrawAdafruit::setDisplayTuneMenu(Adafruit_SSD1306 &display, String &&title,
     }
 }
 
-void DrawAdafruit::drawCar(Adafruit_SSD1306 &display)
+void AdafruitGfxUtility::drawCar(Adafruit_SSD1306 &display)
 {
 // 'untitled', 16x16px
 unsigned char epd_bitmap_untitled[] PROGMEM = {
@@ -100,7 +100,7 @@ const unsigned char* epd_bitmap_allArray[1] = {
 display.drawBitmap(3, 3, &epd_bitmap_untitled[0], 16, 16, WHITE);
 }
 
-void DrawAdafruit::drawBat(Adafruit_SSD1306 &display, const int index)
+void AdafruitGfxUtility::drawBat(Adafruit_SSD1306 &display, const int index)
 {
 
     // https://javl.github.io/image2cpp/
@@ -135,7 +135,7 @@ void DrawAdafruit::drawBat(Adafruit_SSD1306 &display, const int index)
     display.drawBitmap(110, 55, bat_meter[index], 16, 8, WHITE);
 }
 
-void DrawAdafruit::dumpDisplayAsPbm(Adafruit_SSD1306 &display, Stream& out)
+void AdafruitGfxUtility::dumpDisplayAsPbm(Adafruit_SSD1306 &display, Stream& out)
 {
     uint8_t* buffer{display.getBuffer()};
 

@@ -4,14 +4,14 @@
 
 #include "../../button_status.hpp"
 #include "../../discharger_define.hpp"
-#include "../display/draw_adafruit.hpp"
+#include "../display/adafruit_gfx_utility.hpp"
 
 extern Adafruit_SSD1306 oledDisplay;
 
 namespace flappy
 {
-  constexpr int16_t SCREEN_WIDTH{DrawAdafruit::SCREEN_WIDTH};
-  constexpr int16_t SCREEN_HEIGHT{DrawAdafruit::SCREEN_HEIGHT};
+  constexpr int16_t SCREEN_WIDTH{AdafruitGfxUtility::SCREEN_WIDTH};
+  constexpr int16_t SCREEN_HEIGHT{AdafruitGfxUtility::SCREEN_HEIGHT};
 
   constexpr int16_t ANALOG_READ{D9};
 
@@ -154,7 +154,7 @@ namespace flappy
       pinMode(PUSH_BUTTON_A, INPUT_PULLUP);
       _buttonFlapStatus.init(PUSH_BUTTON_A);
 
-      DrawAdafruit::setupDisplay(oledDisplay);
+      AdafruitGfxUtility::setupDisplay(oledDisplay);
 
       randomSeed(analogRead(ANALOG_READ));
       _highScore = 0;

@@ -1,6 +1,6 @@
 #include <string>
 #include "battery_info.hpp"
-#include "src/display/draw_adafruit.hpp"
+#include "src/display/adafruit_gfx_utility.hpp"
 #include "voltage_mapping.hpp"
 #include "save_config_data.hpp"
 #include "battery_controller.hpp"
@@ -268,11 +268,11 @@ void BatteryInfo::setDisplayVoltOnly(Adafruit_SSD1306 &display) const
     int virOffset{0};
     int line{START_LINE};
 
-    DrawAdafruit::drawFillLine(display, line);
-    DrawAdafruit::drawFillLine(display, line + 1);
-    DrawAdafruit::drawFillLine(display, line + 2);
-    DrawAdafruit::drawFillLine(display, line + 3);
-    DrawAdafruit::drawFillLine(display, line + 4);
+    AdafruitGfxUtility::drawFillLine(display, line);
+    AdafruitGfxUtility::drawFillLine(display, line + 1);
+    AdafruitGfxUtility::drawFillLine(display, line + 2);
+    AdafruitGfxUtility::drawFillLine(display, line + 3);
+    AdafruitGfxUtility::drawFillLine(display, line + 4);
 
     ++line;
     display.setFont(&BBHBogle_Regular12pt7b);
@@ -283,24 +283,24 @@ void BatteryInfo::setDisplayVoltOnly(Adafruit_SSD1306 &display) const
     display.setFont(nullptr);
 }
 
-void BatteryInfo::setDisplayDetail(Adafruit_SSD1306 &display) const
+void BatteryInfo::setDisplayDetailOld(Adafruit_SSD1306 &display) const
 {
     static constexpr int DISPLAY_MENU_START_COL{3};
     static constexpr int DISPLAY_MENU_OFFSET_COL{5};
     int virOffset{0};
     int line{START_LINE};
-    DrawAdafruit::drawFillLine(display, line);
+    AdafruitGfxUtility::drawFillLine(display, line);
 
     virOffset = DISPLAY_MENU_START_COL;
-    DrawAdafruit::drawStringC(display, DISC_MODE_NAMES[static_cast<uint8_t>(_disChargeMode)], line);
+    AdafruitGfxUtility::drawStringC(display, DISC_MODE_NAMES[static_cast<uint8_t>(_disChargeMode)], line);
 
     ++line;
-    DrawAdafruit::drawFillLine(display, line);
+    AdafruitGfxUtility::drawFillLine(display, line);
 
     virOffset = DISPLAY_MENU_START_COL;
     virOffset += DISPLAY_MENU_OFFSET_COL;
-    DrawAdafruit::drawFloatR(display, _sleepV, virOffset, line, DISPLAY_MENU_OFFSET_COL, 3);
-    DrawAdafruit::drawString(display, "V", virOffset, line);
+    AdafruitGfxUtility::drawFloatR(display, _sleepV, virOffset, line, DISPLAY_MENU_OFFSET_COL, 3);
+    AdafruitGfxUtility::drawString(display, "V", virOffset, line);
 
     virOffset += 2;
     if ((_tunedI > 0.f) && (_displayCount % 2))
@@ -308,34 +308,34 @@ void BatteryInfo::setDisplayDetail(Adafruit_SSD1306 &display) const
     }
     else
     {
-        DrawAdafruit::drawChar(display, &DisplayConst::CHAR_DATA_ARROW_NEW[0], virOffset, line);
+        AdafruitGfxUtility::drawChar(display, &DisplayConst::CHAR_DATA_ARROW_NEW[0], virOffset, line);
     }
 
     virOffset += 2;
     virOffset += DISPLAY_MENU_OFFSET_COL;
-    DrawAdafruit::drawFloatR(display, _targetV, virOffset, line, DISPLAY_MENU_OFFSET_COL, 3);
-    DrawAdafruit::drawString(display, "V", virOffset, line);
+    AdafruitGfxUtility::drawFloatR(display, _targetV, virOffset, line, DISPLAY_MENU_OFFSET_COL, 3);
+    AdafruitGfxUtility::drawString(display, "V", virOffset, line);
 
     ++line;
-    DrawAdafruit::drawFillLine(display, line);
+    AdafruitGfxUtility::drawFillLine(display, line);
 
     virOffset = DISPLAY_MENU_START_COL;
     virOffset += DISPLAY_MENU_OFFSET_COL;
     float displayI{std::max(0.f, _tunedI)};
-    DrawAdafruit::drawFloatR(display, displayI, virOffset, line, DISPLAY_MENU_OFFSET_COL, 3);
-    DrawAdafruit::drawString(display, "A", virOffset, line);
+    AdafruitGfxUtility::drawFloatR(display, displayI, virOffset, line, DISPLAY_MENU_OFFSET_COL, 3);
+    AdafruitGfxUtility::drawString(display, "A", virOffset, line);
 
     virOffset += 2;
 
-    DrawAdafruit::drawChar(display, &DisplayConst::CHAR_DATA_ARROW_NEW[0], virOffset, line);
+    AdafruitGfxUtility::drawChar(display, &DisplayConst::CHAR_DATA_ARROW_NEW[0], virOffset, line);
 
     virOffset += 2;
     virOffset += SETTING_MENU_OFFSET_COL;
-    DrawAdafruit::drawFloatR(display, _targetI, virOffset, line, SETTING_MENU_OFFSET_COL, 3);
-    DrawAdafruit::drawString(display, "A", virOffset, line);
+    AdafruitGfxUtility::drawFloatR(display, _targetI, virOffset, line, SETTING_MENU_OFFSET_COL, 3);
+    AdafruitGfxUtility::drawString(display, "A", virOffset, line);
 
     ++line;
-    DrawAdafruit::drawFillLine(display, line);
+    AdafruitGfxUtility::drawFillLine(display, line);
 
     virOffset = DISPLAY_MENU_START_COL + 1;
 
@@ -352,64 +352,116 @@ void BatteryInfo::setDisplayDetail(Adafruit_SSD1306 &display) const
     char endSecondsStr[128];
     printMinuteSecond(displayEndSeconds, endSecondsStr);
 
-    DrawAdafruit::drawChar(display, startSecondsStr, virOffset, line);
-    DrawAdafruit::drawChar(display, endSecondsStr, virOffset + 8, line);
+    AdafruitGfxUtility::drawChar(display, startSecondsStr, virOffset, line);
+    AdafruitGfxUtility::drawChar(display, endSecondsStr, virOffset + 8, line);
 
     if (0)
     {
         ++line;
-        DrawAdafruit::drawFillLine(display, line);
-        DrawAdafruit::drawInt(display, calcPWMValue(_targetI, ACTIVE_RATE, _batteryController->_calibI), SETTING_MENU_START_COL, line);
-        DrawAdafruit::drawString(display, "PWM", SETTING_MENU_START_COL + SETTING_MENU_OFFSET_COL, line);
+        AdafruitGfxUtility::drawFillLine(display, line);
+        AdafruitGfxUtility::drawInt(display, calcPWMValue(_targetI, ACTIVE_RATE, _batteryController->_calibI), SETTING_MENU_START_COL, line);
+        AdafruitGfxUtility::drawString(display, "PWM", SETTING_MENU_START_COL + SETTING_MENU_OFFSET_COL, line);
     }
 
     if (0)
     {
         ++line;
-        DrawAdafruit::drawFillLine(display, line);
+        AdafruitGfxUtility::drawFillLine(display, line);
         virOffset = DISPLAY_MENU_START_COL;
         virOffset += DISPLAY_MENU_OFFSET_COL;
-        DrawAdafruit::drawFloatR(display, _sleepV, virOffset, line, DISPLAY_MENU_OFFSET_COL, 3);
-        DrawAdafruit::drawString(display, "V", virOffset, line);
+        AdafruitGfxUtility::drawFloatR(display, _sleepV, virOffset, line, DISPLAY_MENU_OFFSET_COL, 3);
+        AdafruitGfxUtility::drawString(display, "V", virOffset, line);
     }
 
     if (0)
     {
         ++line;
-        DrawAdafruit::drawFillLine(display, line);
+        AdafruitGfxUtility::drawFillLine(display, line);
         virOffset = DISPLAY_MENU_START_COL;
         virOffset += DISPLAY_MENU_OFFSET_COL;
-        DrawAdafruit::drawFloatR(display, _i, virOffset, line, DISPLAY_MENU_OFFSET_COL, 3);
-        DrawAdafruit::drawString(display, "A", virOffset, line);
+        AdafruitGfxUtility::drawFloatR(display, _i, virOffset, line, DISPLAY_MENU_OFFSET_COL, 3);
+        AdafruitGfxUtility::drawString(display, "A", virOffset, line);
     }
 
     ++line;
-    DrawAdafruit::drawFillLine(display, line);
+    AdafruitGfxUtility::drawFillLine(display, line);
     {
         virOffset = DISPLAY_MENU_START_COL;
         virOffset += DISPLAY_MENU_OFFSET_COL;
         virOffset -= 1;
-        DrawAdafruit::drawFloatR(display, _ohm, virOffset, line, DISPLAY_MENU_OFFSET_COL, 1);
+        AdafruitGfxUtility::drawFloatR(display, _ohm, virOffset, line, DISPLAY_MENU_OFFSET_COL, 1);
 
         static constexpr char CHAR_DATA_OHM[] = {0x6D, 0xe9, 0x00};
-        DrawAdafruit::drawChar(display, &CHAR_DATA_OHM[0], virOffset, line);
+        AdafruitGfxUtility::drawChar(display, &CHAR_DATA_OHM[0], virOffset, line);
 
         virOffset += 5;
         virOffset += DISPLAY_MENU_OFFSET_COL;
-        DrawAdafruit::drawFloatR(display, displayMilliAmpereHour, virOffset, line, DISPLAY_MENU_OFFSET_COL, 1, 3);
-        DrawAdafruit::drawString(display, "mah", virOffset, line);
+        AdafruitGfxUtility::drawFloatR(display, displayMilliAmpereHour, virOffset, line, DISPLAY_MENU_OFFSET_COL, 1, 3);
+        AdafruitGfxUtility::drawString(display, "mah", virOffset, line);
     }
 
     if (0)
     {
         ++line;
-        DrawAdafruit::drawFillLine(display, line);
+        AdafruitGfxUtility::drawFillLine(display, line);
         virOffset = DISPLAY_MENU_START_COL;
         virOffset += DISPLAY_MENU_OFFSET_COL;
-        DrawAdafruit::drawInt(display, _loopCount % sizeof(DISCHARGE_MODE_LOOPS), virOffset, line);
+        AdafruitGfxUtility::drawInt(display, _loopCount % sizeof(DISCHARGE_MODE_LOOPS), virOffset, line);
         static std::vector<String> modeNames{String("None"), String("Active"), String("Sleep"), String("Stop"), String("NoBat"), String("Max")};
-        DrawAdafruit::drawString(display, modeNames[(uint8_t)_currentBatteryStatus], virOffset + 5, line);
+        AdafruitGfxUtility::drawString(display, modeNames[(uint8_t)_currentBatteryStatus], virOffset + 5, line);
     }
+}
+
+void BatteryInfo::setDisplayDetail(Adafruit_SSD1306 &display) const
+{
+    int line{START_LINE};
+    float displayI{std::max(0.f, _tunedI)};
+    float displayMilliAmpereHour{0.f};
+    if (_currentBatteryStatus != BatteryStatus::NoBat)
+    {
+        displayMilliAmpereHour = _milliAmpereHour;
+    }
+
+    AdafruitGfxUtility::drawFillLine(display, line);
+    AdafruitGfxUtility::drawFillLine(display, line + 1);
+    AdafruitGfxUtility::drawFillLine(display, line + 2);
+    AdafruitGfxUtility::drawFillLine(display, line + 3);
+    AdafruitGfxUtility::drawFillLine(display, line + 4);
+
+    AdafruitGfxUtility::drawStringC(display, DISC_MODE_NAMES[static_cast<uint8_t>(_disChargeMode)], line);
+    display.drawFastHLine(12, 17, 104, SSD1306_WHITE);
+
+    const String voltageArrow{((_tunedI > 0.f) && (_displayCount % 2)) ? String("  ") : String("->")};
+    const String voltageText{
+        AdafruitGfxUtility::formatFloatZeroPad(_sleepV, 1, 3) +
+        voltageArrow +
+        AdafruitGfxUtility::formatFloatZeroPad(_targetV, 1, 3) +
+        String("V")
+    };
+
+    display.setFont(&BBHBogle_Regular12pt7b);
+    int16_t voltageX{0};
+    int16_t voltageY{0};
+    uint16_t voltageW{0};
+    uint16_t voltageH{0};
+    display.getTextBounds(voltageText, 0, 0, &voltageX, &voltageY, &voltageW, &voltageH);
+    display.setCursor((AdafruitGfxUtility::SCREEN_WIDTH - voltageW) / 2 - voltageX, 36);
+    display.print(voltageText);
+    display.setFont(nullptr);
+
+    const String currentText{
+        AdafruitGfxUtility::formatFloatZeroPad(displayI, 1, 3) +
+        String("A -> ") +
+        AdafruitGfxUtility::formatFloatZeroPad(_targetI, 1, 3) +
+        String("A")
+    };
+    AdafruitGfxUtility::drawStringC(display, currentText, START_LINE + 3);
+
+    const String milliAmpereHourText{
+        AdafruitGfxUtility::formatFloatZeroPad(displayMilliAmpereHour, 1, 1) +
+        String("mAh")
+    };
+    AdafruitGfxUtility::drawStringC(display, milliAmpereHourText, START_LINE + 4);
 }
 
 void BatteryInfo::setDisplayPushData(Adafruit_SSD1306 &display) const
@@ -439,8 +491,8 @@ void BatteryInfo::setDisplayPushData(Adafruit_SSD1306 &display) const
             int batterySetIndex{_batteryIndex / 2};
             int virOffset{10 * batterySetIndex + (_batteryIndex % 2) * 0 + 8};
             int line{(_batteryIndex % 2) + 2};
-            DrawAdafruit::drawFloatR(display, _v, virOffset, line, 4, _batteryController->_decimal);
-            DrawAdafruit::drawString(display, "V", virOffset, line);
+            AdafruitGfxUtility::drawFloatR(display, _v, virOffset, line, 4, _batteryController->_decimal);
+            AdafruitGfxUtility::drawString(display, "V", virOffset, line);
         }
     }
 
@@ -455,7 +507,7 @@ void BatteryInfo::setDisplayData(Adafruit_SSD1306 &display) const
 
     if (_displayFlag)
     {
-        DrawAdafruit::drawString(display, ">", 5 * _batteryIndex, 0);
+        AdafruitGfxUtility::drawString(display, ">", 5 * _batteryIndex, 0);
     }
 
     if (_tunedI > 0 && (_displayCount % 2))
@@ -463,7 +515,7 @@ void BatteryInfo::setDisplayData(Adafruit_SSD1306 &display) const
     }
     else
     {
-        DrawAdafruit::drawFloatR(display, _sleepV, 5 * (_batteryIndex + 1), 0, 4, 2);
+        AdafruitGfxUtility::drawFloatR(display, _sleepV, 5 * (_batteryIndex + 1), 0, 4, 2);
     }
 
     if (_displayFlag)

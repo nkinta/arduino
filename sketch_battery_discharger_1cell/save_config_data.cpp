@@ -1,7 +1,7 @@
 #include "save_config_data.hpp"
 
 #include <algorithm>
-#include "src/display/draw_adafruit.hpp"
+#include "src/display/adafruit_gfx_utility.hpp"
 
 
 int SaveConfigData::voltClamp(int value)
@@ -65,5 +65,5 @@ void SaveConfigData::setDisplayConfig(Adafruit_SSD1306 &display, ConfigSettingMo
         String(_decimal),
     };
 
-    DrawAdafruit::setDisplayTuneMenu(display, "Config", menuList, valueList, static_cast<int>(settingMode));
+    AdafruitGfxUtility::setDisplayTuneMenu(display, "Config", menuList, valueList, static_cast<int>(settingMode));
 }

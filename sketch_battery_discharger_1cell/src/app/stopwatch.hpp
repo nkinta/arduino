@@ -8,7 +8,7 @@
 
 #include "../../button_status.hpp"
 #include "../../discharger_define.hpp"
-#include "../display/draw_adafruit.hpp"
+#include "../display/adafruit_gfx_utility.hpp"
 #include "../../display/fonts/BBHBogle-Regular_14.h"
 
 extern Adafruit_SSD1306 oledDisplay;
@@ -96,7 +96,7 @@ namespace stopwatch
 
       oledDisplay.setTextSize(textSize);
       oledDisplay.getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
-      oledDisplay.setCursor((DrawAdafruit::SCREEN_WIDTH - static_cast<int16_t>(w)) / 2, y);
+      oledDisplay.setCursor((AdafruitGfxUtility::SCREEN_WIDTH - static_cast<int16_t>(w)) / 2, y);
       oledDisplay.print(text);
     }
 
@@ -158,7 +158,7 @@ namespace stopwatch
         firstGlyph = false;
       }
 
-      int16_t cursorX{static_cast<int16_t>((DrawAdafruit::SCREEN_WIDTH - totalWidth) / 2)};
+      int16_t cursorX{static_cast<int16_t>((AdafruitGfxUtility::SCREEN_WIDTH - totalWidth) / 2)};
       firstGlyph = true;
       for (const char *p = text; *p != '\0'; ++p)
       {
@@ -266,7 +266,7 @@ namespace stopwatch
       _buttonAStatus.init(PUSH_BUTTON_A);
       _buttonBStatus.init(PUSH_BUTTON_B);
 
-      DrawAdafruit::setupDisplay(oledDisplay);
+      AdafruitGfxUtility::setupDisplay(oledDisplay);
 
       reset();
       draw();

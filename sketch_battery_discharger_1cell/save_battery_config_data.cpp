@@ -1,5 +1,5 @@
 #include "save_battery_config_data.hpp"
-#include "src/display/draw_adafruit.hpp"
+#include "src/display/adafruit_gfx_utility.hpp"
 #include "battery_info.hpp"
 
 void SaveBattery::setDisplayBatteryConfig(Adafruit_SSD1306 &display, int index, BatteryConfigSettingMode settingMode) const
@@ -13,7 +13,7 @@ void SaveBattery::setDisplayBatteryConfig(Adafruit_SSD1306 &display, int index, 
 
     String title{"Battery Pair."};
     title += String(index + 1);
-    DrawAdafruit::setDisplayTuneMenu(display, std::move(title), menuList, valueList, static_cast<int>(settingMode));
+    AdafruitGfxUtility::setDisplayTuneMenu(display, std::move(title), menuList, valueList, static_cast<int>(settingMode));
 }
 
 void SaveBattery::shiftParam(BatteryConfigSettingMode settingMode, int shift)

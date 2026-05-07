@@ -2,7 +2,7 @@
 
 // #define DEEP_SLEEP_ESCAPE_PIN   D14
 #include <EEPROM.h>
-#include "src/display/draw_adafruit.hpp"
+#include "src/display/adafruit_gfx_utility.hpp"
 
 extern Adafruit_SSD1306 oledDisplay;
 
@@ -80,7 +80,7 @@ void BatteryController::clearEEPROM()
 
 void BatteryController::setup()
 {
-    DrawAdafruit::setupDisplay(oledDisplay);
+    AdafruitGfxUtility::setupDisplay(oledDisplay);
 
     digitalWrite(PA6, HIGH); // FLASH
 
@@ -201,7 +201,7 @@ void BatteryController::drawXiaoBattery(float xiaoVolt) const
       index = 0;
     }
 
-    DrawAdafruit::drawBat(oledDisplay, index);
+    AdafruitGfxUtility::drawBat(oledDisplay, index);
 }
 
 void BatteryController::setDisplayConfig() const
@@ -213,9 +213,9 @@ void BatteryController::setDisplayPushDischarge() const
 {
     for (int i = 0; i < 6; ++i)
     {
-        DrawAdafruit::drawFillLine(oledDisplay, i);
+        AdafruitGfxUtility::drawFillLine(oledDisplay, i);
     }
-    DrawAdafruit::drawStringC(oledDisplay, String("Discharge ") + String(_dischargeI) + String("A"), 0);
+    AdafruitGfxUtility::drawStringC(oledDisplay, String("Discharge ") + String(_dischargeI) + String("A"), 0);
     for (auto &batteryStatus : _batteryStatuses)
     {
         batteryStatus.setDisplayPushData(oledDisplay);
@@ -229,11 +229,11 @@ void BatteryController::setDisplayPushDischarge() const
         float rV{_batteryStatuses[2]._v + _batteryStatuses[3]._v};
 
         virOffset += 10;
-        DrawAdafruit::drawFloatR(oledDisplay, lV, virOffset, line, 4, _saveConfigData._decimal);
-        DrawAdafruit::drawString(oledDisplay, "V", virOffset, line);
+        AdafruitGfxUtility::drawFloatR(oledDisplay, lV, virOffset, line, 4, _saveConfigData._decimal);
+        AdafruitGfxUtility::drawString(oledDisplay, "V", virOffset, line);
         virOffset += 10;
-        DrawAdafruit::drawFloatR(oledDisplay, rV, virOffset, line, 4, _saveConfigData._decimal);
-        DrawAdafruit::drawString(oledDisplay, "V", virOffset, line);
+        AdafruitGfxUtility::drawFloatR(oledDisplay, rV, virOffset, line, 4, _saveConfigData._decimal);
+        AdafruitGfxUtility::drawString(oledDisplay, "V", virOffset, line);
     }
 
     const BatteryInfo *targetBatteryStatus{nullptr};
@@ -249,10 +249,10 @@ void BatteryController::setDisplayPushDischarge() const
     line = 6;
     if (targetBatteryStatus)
     {
-        DrawAdafruit::drawFillR(oledDisplay, virOffset, line, 6);
-        DrawAdafruit::drawFloatR(oledDisplay, targetBatteryStatus->_ohm, virOffset, line, 4, 1);
+        AdafruitGfxUtility::drawFillR(oledDisplay, virOffset, line, 6);
+        AdafruitGfxUtility::drawFloatR(oledDisplay, targetBatteryStatus->_ohm, virOffset, line, 4, 1);
         static constexpr char CHAR_DATA_OHM[] = {0x6D, 0xe9, 0x00};
-        DrawAdafruit::drawChar(oledDisplay, &CHAR_DATA_OHM[0], virOffset, line);
+        AdafruitGfxUtility::drawChar(oledDisplay, &CHAR_DATA_OHM[0], virOffset, line);
     }
 }
 
@@ -263,7 +263,7 @@ void BatteryController::setDisplayNone() const
 
 void BatteryController::setDisplayData() const
 {
-    DrawAdafruit::drawFillLine(oledDisplay, 0);
+    AdafruitGfxUtility::drawFillLine(oledDisplay, 0);
     for (auto &batteryStatus : _batteryStatuses)
     {
         batteryStatus.setDisplayData(oledDisplay);
@@ -282,7 +282,7 @@ void BatteryController::displaySleep()
 {
     oledDisplay.clearDisplay();
     oledDisplay.display();
-    DrawAdafruit::displaySleep(oledDisplay);
+    AdafruitGfxUtility::displaySleep(oledDisplay);
 }
 
 void BatteryController::shiftTargetBattery(int shift)

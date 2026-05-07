@@ -5,7 +5,7 @@
 #include "save_config_data.hpp"
 #include "voltage_mapping.hpp"
 #include "button_status.hpp"
-#include "src/display/draw_adafruit.hpp"
+#include "src/display/adafruit_gfx_utility.hpp"
 
 static constexpr float FPS{30.f};
 static constexpr float SEC{1000.f};

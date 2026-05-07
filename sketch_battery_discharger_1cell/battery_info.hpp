@@ -190,6 +190,8 @@ public:
 
   void setDisplayDetail(Adafruit_SSD1306 &display) const;
 
+  void setDisplayDetailOld(Adafruit_SSD1306 &display) const; 
+
   ValueCounter _valueCounter{};
 
   BatteryStatus _currentBatteryStatus{BatteryStatus::None};

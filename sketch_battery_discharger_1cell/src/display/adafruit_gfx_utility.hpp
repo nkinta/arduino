@@ -20,7 +20,7 @@
 #include <Fonts/PicoPixel.h>
 */
 
-class DrawAdafruit
+class AdafruitGfxUtility
 {
 public:
   static constexpr uint8_t SCREEN_WIDTH{128};
