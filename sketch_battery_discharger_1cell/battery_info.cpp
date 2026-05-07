@@ -522,7 +522,7 @@ void BatteryInfo::setDisplayData(Adafruit_SSD1306 &display) const
     {
         if (_activeFlag)
         {
-            setDisplayDetail(display);
+            setDisplayDetailOld(display);
         }
         else
         {
