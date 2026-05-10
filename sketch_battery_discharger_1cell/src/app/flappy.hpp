@@ -37,6 +37,12 @@ namespace flappy
 
   class Game
   {
+    enum class CharacterType
+    {
+      Bird,
+      Car,
+    };
+
     struct Pipe
     {
       int _x;
@@ -60,13 +66,29 @@ namespace flappy
     ButtonStatus _buttonRestartStatus{};
     unsigned long _lastFrame;
 
-    void drawBird(int y)
+    void drawBird(int y, CharacterType characterType)
     {
+      if (characterType == CharacterType::Bird)
+      {
+        oledDisplay.fillRect(BIRD_X, y, BIRD_W, BIRD_H, WHITE);
+        oledDisplay.drawPixel(BIRD_X + BIRD_W, y + 2, WHITE);
+        oledDisplay.drawPixel(BIRD_X + 4, y + 1, BLACK);
+        oledDisplay.drawPixel(BIRD_X + 2, y + BIRD_H, WHITE);
+        oledDisplay.drawPixel(BIRD_X + 3, y + BIRD_H, WHITE);
+        return;
+      }
+
       oledDisplay.fillRect(BIRD_X, y, BIRD_W, BIRD_H, WHITE);
+      oledDisplay.drawPixel(BIRD_X + 1, y + BIRD_H, WHITE);
+      oledDisplay.drawPixel(BIRD_X + 5, y + BIRD_H, WHITE);
       oledDisplay.drawPixel(BIRD_X + BIRD_W, y + 2, WHITE);
-      oledDisplay.drawPixel(BIRD_X + 4, y + 1, BLACK);
-      oledDisplay.drawPixel(BIRD_X + 2, y + BIRD_H, WHITE);
-      oledDisplay.drawPixel(BIRD_X + 3, y + BIRD_H, WHITE);
+      oledDisplay.drawPixel(BIRD_X + BIRD_W, y + 3, WHITE);
+      oledDisplay.drawPixel(BIRD_X + BIRD_W, y + 4, WHITE);
+      oledDisplay.drawPixel(BIRD_X, y + 1, BLACK);
+
+      oledDisplay.drawPixel(BIRD_X + 4, y + 2, BLACK);
+      oledDisplay.drawPixel(BIRD_X + 5, y + 2, BLACK);
+      oledDisplay.drawPixel(BIRD_X + 5, y, BLACK);
     }
 
     void drawPipes()
@@ -179,7 +201,7 @@ namespace flappy
         oledDisplay.setTextSize(1);
         oledDisplay.setTextColor(WHITE);
         oledDisplay.setCursor(22, 15);
-        oledDisplay.print(F("FLAPPY BIRD"));
+        oledDisplay.print(F("FLAPPY GAME"));
         oledDisplay.setCursor(18, 32);
         oledDisplay.print(F("Press FLAP btn"));
         if (_highScore > 0)
@@ -268,7 +290,7 @@ namespace flappy
 
       oledDisplay.clearDisplay();
       drawPipes();
-      drawBird(_birdY16 / 16);
+      drawBird(_birdY16 / 16, CharacterType::Car);
 
       oledDisplay.setTextSize(1);
       oledDisplay.setTextColor(WHITE);

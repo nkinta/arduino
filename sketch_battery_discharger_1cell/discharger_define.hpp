@@ -58,6 +58,10 @@ static constexpr float XIAO_MIN_VOLT{3.7f};
     static constexpr int WAKE_UP_PIN{PUSH_BUTTON_U}; 
     static constexpr int MEM_RESET_PIN{PUSH_BUTTON_A};
 
+    static const float RES_A{5.1f};
+    static const float RES_B{5.1f};
+    static const float RES_C{1.f};
+
 #elif defined(V2_PCB)
     static constexpr int PUSH_BUTTON_L{15}; // Left
     static constexpr int PUSH_BUTTON_D{0}; // Down
@@ -75,6 +79,10 @@ static constexpr float XIAO_MIN_VOLT{3.7f};
     static constexpr int WAKE_UP_PIN{PUSH_BUTTON_ON};
     static constexpr int MEM_RESET_PIN{PUSH_BUTTON_A};
  
+    static const float RES_A{1.f};// 以前のバージョンは5.1、今後どうする？
+    static const float RES_B{5.1f};
+    static const float RES_C{1.f};
+
 #else
     static constexpr int PUSH_BUTTON_L{15};
     static constexpr int PUSH_BUTTON_D{14};
@@ -82,6 +90,15 @@ static constexpr float XIAO_MIN_VOLT{3.7f};
     static constexpr int PUSH_BUTTON_R{12}; // 12(SAND11_RX) or 10
     static constexpr int PUSH_BUTTON_A{11};
 
+    static constexpr int PUSH_DISCHARGE_NO1{PUSH_BUTTON_L};
+    static constexpr int PUSH_DISCHARGE_NO2{PUSH_BUTTON_R};
+    static constexpr int PUSH_DISCHARGE_NO3{PUSH_BUTTON_A};
+    static constexpr int PUSH_DISCHARGE_NO4{PUSH_BUTTON_B};
+
     static constexpr int WAKE_UP_PIN{PUSH_BUTTON_D};
+    static const float RES_A{5.1f};
+    static const float RES_B{5.1f};
+    static const float RES_C{1.f};
+
 #endif
 

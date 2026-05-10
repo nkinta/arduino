@@ -86,17 +86,13 @@ float BatteryInfo::calcI(const float targetI, const float v, const float targetV
 
 int BatteryInfo::calcPWMValue(float ampere, float activeRate, float calibI)
 {
-    static const float RA{5.1f};
-    static const float RB{5.1f};
-    static const float RC{1.f};
-
     static const int MAX_PWM{0xFF};
     static const float MAX_PWM_F{static_cast<float>(MAX_PWM)};
     static const float REG{0.1f};
-    static const float REG_RATE{(RA + RB + RC) / RC};
+    static const float REG_RATE{(RES_A + RES_B + RES_C) / RES_C};
     static const float I_TO_V{REG * REG_RATE};
     static const float TO_V_RATE{I_TO_V / VOLT3_3};
-    static const float AMP_TUNE{1.08f};
+    static const float AMP_TUNE{1.04f};
 
     const float voltRate{ampere * TO_V_RATE};
 
@@ -112,7 +108,7 @@ void BatteryInfo::loopSubPushDischarge()
 
         if ((_tunedI > 0.f) && (_sleepV - _v) && ((millis() - _startMillis) < 1000))
         {
-            _ohm = ((_sleepV - _v) * 1000.f * ACTIVE_RATE) / _tunedI;
+            _ohm = ((_sleepV - _v) * 1000.f) * (1.f / _tunedI);
         }
     }
     else
@@ -163,7 +159,7 @@ void BatteryInfo::loopSubNormalDischarge()
             _i = std::max(0.f, _tunedI);
             if ((_tunedI > 0.f) && (_sleepV - _v))
             {
-                _ohm = ((_sleepV - _v) * 1000.f * ACTIVE_RATE) / _tunedI;
+                _ohm = ((_sleepV - _v) * 1000.f) * (ACTIVE_RATE / _tunedI);
             }
         }
         else if (_currentTimeStatus == TimeStatus::SleepStart)
@@ -397,7 +393,7 @@ void BatteryInfo::setDisplayDetailOld(Adafruit_SSD1306 &display) const
         virOffset += 5;
         virOffset += DISPLAY_MENU_OFFSET_COL;
         AdafruitGfxUtility::drawFloatR(display, displayMilliAmpereHour, virOffset, line, DISPLAY_MENU_OFFSET_COL, 1, 3);
-        AdafruitGfxUtility::drawString(display, "mah", virOffset, line);
+        AdafruitGfxUtility::drawString(display, "mAh", virOffset, line);
     }
 
     if (0)
