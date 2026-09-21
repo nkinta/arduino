@@ -168,6 +168,11 @@ public:
     _tunedI = 0.f;
   }
 
+  bool isDischarging() const
+  {
+    return _tunedI > 0.01f;
+  }
+
   void changeActive(int shift)
   {
     if (_activeFlag)

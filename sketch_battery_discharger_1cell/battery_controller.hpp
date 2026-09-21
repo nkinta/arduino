@@ -66,6 +66,8 @@ private:
 
     float _dischargeI{2.f};
 
+    uint8_t _idleSleepMin{10};
+
 
     bool _xiaoVoltValidFlag{true}; // xiaoの電圧値が正常かどうか
 
@@ -78,6 +80,10 @@ private:
     MainMode _mainMode{MainMode::DischargerMode};
 
     MainMode _cachedMainMode{MainMode::DischargerMode};
+
+    unsigned long _idleStartMillis{0};
+
+    bool _idleSleepRequested{false};
 
 public:
     BatteryController()
@@ -130,6 +136,12 @@ private:
 
     void updateButtonStatus();
 
+    bool isAnyButtonActive() const;
+
+    bool isDischarging() const;
+
+    void updateIdleSleepRequest();
+
     void changeTargetBatterySetting(int shift)
     {
         const int count{static_cast<int>(_batteryConfigNum)};
@@ -167,12 +179,18 @@ private:
 
 public:
     void drawXiaoBattery(float xiaoVolt) const;
+    void drawXiaoBatteryVolt(float xiaoVolt) const;
 
     void displaySleep();
 
     void setup();
 
     static void writePinReset();
+
+    bool shouldIdleSleep() const
+    {
+        return _idleSleepRequested;
+    }
 
     void loopWhile()
     {

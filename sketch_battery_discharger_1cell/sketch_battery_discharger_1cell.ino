@@ -184,7 +184,11 @@ void loopSub()
 
   if (batteryMonitor.update() && startupMode == StartupMode::BatteryController)
   {
+#ifdef XIAO_BATTERY_VOLT_DISPLAY
+    controller.drawXiaoBatteryVolt(batteryMonitor.xiaoVolt());
+#else
     controller.drawXiaoBattery(batteryMonitor.xiaoVolt());
+#endif
   }
 
   if (batteryMonitor.isLowBatteryActive())
@@ -248,6 +252,11 @@ void loop()
     else
     {
       controller.loopWhile();
+      if (controller.shouldIdleSleep())
+      {
+        displayCurrentModeSleep();
+        goDeepSleep();
+      }
     }
   }
 

@@ -156,6 +156,7 @@ void BatteryController::updateConfigSaveData()
     _calibI = _saveConfigData._calibI;
     _decimal = _saveConfigData._decimal;
     _dischargeI = _saveConfigData._dischargeI;
+    _idleSleepMin = _saveConfigData._idleSleepMin;
 }
 
 void BatteryController::updateBatterySaveData()
@@ -202,6 +203,13 @@ void BatteryController::drawXiaoBattery(float xiaoVolt) const
     }
 
     AdafruitGfxUtility::drawBat(oledDisplay, index);
+}
+
+void BatteryController::drawXiaoBatteryVolt(float xiaoVolt) const
+{
+    oledDisplay.fillRect(96, 54, 32, 10, BLACK);
+    AdafruitGfxUtility::drawFloatR(oledDisplay, xiaoVolt, 20, 6, 4, 2);
+    AdafruitGfxUtility::drawString(oledDisplay, "V", 20, 6);
 }
 
 void BatteryController::setDisplayConfig() const
@@ -346,6 +354,62 @@ void BatteryController::changeSettingMode(int shift)
         _configSettingMode = static_cast<ConfigSettingMode>(nextModeIndex);
     }
 };
+
+bool BatteryController::isAnyButtonActive() const
+{
+    for (const ButtonStatus* buttonStatus : _buttonStatuses)
+    {
+        if (buttonStatus->getVal() != PushType::None)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool BatteryController::isDischarging() const
+{
+    for (const auto &batteryStatus : _batteryStatuses)
+    {
+        if (batteryStatus.isDischarging())
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void BatteryController::updateIdleSleepRequest()
+{
+    if (_idleSleepMin == 0)
+    {
+        _idleStartMillis = millis();
+        _idleSleepRequested = false;
+        return;
+    }
+
+    if (isDischarging() || isAnyButtonActive())
+    {
+        _idleStartMillis = millis();
+        _idleSleepRequested = false;
+        return;
+    }
+
+    const unsigned long tempMillis{millis()};
+    if (_idleStartMillis == 0)
+    {
+        _idleStartMillis = tempMillis;
+        return;
+    }
+
+    const unsigned long idleSleepDelayMs{static_cast<unsigned long>(_idleSleepMin) * 60UL * 1000UL};
+    if ((tempMillis - _idleStartMillis) >= idleSleepDelayMs)
+    {
+        _idleSleepRequested = true;
+    }
+}
 
 void BatteryController::updateButtonStatus()
 {
@@ -610,4 +674,6 @@ void BatteryController::loopSub()
             }
         }
     }
+
+    updateIdleSleepRequest();
 };

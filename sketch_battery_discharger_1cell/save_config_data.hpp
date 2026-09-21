@@ -15,6 +15,7 @@ enum class ConfigSettingMode : uint8_t
   discISetting,      // 放電用電流
   tuneISetting,      // 電流値のキャリブレーション
   decimalSetting,    // 小数点何桁まで表示するか
+  idleSleepSetting,
   Max,
 };
 
@@ -27,12 +28,13 @@ struct SaveConfigData
   static int voltClamp(int value);
 
   int _id{SAVEDATA_ID};
-  int _ver{5};
+  int _ver{6};
   int _voltDatas[VOLT_DATA_SIZE] = {-10, 0, 0, 0, 0}; // 電圧キャリブレーション
   uint8_t _ledOnFlag{0};
   float _dischargeI{2.f};
   float _calibI{1.f};
   int _decimal{3};
+  uint8_t _idleSleepMin{10};
 
   void shiftParam(const ConfigSettingMode &configMode, int shift);
 

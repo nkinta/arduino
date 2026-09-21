@@ -17,7 +17,17 @@ bool BatteryMonitor::update()
         return false;
     }
 
-    _xiaoVolt = readXiaoBatteryVolt();
+    const float measuredVolt{readXiaoBatteryVolt()};
+    if (!_xiaoVoltInitialized)
+    {
+        _xiaoVolt = measuredVolt;
+        _xiaoVoltInitialized = true;
+    }
+    else
+    {
+        _xiaoVolt += (measuredVolt - _xiaoVolt) * XIAO_BATTERY_SMOOTHING_RATE;
+    }
+
     if (_xiaoVoltValidFlag)
     {
         if (_xiaoVolt < XIAO_MIN_VOLT)
@@ -52,6 +62,16 @@ bool BatteryMonitor::shouldGoDeepSleep() const
 
 float BatteryMonitor::readXiaoBatteryVolt() const
 {
-    const int readValue{analogRead(XIAO_READ_BAT)};
-    return (static_cast<float>(readValue) / 4096.f) * XIAO_BATTERY_DIVIDER_RATE * VOLT3_3;
+    analogRead(XIAO_READ_BAT);
+    delayMicroseconds(100);
+
+    uint32_t readValueSum{0};
+    for (uint8_t i{0}; i < XIAO_BATTERY_SAMPLE_COUNT; ++i)
+    {
+        readValueSum += analogRead(XIAO_READ_BAT);
+        delayMicroseconds(100);
+    }
+
+    const float readValue{static_cast<float>(readValueSum) / XIAO_BATTERY_SAMPLE_COUNT};
+    return (readValue / 4096.f) * XIAO_BATTERY_DIVIDER_RATE * VOLT3_3;
 }

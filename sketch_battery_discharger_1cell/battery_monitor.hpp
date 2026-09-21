@@ -9,6 +9,8 @@ class BatteryMonitor
     static constexpr uint8_t XIAO_READ_BAT{PD4};
     static constexpr uint8_t XIAO_READ_BAT_SWITCH{PD3};
     static constexpr float XIAO_BATTERY_DIVIDER_RATE{2.f};
+    static constexpr uint8_t XIAO_BATTERY_SAMPLE_COUNT{4};
+    static constexpr float XIAO_BATTERY_SMOOTHING_RATE{0.2f};
 
     unsigned long _batteryMonitorCount{BATTERY_MONITOR_INTERVAL_FRAMES - 1};
     unsigned long _lowBatteryDetectedMillis{0};
@@ -16,6 +18,7 @@ class BatteryMonitor
     float _xiaoVolt{0.f};
 
     bool _xiaoVoltValidFlag{true};
+    bool _xiaoVoltInitialized{false};
 
 public:
     void setup();

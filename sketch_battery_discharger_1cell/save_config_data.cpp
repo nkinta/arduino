@@ -47,11 +47,15 @@ void SaveConfigData::shiftParam(const ConfigSettingMode &configMode, int shift)
     {
         _decimal = std::clamp(_decimal + shift, 2, 3);
     }
+    else if (configMode == ConfigSettingMode::idleSleepSetting)
+    {
+        _idleSleepMin = std::clamp(static_cast<int>(_idleSleepMin) + shift, 0, 60);
+    }
 };
 
 void SaveConfigData::setDisplayConfig(Adafruit_SSD1306 &display, ConfigSettingMode settingMode) const
 {
-    std::vector<String> menuList{"0.0V", "0.5V", "1.0V", "1.5V", "2.0V", "LedOn", "DiscI", "AmpTune", "Decimal"};
+    std::vector<String> menuList{"0.0V", "0.5V", "1.0V", "1.5V", "2.0V", "LedOn", "DiscI", "AmpTune", "Decimal", "IdleSleep"};
 
     std::vector<String> valueList{
         String(_voltDatas[0]),
@@ -63,6 +67,7 @@ void SaveConfigData::setDisplayConfig(Adafruit_SSD1306 &display, ConfigSettingMo
         String(_dischargeI),
         String(_calibI),
         String(_decimal),
+        String(_idleSleepMin) + String("min"),
     };
 
     AdafruitGfxUtility::setDisplayTuneMenu(display, "Config", menuList, valueList, static_cast<int>(settingMode));
