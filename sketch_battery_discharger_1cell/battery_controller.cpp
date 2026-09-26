@@ -39,6 +39,12 @@ void BatteryController::saveMain()
     saveCustomData<SaveBatteryConfigData>((byte *)&_saveBatteryConfigData);
 }
 
+void BatteryController::saveMeasurement()
+{
+    _saveMeasurementData._id = SaveMeasurementData::SAVEDATA_ID;
+    saveCustomData<SaveMeasurementData>((byte *)&_saveMeasurementData);
+}
+
 void BatteryController::loadConfig()
 {
     SaveConfigData tempData;
@@ -69,6 +75,21 @@ void BatteryController::loadMain()
     _saveBatteryConfigData = tempData;
 };
 
+void BatteryController::loadMeasurement()
+{
+    SaveMeasurementData tempData;
+    loadCustomData<SaveMeasurementData>((byte *)&tempData);
+    if (tempData._id != SaveMeasurementData::SAVEDATA_ID)
+    {
+        return;
+    }
+    if (tempData._ver != _saveMeasurementData._ver)
+    {
+        return;
+    }
+    _saveMeasurementData = tempData;
+}
+
 void BatteryController::clearEEPROM()
 {
     const uint8_t clearSize{256};
@@ -92,11 +113,13 @@ void BatteryController::setup()
     {
         loadMain();
         loadConfig();
+        loadMeasurement();
     }
     else
     {
         saveMain();
         saveConfig();
+        saveMeasurement();
     }
 
     // Button
@@ -134,6 +157,7 @@ void BatteryController::setup()
 
     updateBatterySaveData();
     updateConfigSaveData();
+    updateMeasurementSaveData();
 };
 
 void BatteryController::updateConfigSaveData()
@@ -157,6 +181,19 @@ void BatteryController::updateConfigSaveData()
     _decimal = _saveConfigData._decimal;
     _dischargeI = _saveConfigData._dischargeI;
     _idleSleepMin = _saveConfigData._idleSleepMin;
+}
+
+void BatteryController::updateMeasurementSaveData()
+{
+    const static SaveMeasurementData defaultSaveMeasurementData{};
+    if (_saveMeasurementData._id != SaveMeasurementData::SAVEDATA_ID)
+    {
+        _saveMeasurementData = defaultSaveMeasurementData;
+    }
+
+    _measurement.discSeconds = _saveMeasurementData._seconds;
+    _measurement.restSeconds = _saveMeasurementData._restSeconds;
+    _measurement.current = _saveMeasurementData._current;
 }
 
 void BatteryController::updateBatterySaveData()
@@ -267,6 +304,323 @@ void BatteryController::setDisplayPushDischarge() const
 void BatteryController::setDisplayNone() const
 {
     oledDisplay.clearDisplay();
+}
+
+void BatteryController::setDisplayMeasurement() const
+{
+    oledDisplay.clearDisplay();
+    if (_measurement.state == MeasurementState::Setting)
+    {
+        AdafruitGfxUtility::drawStringC(oledDisplay, "Measure", 0);
+
+        if (_measurement.pair == 0)
+        {
+            AdafruitGfxUtility::drawStringC(oledDisplay,
+                String(">") + String(_batteryStatuses[0]._v, 2) + String(">") + String(_batteryStatuses[1]._v, 2)
+                + String(" ") + String(_batteryStatuses[2]._v, 2) + String(" ") + String(_batteryStatuses[3]._v, 2)
+                , 1);
+        }
+        else
+        {
+            AdafruitGfxUtility::drawStringC(oledDisplay,
+                String(" ") + String(_batteryStatuses[0]._v, 2) + String(" ") + String(_batteryStatuses[1]._v, 2)
+                + String(">") + String(_batteryStatuses[2]._v, 2) + String(">") + String(_batteryStatuses[3]._v, 2)
+                , 1);
+        }
+
+        AdafruitGfxUtility::drawString(oledDisplay, String("Current ") + String(_measurement.current, 1) + String("A"), 1, 3);
+        AdafruitGfxUtility::drawString(oledDisplay, String("Disc ") + String(_measurement.discSeconds) + String("s"), 1, 4);
+        AdafruitGfxUtility::drawString(oledDisplay, String("Rest ") + String(_measurement.restSeconds) + String("s"), 11, 4);
+
+        return;
+    }
+
+    if (_measurement.state == MeasurementState::Editing)
+    {
+        std::vector<String> menuList{"Current", "DiscSec", "RestSec"};
+        std::vector<String> valueList{
+            String(_measurement.current, 1) + String("A"),
+            String(_measurement.discSeconds) + String("s"),
+            String(_measurement.restSeconds) + String("s"),
+        };
+        AdafruitGfxUtility::setDisplayTuneMenu(oledDisplay, "Measure Setup", menuList, valueList, static_cast<int>(_measurement.setting));
+
+        return;
+    }
+
+    if (_measurement.state == MeasurementState::Running || _measurement.state == MeasurementState::Resting)
+    {
+        const bool running{_measurement.state == MeasurementState::Running};
+        const unsigned long startMillis{running ? _measurement.startMillis : _measurement.restStartMillis};
+        const unsigned long elapsed{(millis() - startMillis) / 1000UL};
+        const unsigned long duration{running ? _measurement.discSeconds : _measurement.restSeconds};
+        const String stateName{running ? String("Run") : String("Rest")};
+
+        AdafruitGfxUtility::drawStringC(oledDisplay, stateName + String(" ") + String(elapsed) + String("/") + String(duration) + String("s"), 0);
+
+        // AdafruitGfxUtility::drawStringC(oledDisplay, String(_measurement.result[0].preDischargeVolt, 3) + String("V ") + String(_measurement.result[1].preDischargeVolt, 3) + String("V"), 1);
+        for (int index = 0; index < 2; ++index)
+        {
+            int line{3 * index + 1};
+            const int batteryIndex{static_cast<int>(_measurement.pair * 2 + index)};
+            AdafruitGfxUtility::drawString(oledDisplay, String("B") + String(batteryIndex + 1), 0, line);
+
+            AdafruitGfxUtility::drawFloatR(oledDisplay, _measurement.result[batteryIndex].preDischargeVolt, 9, line, 4, 3);
+            AdafruitGfxUtility::drawString(oledDisplay, "V", 9, line);
+
+            AdafruitGfxUtility::drawFloatR(oledDisplay, _batteryStatuses[batteryIndex]._v, 16, line, 4, 3);
+            AdafruitGfxUtility::drawString(oledDisplay, "V", 16, line);
+
+            AdafruitGfxUtility::drawFloatR(oledDisplay, _measurement.result[index].milliWattHour, 9, line + 1, 5, 1);
+            AdafruitGfxUtility::drawString(oledDisplay, "mWh", 9, line + 1);
+        }
+        return;
+    }
+
+    /*
+    if (_measurement.state == MeasurementState::Resting)
+    {
+        if (!_measurement.postVoltageCaptured)
+        {
+            AdafruitGfxUtility::drawStringC(oledDisplay, "Wait 1s", 0);
+        }
+        else
+        {
+            const unsigned long elapsed{(millis() - _measurement.restStartMillis) / 1000UL};
+            AdafruitGfxUtility::drawStringC(oledDisplay, String("Rest ") + String(elapsed) + String("/") + String(_measurement.restSeconds) + String("s"), 0);
+        }
+        for (int index = 0; index < 2; ++index)
+        {
+            int line{2 * index + 1};
+            const int batteryIndex{static_cast<int>(_measurement.pair * 2 + index)};
+            AdafruitGfxUtility::drawString(oledDisplay, String("B") + String(batteryIndex + 1), 0, line);
+            AdafruitGfxUtility::drawFloatR(oledDisplay, _batteryStatuses[batteryIndex]._v, 9, line, 4, 3);
+            AdafruitGfxUtility::drawString(oledDisplay, "V", 9, line);
+        }
+        return;
+    }
+    */
+
+    if (_measurement.resultPage == 0)
+    {
+        AdafruitGfxUtility::drawStringC(oledDisplay, "Result", 0);
+
+        for (int index = 0; index < 2; ++index)
+        {
+            int line{3 * index + 1};
+            AdafruitGfxUtility::drawString(oledDisplay, String("B") + String(_measurement.pair * 2 + index + 1), 0, line);
+
+            AdafruitGfxUtility::drawFloatR(oledDisplay, _measurement.result[index].preDischargeVolt, 8, line, 4, 3);
+            AdafruitGfxUtility::drawString(oledDisplay, "V", 8, line);
+
+            AdafruitGfxUtility::drawChar(oledDisplay, DisplayConst::CHAR_DATA_ARROW_NEW, 10, line);
+
+            AdafruitGfxUtility::drawFloatR(oledDisplay, _measurement.result[index].postDischargeVolt, 17, line, 4, 3);
+            AdafruitGfxUtility::drawString(oledDisplay, "V", 17, line);
+
+            AdafruitGfxUtility::drawFloatR(oledDisplay, _measurement.result[index].postRestVoltage, 8, line + 1, 4, 3);
+            AdafruitGfxUtility::drawString(oledDisplay, "V", 8, line + 1);
+
+            AdafruitGfxUtility::drawFloatR(oledDisplay, _measurement.result[index].milliWattHour, 21, line + 1, 5, 1);
+
+        }
+    }
+    else
+    {
+        const bool restGraph{_measurement.resultPage >= 3};
+        const int graphBattery{restGraph ? _measurement.resultPage - 3 : _measurement.resultPage - 1};
+        const int batteryIndex{static_cast<int>(_measurement.pair * 2 + graphBattery)};
+        const float *voltageData{restGraph ? _measurement.result[graphBattery].restVoltage : _measurement.result[graphBattery].dischargeVoltage};
+        const int sampleCount{restGraph ? _measurement.restSampleCount : _measurement.sampleCount};
+        AdafruitGfxUtility::drawStringC(oledDisplay, String(restGraph ? "Rest B" : "Discharge B") + String(batteryIndex + 1), 0);
+        constexpr int GRAPH_LEFT{14};
+        constexpr int GRAPH_RIGHT{126};
+        constexpr int GRAPH_TOP{10};
+        constexpr int GRAPH_BOTTOM{55};
+
+        float voltageAverage{0.f};
+        if (sampleCount > 0)
+        {
+            for (int sample = 0; sample < sampleCount; ++sample)
+            {
+                voltageAverage += voltageData[sample];
+            }
+            voltageAverage /= sampleCount;
+        }
+        const float graphMinVolt{voltageAverage - 0.05f};
+        const float graphMaxVolt{voltageAverage + 0.05f};
+
+        oledDisplay.drawLine(GRAPH_LEFT, GRAPH_TOP, GRAPH_LEFT, GRAPH_BOTTOM, WHITE);
+        oledDisplay.drawLine(GRAPH_LEFT, GRAPH_BOTTOM, GRAPH_RIGHT, GRAPH_BOTTOM, WHITE);
+        AdafruitGfxUtility::drawFloatR(oledDisplay, graphMaxVolt, 13, 1, 4, 2);
+        AdafruitGfxUtility::drawFloatR(oledDisplay, graphMinVolt, 13, 6, 4, 2);
+
+        if (sampleCount > 0)
+        {
+            int previousX{GRAPH_LEFT};
+            const float firstVoltage{constrain(voltageData[0], graphMinVolt, graphMaxVolt)};
+            int previousY{GRAPH_BOTTOM - static_cast<int>((firstVoltage - graphMinVolt) * (GRAPH_BOTTOM - GRAPH_TOP) / (graphMaxVolt - graphMinVolt))};
+            for (int sample = 1; sample < sampleCount; ++sample)
+            {
+                const int x{GRAPH_LEFT + (sample * (GRAPH_RIGHT - GRAPH_LEFT)) / (sampleCount - 1)};
+                const float voltage{constrain(voltageData[sample], graphMinVolt, graphMaxVolt)};
+                const int y{GRAPH_BOTTOM - static_cast<int>((voltage - graphMinVolt) * (GRAPH_BOTTOM - GRAPH_TOP) / (graphMaxVolt - graphMinVolt))};
+                oledDisplay.drawLine(previousX, previousY, x, y, WHITE);
+                previousX = x;
+                previousY = y;
+            }
+        }
+    }
+}
+
+void BatteryController::startMeasurement()
+{
+    _measurement.state = MeasurementState::Running;
+    _measurement.startMillis = millis();
+    _measurement.lastSampleMillis = _measurement.startMillis;
+    _measurement.sampleCount = 0;
+    _measurement.restSampleCount = 0;
+    for (int index = 0; index < 2; ++index)
+    {
+        _measurement.restVoltageSum[index] = 0.f;
+        _measurement.restVoltageSampleCount[index] = 0;
+    }
+    for (int index = 0; index < 2; ++index)
+    {
+        _measurement.dischargeVoltageSum[index] = 0.f;
+        _measurement.dischargeVoltageSampleCount[index] = 0;
+    }
+    for (int index = 0; index < 2; ++index)
+    {
+        BatteryInfo &battery{_batteryStatuses[_measurement.pair * 2 + index]};
+        _measurement.result[index] = MeasurementResultData{};
+        _measurement.result[index].preDischargeVolt = battery._v;
+        battery.reset();
+        battery._activeFlag = true;
+        battery.pushOn(_measurement.current);
+    }
+}
+
+void BatteryController::updateMeasurement()
+{
+    const unsigned long now{millis()};
+    if (_measurement.state == MeasurementState::Resting)
+    {
+        if (!_measurement.postVoltageCaptured)
+        {
+            if (now - _measurement.restStartMillis < 1000UL)
+            {
+                return;
+            }
+            for (int index = 0; index < 2; ++index)
+            {
+                _measurement.result[index].postDischargeVolt = _batteryStatuses[_measurement.pair * 2 + index]._v;
+            }
+            _measurement.postVoltageCaptured = true;
+            _measurement.restStartMillis = now;
+            _measurement.restLastSampleMillis = now;
+            for (int index = 0; index < 2; ++index)
+            {
+                _measurement.restVoltageSum[index] = 0.f;
+                _measurement.restVoltageSampleCount[index] = 0;
+            }
+            return;
+        }
+        for (int index = 0; index < 2; ++index)
+        {
+            const int batteryIndex{static_cast<int>(_measurement.pair * 2 + index)};
+            _measurement.restVoltageSum[index] += _batteryStatuses[batteryIndex]._v;
+            ++_measurement.restVoltageSampleCount[index];
+        }
+        while (now - _measurement.restLastSampleMillis >= 1000UL && _measurement.restSampleCount < 120)
+        {
+            _measurement.restLastSampleMillis += 1000UL;
+            const int sample{_measurement.restSampleCount++};
+            for (int index = 0; index < 2; ++index)
+            {
+                _measurement.result[index].restVoltage[sample] = _measurement.restVoltageSampleCount[index] > 0
+                    ? _measurement.restVoltageSum[index] / _measurement.restVoltageSampleCount[index]
+                    : _batteryStatuses[_measurement.pair * 2 + index]._v;
+                _measurement.restVoltageSum[index] = 0.f;
+                _measurement.restVoltageSampleCount[index] = 0;
+            }
+        }
+        if (now - _measurement.restStartMillis >= static_cast<unsigned long>(_measurement.restSeconds) * 1000UL)
+        {
+            for (int index = 0; index < 2; ++index)
+            {
+                _measurement.result[index].postRestVoltage = _batteryStatuses[_measurement.pair * 2 + index]._v;
+            }
+            _measurement.state = MeasurementState::Result;
+            _measurement.resultPage = 0;
+        }
+        return;
+    }
+    if (_measurement.state != MeasurementState::Running)
+    {
+        return;
+    }
+    for (int index = 0; index < 2; ++index)
+    {
+        const int batteryIndex{static_cast<int>(_measurement.pair * 2 + index)};
+        _measurement.dischargeVoltageSum[index] += _batteryStatuses[batteryIndex]._v;
+        ++_measurement.dischargeVoltageSampleCount[index];
+    }
+    while (now - _measurement.lastSampleMillis >= 1000UL && _measurement.sampleCount < 120)
+    {
+        _measurement.lastSampleMillis += 1000UL;
+        const int sample{_measurement.sampleCount++};
+        for (int index = 0; index < 2; ++index)
+        {
+            const float voltageAverage{_measurement.dischargeVoltageSampleCount[index] > 0
+                ? _measurement.dischargeVoltageSum[index] / _measurement.dischargeVoltageSampleCount[index]
+                : _batteryStatuses[_measurement.pair * 2 + index]._v};
+            _measurement.result[index].dischargeVoltage[sample] = voltageAverage;
+            _measurement.result[index].milliWattHour += voltageAverage * _measurement.current * (1000.f / 3600.f);
+            _measurement.dischargeVoltageSum[index] = 0.f;
+            _measurement.dischargeVoltageSampleCount[index] = 0;
+        }
+    }
+    if (now - _measurement.startMillis >= static_cast<unsigned long>(_measurement.discSeconds) * 1000UL)
+    {
+        for (int index = 0; index < 2; ++index)
+        {
+            _batteryStatuses[_measurement.pair * 2 + index].pushOff();
+            _batteryStatuses[_measurement.pair * 2 + index]._activeFlag = false;
+        }
+        _measurement.restStartMillis = now;
+        _measurement.restLastSampleMillis = now;
+        _measurement.postVoltageCaptured = false;
+        _measurement.state = MeasurementState::Resting;
+    }
+}
+
+void BatteryController::shiftMeasurementSetting(int shift)
+{
+    const int count{static_cast<int>(MeasurementSetting::Max)};
+    const int value{(static_cast<int>(_measurement.setting) + shift + count) % count};
+    _measurement.setting = static_cast<MeasurementSetting>(value);
+}
+
+void BatteryController::shiftMeasurementValue(int shift)
+{
+    if (_measurement.setting == MeasurementSetting::Time)
+    {
+        _measurement.discSeconds = constrain(static_cast<int>(_measurement.discSeconds) + shift * 10, 10, 120);
+    }
+    else if (_measurement.setting == MeasurementSetting::Current)
+    {
+        _measurement.current = constrain(_measurement.current + shift * 0.1f, 1.f, 3.f);
+    }
+    else if (_measurement.setting == MeasurementSetting::RestTime)
+    {
+        _measurement.restSeconds = constrain(static_cast<int>(_measurement.restSeconds) + shift * 10, 10, 120);
+    }
+}
+
+void BatteryController::shiftMeasurementPair(int shift)
+{
+    _measurement.pair = (_measurement.pair + 2 + shift) % 2;
 }
 
 void BatteryController::setDisplayData() const
@@ -422,6 +776,13 @@ void BatteryController::updateButtonStatus()
     if (_mainMode == MainMode::DischargerMode)
     {
         PushType pushType{0};
+        const bool leftActive{_buttonLStatus.getVal() == PushType::Pushed || _buttonLStatus.getVal() == PushType::PushShort || _buttonLStatus.getVal() == PushType::PushLong};
+        const bool rightActive{_buttonRStatus.getVal() == PushType::Pushed || _buttonRStatus.getVal() == PushType::PushShort || _buttonRStatus.getVal() == PushType::PushLong};
+        if (leftActive && rightActive)
+        {
+            _measurement.state = MeasurementState::Setting;
+            nextMode = MainMode::MeasurementMode;
+        }
         pushType = _buttonLStatus.getVal();
         if (pushType == PushType::ReleaseShort)
         {
@@ -467,6 +828,112 @@ void BatteryController::updateButtonStatus()
             nextMode = MainMode::PushDischargerMode;
         }
 
+    }
+    else if (_mainMode == MainMode::MeasurementMode)
+    {
+        PushType pushType{0};
+        if (_measurement.state == MeasurementState::Setting)
+        {
+            pushType = _buttonLStatus.getVal();
+            if (pushType == PushType::ReleaseShort || pushType == PushType::PushLong)
+            {
+                shiftMeasurementPair(-1);
+            }
+            pushType = _buttonRStatus.getVal();
+            if (pushType == PushType::ReleaseShort || pushType == PushType::PushLong)
+            {
+                shiftMeasurementPair(1);
+            }
+            pushType = _buttonAStatus.getVal();
+            if (pushType == PushType::ReleaseShort)
+            {
+                startMeasurement();
+            }
+            pushType = _buttonBStatus.getVal();
+            if (pushType == PushType::ReleaseShort)
+            {
+                nextMode = MainMode::DischargerMode;
+            }
+        }
+        else if (_measurement.state == MeasurementState::Editing)
+        {
+            pushType = _buttonUStatus.getVal();
+            if (pushType == PushType::ReleaseShort)
+            {
+                shiftMeasurementSetting(-1);
+            }
+            pushType = _buttonDStatus.getVal();
+            if (pushType == PushType::ReleaseShort)
+            {
+                shiftMeasurementSetting(1);
+            }
+            pushType = _buttonLStatus.getVal();
+            if (pushType == PushType::ReleaseShort || pushType == PushType::PushLong)
+            {
+                shiftMeasurementValue(-1);
+            }
+            pushType = _buttonRStatus.getVal();
+            if (pushType == PushType::ReleaseShort || pushType == PushType::PushLong)
+            {
+                shiftMeasurementValue(1);
+            }
+            pushType = _buttonBStatus.getVal();
+            if (pushType == PushType::ReleaseShort)
+            {
+                _saveMeasurementData._seconds = _measurement.discSeconds;
+                _saveMeasurementData._restSeconds = _measurement.restSeconds;
+                _saveMeasurementData._current = _measurement.current;
+                saveMeasurement();
+                _measurement.state = MeasurementState::Setting;
+            }
+        }
+        else if (_measurement.state == MeasurementState::Running)
+        {
+            pushType = _buttonAStatus.getVal();
+            if (pushType == PushType::ReleaseShort)
+            {
+                for (int index = 0; index < 2; ++index)
+                {
+                    _batteryStatuses[_measurement.pair * 2 + index].pushOff();
+                    _batteryStatuses[_measurement.pair * 2 + index]._activeFlag = false;
+                }
+                _measurement.restStartMillis = millis();
+                _measurement.restLastSampleMillis = _measurement.restStartMillis;
+                _measurement.postVoltageCaptured = false;
+                _measurement.state = MeasurementState::Resting;
+            }
+        }
+        else if (_measurement.state == MeasurementState::Resting)
+        {
+            pushType = _buttonAStatus.getVal();
+            if (pushType == PushType::ReleaseShort)
+            {
+                for (int index = 0; index < 2; ++index)
+                {
+                    _measurement.result[index].postRestVoltage = _batteryStatuses[_measurement.pair * 2 + index]._v;
+                }
+                _measurement.state = MeasurementState::Result;
+                _measurement.resultPage = 0;
+            }
+        }
+        else if (_measurement.state == MeasurementState::Result)
+        {
+            pushType = _buttonUStatus.getVal();
+            if (pushType == PushType::ReleaseShort)
+            {
+                _measurement.resultPage = static_cast<uint8_t>((_measurement.resultPage + 4) % 5);
+            }
+            pushType = _buttonDStatus.getVal();
+            if (pushType == PushType::ReleaseShort)
+            {
+                _measurement.resultPage = static_cast<uint8_t>((_measurement.resultPage + 1) % 5);
+            }
+            pushType = _buttonAStatus.getVal();
+            if (pushType == PushType::ReleaseShort)
+            {
+                nextMode = MainMode::DischargerMode;
+            }
+        }
     }
     else if (_mainMode == MainMode::BatteryConfigMode)
     {
@@ -586,6 +1053,11 @@ void BatteryController::updateButtonStatus()
             _cachedMainMode = _mainMode;
             nextMode = MainMode::ConfigMode;
         }
+        else if (_mainMode == MainMode::MeasurementMode && _measurement.state == MeasurementState::Setting)
+        {
+            _measurement.state = MeasurementState::Editing;
+            _measurement.setting = MeasurementSetting::Time;
+        }
     }
 
     if (_mainMode != nextMode)
@@ -670,6 +1142,26 @@ void BatteryController::loopSub()
             if ((_loopSubCount % 3) == 0)
             {
                 setDisplayPushDischarge();
+                oledDisplay.display();
+            }
+        }
+        else if (_mainMode == MainMode::MeasurementMode)
+        {
+            for (size_t index = 0; index < _batteryStatuses.size(); ++index)
+            {
+            if (index == _measurement.pair * 2 || index == _measurement.pair * 2 + 1)
+                {
+                    _batteryStatuses[index].loopSubPushDischarge();
+                }
+                else
+                {
+                    _batteryStatuses[index].read();
+                }
+            }
+            updateMeasurement();
+            if ((_loopSubCount % 3) == 0)
+            {
+                setDisplayMeasurement();
                 oledDisplay.display();
             }
         }

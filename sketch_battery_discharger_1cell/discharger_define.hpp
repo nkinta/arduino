@@ -8,8 +8,8 @@
 // #define XIAO_BATTERY_VOLT_DISPLAY
 
 #undef  OLD_PCB
-#define V2_PCB
-#undef V1_PCB
+#define V1_PCB
+#undef V2_PCB
 
 // MG24の WakeUp 可能なpinメモ(14 16 0 10)
 
@@ -60,7 +60,7 @@ static constexpr float XIAO_MIN_VOLT{3.6f};
     static constexpr int WAKE_UP_PIN{PUSH_BUTTON_U}; 
     static constexpr int MEM_RESET_PIN{PUSH_BUTTON_A};
 
-    static const float RES_A{5.1f};
+    static const float RES_A{1.f};
     static const float RES_B{5.1f};
     static const float RES_C{1.f};
 

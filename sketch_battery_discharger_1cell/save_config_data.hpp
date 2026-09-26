@@ -34,7 +34,7 @@ struct SaveConfigData
   float _dischargeI{2.f};
   float _calibI{1.f};
   int _decimal{3};
-  uint8_t _idleSleepMin{10};
+  uint8_t _idleSleepMin{30};
 
   void shiftParam(const ConfigSettingMode &configMode, int shift);
 

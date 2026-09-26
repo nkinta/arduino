@@ -3,6 +3,7 @@
 #include "discharger_define.hpp"
 #include "battery_info.hpp"
 #include "save_config_data.hpp"
+#include "save_measurement_data.hpp"
 #include "voltage_mapping.hpp"
 #include "button_status.hpp"
 #include "src/display/adafruit_gfx_utility.hpp"
@@ -17,7 +18,58 @@ enum class MainMode : uint8_t
     PushDischargerMode, // ボタン押す放電モード
     ConfigMode, // 設定モード（電圧値のキャリブレーション等）
     BatteryConfigMode, // ーマル放電モード時の設定モード
+    MeasurementMode,
     Max,
+};
+
+enum class MeasurementState : uint8_t
+{
+    Setting,
+    Editing,
+    Running,
+    Resting,
+    Result,
+};
+
+enum class MeasurementSetting : uint8_t
+{
+    Time,
+    Current,
+    RestTime,
+    Max,
+};
+
+struct MeasurementResultData
+{
+    float preDischargeVolt{0.f};
+    float postDischargeVolt{0.f};
+    float postRestVoltage{0.f};
+    float milliWattHour{0.f};
+    float dischargeVoltage[120]{};
+    float restVoltage[120]{};
+};
+
+struct MeasurementData
+{
+    MeasurementState state{MeasurementState::Setting};
+    MeasurementSetting setting{MeasurementSetting::Time};
+    size_t pair{0};
+    uint16_t discSeconds{60};
+    uint16_t restSeconds{60};
+    float current{2.f};
+    unsigned long startMillis{0};
+    unsigned long lastSampleMillis{0};
+    uint16_t sampleCount{0};
+    float dischargeVoltageSum[2]{0.f, 0.f};
+    uint16_t dischargeVoltageSampleCount[2]{0, 0};
+    MeasurementResultData result[2]{};
+    unsigned long restStartMillis{0};
+    unsigned long restLastSampleMillis{0};
+    bool postVoltageCaptured{false};
+    float restVoltageSum[2]{0.f, 0.f};
+    uint16_t restVoltageSampleCount[2]{0, 0};
+    uint8_t resultPage{0};
+    uint16_t restSampleCount{0};
 };
 
 class BatteryController
@@ -77,6 +129,8 @@ private:
 
     SaveConfigData _saveConfigData{};
 
+    SaveMeasurementData _saveMeasurementData{};
+
     MainMode _mainMode{MainMode::DischargerMode};
 
     MainMode _cachedMainMode{MainMode::DischargerMode};
@@ -84,6 +138,8 @@ private:
     unsigned long _idleStartMillis{0};
 
     bool _idleSleepRequested{false};
+
+    MeasurementData _measurement{};
 
 public:
     BatteryController()
@@ -112,15 +168,21 @@ private:
 
     void saveMain();
 
+    void saveMeasurement();
+
     void loadConfig();
 
     void loadMain();
+
+    void loadMeasurement();
 
     void clearEEPROM();
 
     void updateBatterySaveData();
 
     void updateConfigSaveData();
+
+    void updateMeasurementSaveData();
 
     void setDisplayConfig() const;
 
@@ -131,6 +193,18 @@ private:
     void setDisplayData() const;
 
     void setDisplayNone() const;
+
+    void setDisplayMeasurement() const;
+
+    void startMeasurement();
+
+    void updateMeasurement();
+
+    void shiftMeasurementSetting(int shift);
+
+    void shiftMeasurementValue(int shift);
+
+    void shiftMeasurementPair(int shift);
 
     // void goDeepSleep();
 
