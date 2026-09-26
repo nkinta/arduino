@@ -7,7 +7,7 @@
 extern Adafruit_SSD1306 oledDisplay;
 
 const std::vector<String> MEASUREMENT_STATE_NAMES{
-    String("Setting"), String("Editing"), String("Run"), String("Rest"), String("Result")};
+    String("Main"), String("Editing"), String("Run"), String("Rest"), String("Result")};
 
 template <typename T>
 void saveCustomData(byte *p)
@@ -194,7 +194,7 @@ void BatteryController::updateMeasurementSaveData()
         _saveMeasurementData = defaultSaveMeasurementData;
     }
 
-    _measurement.discSeconds = _saveMeasurementData._seconds;
+    _measurement.discSeconds = _saveMeasurementData._discSeconds;
     _measurement.restSeconds = _saveMeasurementData._restSeconds;
     _measurement.current = _saveMeasurementData._current;
 }
@@ -312,7 +312,7 @@ void BatteryController::setDisplayNone() const
 void BatteryController::setDisplayMeasurement() const
 {
     oledDisplay.clearDisplay();
-    if (_measurement.state == MeasurementState::Setting)
+    if (_measurement.state == MeasurementState::Main)
     {
         AdafruitGfxUtility::drawStringC(oledDisplay, "Measure", 0);
 
@@ -355,9 +355,9 @@ void BatteryController::setDisplayMeasurement() const
         _measurement.state == MeasurementState::Resting ||
         (_measurement.state == MeasurementState::Result && _measurement.resultPage == 0))
     {
-        const unsigned long startMillis{
-            _measurement.state == MeasurementState::Running ? _measurement.startMillis : _measurement.restStartMillis};
-        const unsigned long elapsed{(millis() - startMillis) / 1000UL};
+        const unsigned long discStartMillis{
+            _measurement.state == MeasurementState::Running ? _measurement.discStartMillis : _measurement.restStartMillis};
+        const unsigned long elapsed{(millis() - discStartMillis) / 1000UL};
         const unsigned long duration{
             _measurement.state == MeasurementState::Running ? _measurement.discSeconds : _measurement.restSeconds};
         
@@ -478,8 +478,8 @@ void BatteryController::setDisplayMeasurement() const
 void BatteryController::startMeasurement()
 {
     _measurement.state = MeasurementState::Running;
-    _measurement.startMillis = millis();
-    _measurement.lastSampleMillis = _measurement.startMillis;
+    _measurement.discStartMillis = millis();
+    _measurement.discLastSampleMillis = _measurement.discStartMillis;
     _measurement.sampleCount = 0;
     _measurement.restSampleCount = 0;
     for (int index = 0; index < 2; ++index)
@@ -489,8 +489,8 @@ void BatteryController::startMeasurement()
     }
     for (int index = 0; index < 2; ++index)
     {
-        _measurement.dischargeVoltageSum[index] = 0.f;
-        _measurement.dischargeVoltageSampleCount[index] = 0;
+        _measurement.discVoltageSum[index] = 0.f;
+        _measurement.discVoltageSampleCount[index] = 0;
     }
     for (int index = 0; index < 2; ++index)
     {
@@ -565,25 +565,25 @@ void BatteryController::updateMeasurement()
     for (int index = 0; index < 2; ++index)
     {
         const int batteryIndex{static_cast<int>(_measurement.pair * 2 + index)};
-        _measurement.dischargeVoltageSum[index] += _batteryStatuses[batteryIndex]._v;
-        ++_measurement.dischargeVoltageSampleCount[index];
+        _measurement.discVoltageSum[index] += _batteryStatuses[batteryIndex]._v;
+        ++_measurement.discVoltageSampleCount[index];
     }
-    while (now - _measurement.lastSampleMillis >= 1000UL && _measurement.sampleCount < 120)
+    while (now - _measurement.discLastSampleMillis >= 1000UL && _measurement.sampleCount < 120)
     {
-        _measurement.lastSampleMillis += 1000UL;
+        _measurement.discLastSampleMillis += 1000UL;
         const int sample{_measurement.sampleCount++};
         for (int index = 0; index < 2; ++index)
         {
-            const float voltageAverage{_measurement.dischargeVoltageSampleCount[index] > 0
-                ? _measurement.dischargeVoltageSum[index] / _measurement.dischargeVoltageSampleCount[index]
+            const float voltageAverage{_measurement.discVoltageSampleCount[index] > 0
+                ? _measurement.discVoltageSum[index] / _measurement.discVoltageSampleCount[index]
                 : _batteryStatuses[_measurement.pair * 2 + index]._v};
             _measurement.result[index].dischargeVoltage[sample] = voltageAverage;
             _measurement.result[index].milliWattHour += voltageAverage * _measurement.current * (1000.f / 3600.f);
-            _measurement.dischargeVoltageSum[index] = 0.f;
-            _measurement.dischargeVoltageSampleCount[index] = 0;
+            _measurement.discVoltageSum[index] = 0.f;
+            _measurement.discVoltageSampleCount[index] = 0;
         }
     }
-    if (now - _measurement.startMillis >= static_cast<unsigned long>(_measurement.discSeconds) * 1000UL)
+    if (now - _measurement.discStartMillis >= static_cast<unsigned long>(_measurement.discSeconds) * 1000UL)
     {
         for (int index = 0; index < 2; ++index)
         {
@@ -606,7 +606,7 @@ void BatteryController::shiftMeasurementSetting(int shift)
 
 void BatteryController::shiftMeasurementValue(int shift)
 {
-    if (_measurement.setting == MeasurementSetting::Time)
+    if (_measurement.setting == MeasurementSetting::DiscSec)
     {
         _measurement.discSeconds = constrain(static_cast<int>(_measurement.discSeconds) + shift * 10, 10, 120);
     }
@@ -614,7 +614,7 @@ void BatteryController::shiftMeasurementValue(int shift)
     {
         _measurement.current = constrain(_measurement.current + shift * 0.1f, 1.f, 3.f);
     }
-    else if (_measurement.setting == MeasurementSetting::RestTime)
+    else if (_measurement.setting == MeasurementSetting::RestSec)
     {
         _measurement.restSeconds = constrain(static_cast<int>(_measurement.restSeconds) + shift * 10, 10, 120);
     }
@@ -782,7 +782,7 @@ void BatteryController::updateButtonStatus()
         const bool rightActive{_buttonRStatus.getVal() == PushType::Pushed || _buttonRStatus.getVal() == PushType::PushShort || _buttonRStatus.getVal() == PushType::PushLong};
         if (leftActive && rightActive)
         {
-            _measurement.state = MeasurementState::Setting;
+            _measurement.state = MeasurementState::Main;
             nextMode = MainMode::MeasurementMode;
         }
         pushType = _buttonLStatus.getVal();
@@ -834,7 +834,7 @@ void BatteryController::updateButtonStatus()
     else if (_mainMode == MainMode::MeasurementMode)
     {
         PushType pushType{0};
-        if (_measurement.state == MeasurementState::Setting)
+        if (_measurement.state == MeasurementState::Main)
         {
             pushType = _buttonLStatus.getVal();
             if (pushType == PushType::ReleaseShort || pushType == PushType::PushLong)
@@ -882,11 +882,11 @@ void BatteryController::updateButtonStatus()
             pushType = _buttonBStatus.getVal();
             if (pushType == PushType::ReleaseShort)
             {
-                _saveMeasurementData._seconds = _measurement.discSeconds;
+                _saveMeasurementData._discSeconds = _measurement.discSeconds;
                 _saveMeasurementData._restSeconds = _measurement.restSeconds;
                 _saveMeasurementData._current = _measurement.current;
                 saveMeasurement();
-                _measurement.state = MeasurementState::Setting;
+                _measurement.state = MeasurementState::Main;
             }
         }
         else if (_measurement.state == MeasurementState::Running)
@@ -933,7 +933,7 @@ void BatteryController::updateButtonStatus()
             pushType = _buttonAStatus.getVal();
             if (pushType == PushType::ReleaseShort)
             {
-                nextMode = MainMode::DischargerMode;
+                _measurement.state = MeasurementState::Main;
             }
         }
     }
@@ -1055,10 +1055,10 @@ void BatteryController::updateButtonStatus()
             _cachedMainMode = _mainMode;
             nextMode = MainMode::ConfigMode;
         }
-        else if (_mainMode == MainMode::MeasurementMode && _measurement.state == MeasurementState::Setting)
+        else if (_mainMode == MainMode::MeasurementMode && _measurement.state == MeasurementState::Main)
         {
             _measurement.state = MeasurementState::Editing;
-            _measurement.setting = MeasurementSetting::Time;
+            _measurement.setting = MeasurementSetting::DiscSec;
         }
     }
 

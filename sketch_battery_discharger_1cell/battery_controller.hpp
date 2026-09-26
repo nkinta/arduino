@@ -24,7 +24,7 @@ enum class MainMode : uint8_t
 
 enum class MeasurementState : uint8_t
 {
-    Setting,
+    Main,
     Editing,
     Running,
     Resting,
@@ -35,9 +35,9 @@ extern const std::vector<String> MEASUREMENT_STATE_NAMES;
 
 enum class MeasurementSetting : uint8_t
 {
-    Time,
     Current,
-    RestTime,
+    DiscSec,
+    RestSec,
     Max,
 };
 
@@ -53,23 +53,28 @@ struct MeasurementResultData
 
 struct MeasurementData
 {
-    MeasurementState state{MeasurementState::Setting};
-    MeasurementSetting setting{MeasurementSetting::Time};
+    MeasurementState state{MeasurementState::Main};
+    MeasurementSetting setting{MeasurementSetting::DiscSec};
     size_t pair{0};
-    uint16_t discSeconds{60};
-    uint16_t restSeconds{60};
     float current{2.f};
-    unsigned long startMillis{0};
-    unsigned long lastSampleMillis{0};
     uint16_t sampleCount{0};
-    float dischargeVoltageSum[2]{0.f, 0.f};
-    uint16_t dischargeVoltageSampleCount[2]{0, 0};
-    MeasurementResultData result[2]{};
+    
+    uint16_t discSeconds{60};
+    unsigned long discStartMillis{0};
+    unsigned long discLastSampleMillis{0};
+    float discVoltageSum[2]{0.f, 0.f};
+    uint16_t discVoltageSampleCount[2]{0, 0};
+
+    uint16_t restSeconds{60};
     unsigned long restStartMillis{0};
     unsigned long restLastSampleMillis{0};
-    bool postVoltageCaptured{false};
     float restVoltageSum[2]{0.f, 0.f};
     uint16_t restVoltageSampleCount[2]{0, 0};
+
+    MeasurementResultData result[2]{};
+
+    bool postVoltageCaptured{false};
+
     uint8_t resultPage{0};
     uint16_t restSampleCount{0};
 };

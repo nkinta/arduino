@@ -9,7 +9,7 @@ struct SaveMeasurementData
 
     int _id{SAVEDATA_ID};
     int _ver{1};
-    uint16_t _seconds{60};
+    uint16_t _discSeconds{60};
     uint16_t _restSeconds{60};
     float _current{2.f};
 };
