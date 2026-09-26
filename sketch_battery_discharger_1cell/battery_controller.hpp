@@ -31,6 +31,8 @@ enum class MeasurementState : uint8_t
     Result,
 };
 
+extern const std::vector<String> MEASUREMENT_STATE_NAMES;
+
 enum class MeasurementSetting : uint8_t
 {
     Time,
@@ -118,7 +120,7 @@ private:
 
     float _dischargeI{2.f};
 
-    uint8_t _idleSleepMin{10};
+    uint8_t _idleSleepMin{30};
 
 
     bool _xiaoVoltValidFlag{true}; // xiaoの電圧値が正常かどうか
