@@ -26,11 +26,11 @@ enum class MainMode : uint8_t
 
 enum class MeasurementState : uint8_t
 {
-    Main,
+    Setting,
     Editing,
     Running,
     Resting,
-    Result,
+    MainResultMenu,
 };
 
 extern const std::vector<String> MEASUREMENT_STATE_NAMES;
@@ -69,7 +69,7 @@ struct MeasurementMemoryData
 
 struct MeasurementData
 {
-    MeasurementState state{MeasurementState::Main};
+    MeasurementState state{MeasurementState::Setting};
     MeasurementSetting setting{MeasurementSetting::DiscSec};
     size_t pair{0};
     float current{2.f};

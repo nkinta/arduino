@@ -7,7 +7,7 @@
 extern Adafruit_SSD1306 oledDisplay;
 
 const std::vector<String> MEASUREMENT_STATE_NAMES{
-    String("Main"), String("Editing"), String("Run"), String("Rest"), String("Result")};
+    String("Setting"), String("Editing"), String("Run"), String("Rest"), String("MainResultMenu")};
 
 template <typename T>
 void saveCustomData(byte *p)
@@ -312,9 +312,10 @@ void BatteryController::setDisplayNone() const
 void BatteryController::setDisplayMeasurement() const
 {
     oledDisplay.clearDisplay();
-    if (_measurement.state == MeasurementState::Main)
+    if (_measurement.state == MeasurementState::Setting)
     {
-        AdafruitGfxUtility::drawStringC(oledDisplay, "Measure", 0);
+        const String &stateName{MEASUREMENT_STATE_NAMES[static_cast<uint8_t>(_measurement.state)]};
+        AdafruitGfxUtility::drawString(oledDisplay, stateName, 0, 0);
 
         if (_measurement.pair == 0)
         {
@@ -351,16 +352,20 @@ void BatteryController::setDisplayMeasurement() const
         return;
     }
 
-    if (_measurement.state == MeasurementState::Result &&
+    const bool showingResult{_measurement.state == MeasurementState::MainResultMenu};
+    const String resultTitle{
+        showingResult ? String("Result M") + String(_measurement.memoryIndex) : String()};
+
+    if (showingResult &&
         !_measurement.memory[_measurement.memoryIndex].valid)
     {
-        AdafruitGfxUtility::drawStringC(oledDisplay, String("Result M") + String(_measurement.memoryIndex), 0);
+        AdafruitGfxUtility::drawString(oledDisplay, resultTitle, 0, 0);
         AdafruitGfxUtility::drawStringC(oledDisplay, "Empty", 3);
         return;
     }
 
     const MeasurementMemoryData *resultMemory{
-        _measurement.state == MeasurementState::Result ? &_measurement.memory[_measurement.memoryIndex] : nullptr};
+        _measurement.state == MeasurementState::MainResultMenu ? &_measurement.memory[_measurement.memoryIndex] : nullptr};
     const size_t resultPair{resultMemory ? resultMemory->pair : _measurement.pair};
     const MeasurementResultData *resultData{resultMemory ? resultMemory->result : _measurement.result};
     const uint16_t resultSampleCount{resultMemory ? resultMemory->sampleCount : _measurement.sampleCount};
@@ -368,7 +373,7 @@ void BatteryController::setDisplayMeasurement() const
 
     if (_measurement.state == MeasurementState::Running ||
         _measurement.state == MeasurementState::Resting ||
-        (_measurement.state == MeasurementState::Result && _measurement.resultPage == 0))
+        (_measurement.state == MeasurementState::MainResultMenu && _measurement.resultPage == 0))
     {
         const unsigned long discStartMillis{
             _measurement.state == MeasurementState::Running ? _measurement.discStartMillis : _measurement.restStartMillis};
@@ -379,58 +384,67 @@ void BatteryController::setDisplayMeasurement() const
         const String &stateName{MEASUREMENT_STATE_NAMES[static_cast<uint8_t>(_measurement.state)]};
 
         AdafruitGfxUtility::drawString(oledDisplay,
-            _measurement.state == MeasurementState::Result
-                ? stateName + String(" M") + String(_measurement.memoryIndex)
+            showingResult
+                ? resultTitle
                 : stateName,
             0, 0);
         if (_measurement.state == MeasurementState::Running || _measurement.state == MeasurementState::Resting) 
         {
-            int leftIndex = 7;
-            AdafruitGfxUtility::drawIntR(oledDisplay, elapsed, leftIndex, 0);
-            AdafruitGfxUtility::drawString(oledDisplay, "/", leftIndex, 0);
-            AdafruitGfxUtility::drawInt(oledDisplay, duration, leftIndex + 1, 0);
+            int leftPosition = 8;
+            AdafruitGfxUtility::drawIntR(oledDisplay, elapsed, leftPosition, 0);
+            AdafruitGfxUtility::drawString(oledDisplay, "/", leftPosition, 0);
+            AdafruitGfxUtility::drawInt(oledDisplay, duration, leftPosition + 1, 0);
         }
 
         // AdafruitGfxUtility::drawStringC(oledDisplay, String(_measurement.result[0].preDischargeVolt, 3) + String("V ") + String(_measurement.result[1].preDischargeVolt, 3) + String("V"), 1);
         for (int index = 0; index < 2; ++index)
         {
-            int line{3 * index + 1};
+            int line{2 * index + 1};
+            int xOffset1{8};
+            int xOffset2{17};
+            int xOffset3{17};
+            int xOffset4{15};
             const int batteryIndex{static_cast<int>(resultPair * 2 + index)};
             AdafruitGfxUtility::drawString(oledDisplay, String("B") + String(batteryIndex + 1), 0, line);
 
-            AdafruitGfxUtility::drawFloatR(oledDisplay, resultData[index].preDischargeVolt, 8, line, 4, 3);
-            AdafruitGfxUtility::drawString(oledDisplay, "V", 8, line);
+            AdafruitGfxUtility::drawFloatR(oledDisplay, resultData[index].preDischargeVolt, xOffset1, line, 4, 3);
+            AdafruitGfxUtility::drawString(oledDisplay, "V", xOffset1, line);
 
-            AdafruitGfxUtility::drawChar(oledDisplay, DisplayConst::CHAR_DATA_ARROW_NEW, 10, line);
+            AdafruitGfxUtility::drawChar(oledDisplay, DisplayConst::CHAR_DATA_ARROW_NEW, xOffset2 -7, line);
 
             if (_measurement.state == MeasurementState::Running)
             {
-                AdafruitGfxUtility::drawFloatR(oledDisplay, _batteryStatuses[batteryIndex]._v, 17, line, 4, 3);
-                AdafruitGfxUtility::drawString(oledDisplay, "V", 17, line);
+                AdafruitGfxUtility::drawFloatR(oledDisplay, _batteryStatuses[batteryIndex]._v, xOffset2, line, 4, 3);
+                AdafruitGfxUtility::drawString(oledDisplay, "V", xOffset2, line);
             }
             else if (_measurement.state == MeasurementState::Resting)
             {
-                AdafruitGfxUtility::drawFloatR(oledDisplay, resultData[index].postDischargeVolt, 17, line, 4, 3);
-                AdafruitGfxUtility::drawString(oledDisplay, "V", 17, line);
+                AdafruitGfxUtility::drawFloatR(oledDisplay, resultData[index].postDischargeVolt, xOffset2, line, 4, 3);
+                AdafruitGfxUtility::drawString(oledDisplay, "V", xOffset2, line);
 
-                AdafruitGfxUtility::drawChar(oledDisplay, DisplayConst::CHAR_DATA_ARROW_NEW, 10, line + 1);
+                AdafruitGfxUtility::drawChar(oledDisplay, DisplayConst::CHAR_DATA_ARROW_NEW, xOffset3 - 7, line + 1);
 
-                AdafruitGfxUtility::drawFloatR(oledDisplay, _batteryStatuses[batteryIndex]._v, 17, line + 1, 4, 3);
-                AdafruitGfxUtility::drawString(oledDisplay, "V", 17, line + 1);
+                AdafruitGfxUtility::drawFloatR(oledDisplay, _batteryStatuses[batteryIndex]._v, xOffset3, line + 1, 4, 3);
+                AdafruitGfxUtility::drawString(oledDisplay, "V", xOffset3, line + 1);
             }
             else 
             {
-                AdafruitGfxUtility::drawFloatR(oledDisplay, resultData[index].postDischargeVolt, 17, line, 4, 3);
-                AdafruitGfxUtility::drawString(oledDisplay, "V", 17, line);
+                AdafruitGfxUtility::drawFloatR(oledDisplay, resultData[index].postDischargeVolt, xOffset2, line, 4, 3);
+                AdafruitGfxUtility::drawString(oledDisplay, "V", xOffset2, line);
 
-                AdafruitGfxUtility::drawChar(oledDisplay, DisplayConst::CHAR_DATA_ARROW_NEW, 10, line + 1);
+                AdafruitGfxUtility::drawChar(oledDisplay, DisplayConst::CHAR_DATA_ARROW_NEW, xOffset3 - 7, line + 1);
 
-                AdafruitGfxUtility::drawFloatR(oledDisplay, resultData[index].postRestVoltage, 17, line + 1, 4, 3);
-                AdafruitGfxUtility::drawString(oledDisplay, "V", 17, line + 1);
+                AdafruitGfxUtility::drawFloatR(oledDisplay, resultData[index].postRestVoltage, xOffset3, line + 1, 4, 3);
+                AdafruitGfxUtility::drawString(oledDisplay, "V", xOffset3, line + 1);
             }
 
-            AdafruitGfxUtility::drawFloatR(oledDisplay, resultData[index].milliWattHour, 15, line + 2, 5, 1);
-            AdafruitGfxUtility::drawString(oledDisplay, "mWh", 15, line + 2);
+            AdafruitGfxUtility::drawFloatR(oledDisplay, resultData[index].milliWattHour, 9 + 8 * index, 5, 5, 1);
+            AdafruitGfxUtility::drawString(oledDisplay, "mWh", 9 + 8 * index, 5);
+
+            AdafruitGfxUtility::drawStringR(oledDisplay, String(" ") + String(_measurement.current, 1) + String("A")
+             + String(" ") + String(_measurement.discSeconds) + String("s")
+             + String(" ") + String(_measurement.restSeconds) + String("s")
+            , 20, 6);
 
         }
         return;
@@ -574,7 +588,7 @@ void BatteryController::updateMeasurement()
                 _measurement.result[index].postRestVoltage = _batteryStatuses[_measurement.pair * 2 + index]._v;
             }
             storeMeasurementResult();
-            _measurement.state = MeasurementState::Result;
+            _measurement.state = MeasurementState::MainResultMenu;
             _measurement.resultPage = 0;
         }
         return;
@@ -826,7 +840,7 @@ void BatteryController::updateButtonStatus()
         const bool rightActive{_buttonRStatus.getVal() == PushType::Pushed || _buttonRStatus.getVal() == PushType::PushShort || _buttonRStatus.getVal() == PushType::PushLong};
         if (leftActive && rightActive)
         {
-            _measurement.state = MeasurementState::Result;
+            _measurement.state = MeasurementState::MainResultMenu;
             _measurement.resultPage = 0;
             nextMode = MainMode::MeasurementMode;
         }
@@ -879,7 +893,7 @@ void BatteryController::updateButtonStatus()
     else if (_mainMode == MainMode::MeasurementMode)
     {
         PushType pushType{0};
-        if (_measurement.state == MeasurementState::Main)
+        if (_measurement.state == MeasurementState::Setting)
         {
             pushType = _buttonLStatus.getVal();
             if (pushType == PushType::ReleaseShort || pushType == PushType::PushLong)
@@ -931,7 +945,7 @@ void BatteryController::updateButtonStatus()
                 _saveMeasurementData._restSeconds = _measurement.restSeconds;
                 _saveMeasurementData._current = _measurement.current;
                 saveMeasurement();
-                _measurement.state = MeasurementState::Main;
+                _measurement.state = MeasurementState::Setting;
             }
         }
         else if (_measurement.state == MeasurementState::Running)
@@ -960,11 +974,11 @@ void BatteryController::updateButtonStatus()
                     _measurement.result[index].postRestVoltage = _batteryStatuses[_measurement.pair * 2 + index]._v;
                 }
                 storeMeasurementResult();
-                _measurement.state = MeasurementState::Result;
+                _measurement.state = MeasurementState::MainResultMenu;
                 _measurement.resultPage = 0;
             }
         }
-        else if (_measurement.state == MeasurementState::Result)
+        else if (_measurement.state == MeasurementState::MainResultMenu)
         {
             pushType = _buttonLStatus.getVal();
             if (pushType == PushType::ReleaseShort)
@@ -989,7 +1003,7 @@ void BatteryController::updateButtonStatus()
             pushType = _buttonAStatus.getVal();
             if (pushType == PushType::ReleaseShort)
             {
-                _measurement.state = MeasurementState::Main;
+                _measurement.state = MeasurementState::Setting;
             }
         }
     }
@@ -1111,7 +1125,7 @@ void BatteryController::updateButtonStatus()
             _cachedMainMode = _mainMode;
             nextMode = MainMode::ConfigMode;
         }
-        else if (_mainMode == MainMode::MeasurementMode && _measurement.state == MeasurementState::Main)
+        else if (_mainMode == MainMode::MeasurementMode && _measurement.state == MeasurementState::Setting)
         {
             _measurement.state = MeasurementState::Editing;
             _measurement.setting = MeasurementSetting::DiscSec;
