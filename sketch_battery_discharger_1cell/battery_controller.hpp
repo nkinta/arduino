@@ -11,6 +11,8 @@
 static constexpr float FPS{30.f};
 static constexpr float SEC{1000.f};
 static constexpr float ONE_FRAME_MS{(1.f / FPS) * SEC};
+static constexpr uint16_t MEASUREMENT_DISC_SECONDS_MAX{180};
+static constexpr uint16_t MEASUREMENT_REST_SECONDS_MAX{360};
 
 enum class MainMode : uint8_t
 {
@@ -47,8 +49,22 @@ struct MeasurementResultData
     float postDischargeVolt{0.f};
     float postRestVoltage{0.f};
     float milliWattHour{0.f};
-    float dischargeVoltage[120]{};
-    float restVoltage[120]{};
+    float dischargeVoltage[MEASUREMENT_DISC_SECONDS_MAX]{};
+    float restVoltage[MEASUREMENT_REST_SECONDS_MAX]{};
+};
+
+static constexpr uint8_t MEASUREMENT_MEMORY_COUNT{10};
+
+struct MeasurementMemoryData
+{
+    bool valid{false};
+    size_t pair{0};
+    uint16_t discSeconds{0};
+    uint16_t restSeconds{0};
+    float current{0.f};
+    uint16_t sampleCount{0};
+    uint16_t restSampleCount{0};
+    MeasurementResultData result[2]{};
 };
 
 struct MeasurementData
@@ -77,6 +93,8 @@ struct MeasurementData
 
     uint8_t resultPage{0};
     uint16_t restSampleCount{0};
+    uint8_t memoryIndex{0};
+    MeasurementMemoryData memory[MEASUREMENT_MEMORY_COUNT]{};
 };
 
 class BatteryController
@@ -212,6 +230,10 @@ private:
     void shiftMeasurementValue(int shift);
 
     void shiftMeasurementPair(int shift);
+
+    void shiftMeasurementMemory(int shift);
+
+    void storeMeasurementResult();
 
     // void goDeepSleep();
 
