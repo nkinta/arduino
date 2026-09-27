@@ -19,6 +19,9 @@ BatteryController controller;
 ButtonStatus buttonONStatus{};
 ButtonStatus buttonLStatus{};
 ButtonStatus buttonRStatus{};
+ButtonStatus buttonUStatus{};
+ButtonStatus buttonDStatus{};
+ButtonStatus buttonAStatus{};
 
 flappy::Game flappyGame;
 stopwatch::Stopwatch stopWatch;
@@ -30,15 +33,31 @@ bool skipModeLoopThisFrame{false};
 
 enum class StartupMode : uint8_t
 {
+  Menu,
   BatteryController,
   FlappyGame,
   Stopwatch,
 };
 
-StartupMode startupMode{StartupMode::BatteryController};
+enum class StartupMenuItem : uint8_t
+{
+  Controller,
+  ControllerMeasurement,
+  Stopwatch,
+  FlappyGame,
+  None,
+  MemoryReset,
+  Max,
+};
+
+StartupMode startupMode{StartupMode::Menu};
+StartupMenuItem startupMenuItem{StartupMenuItem::Controller};
 
 void goDeepSleep();
 bool updateDisplayDumpRequest();
+void drawStartupMenu();
+void updateStartupMenu();
+void startSelectedMode();
 
 void displayLowBattery()
 {
@@ -57,9 +76,87 @@ void displayCurrentModeSleep()
   {
     flappyGame.displaySleep();
   }
-  else
+  else if (startupMode == StartupMode::BatteryController)
   {
     controller.displaySleep();
+  }
+  else
+  {
+    AdafruitGfxUtility::displaySleep(oledDisplay);
+  }
+}
+
+void drawStartupMenu()
+{
+  static const char * const menuItems[]{
+    "Discharge",
+    "Measure",
+    "Stopwatch",
+    "FlappyGame",
+    "",
+    "MemoryReset",
+  };
+
+  oledDisplay.clearDisplay();
+  AdafruitGfxUtility::drawStringC(oledDisplay, "- Menu -", 0);
+  for (uint8_t index{0}; index < static_cast<uint8_t>(StartupMenuItem::Max); ++index)
+  {
+    const bool selected{index == static_cast<uint8_t>(startupMenuItem)};
+    AdafruitGfxUtility::drawString(oledDisplay, selected ? ">" : " ", 0, index + 1);
+    AdafruitGfxUtility::drawStringC(oledDisplay, String(menuItems[index]), index + 1);
+  }
+  oledDisplay.display();
+}
+
+void startSelectedMode()
+{
+  if (startupMenuItem == StartupMenuItem::Stopwatch)
+  {
+    stopWatch.setup();
+    startupMode = StartupMode::Stopwatch;
+  }
+  else if (startupMenuItem == StartupMenuItem::FlappyGame)
+  {
+    flappyGame.setup();
+    startupMode = StartupMode::FlappyGame;
+  }
+  else
+  {
+    controller.setup();
+    if (startupMenuItem == StartupMenuItem::MemoryReset)
+    {
+      controller.resetSavedData();
+    }
+    if (startupMenuItem == StartupMenuItem::ControllerMeasurement)
+    {
+      controller.startMeasurementMode();
+    }
+    startupMode = StartupMode::BatteryController;
+  }
+}
+
+void updateStartupMenu()
+{
+  buttonUStatus.update();
+  buttonDStatus.update();
+  buttonAStatus.update();
+
+  const int itemCount{static_cast<int>(StartupMenuItem::Max)};
+  if (buttonUStatus.getVal() == PushType::ReleaseShort)
+  {
+    startupMenuItem = static_cast<StartupMenuItem>(
+      (static_cast<int>(startupMenuItem) + itemCount - 1) % itemCount);
+    drawStartupMenu();
+  }
+  else if (buttonDStatus.getVal() == PushType::ReleaseShort)
+  {
+    startupMenuItem = static_cast<StartupMenuItem>(
+      (static_cast<int>(startupMenuItem) + 1) % itemCount);
+    drawStartupMenu();
+  }
+  else if (buttonAStatus.getVal() == PushType::ReleaseShort)
+  {
+    startSelectedMode();
   }
 }
 
@@ -77,44 +174,21 @@ void setup()
   pinMode(PUSH_BUTTON_L, INPUT_PULLUP);
   pinMode(PUSH_BUTTON_R, INPUT_PULLUP);
   pinMode(PUSH_BUTTON_ON, INPUT_PULLUP);
+  pinMode(PUSH_BUTTON_U, INPUT_PULLUP);
+  pinMode(PUSH_BUTTON_D, INPUT_PULLUP);
+  pinMode(PUSH_BUTTON_A, INPUT_PULLUP);
   buttonLStatus.init(PUSH_BUTTON_L);
   buttonRStatus.init(PUSH_BUTTON_R);
   buttonONStatus.init(PUSH_BUTTON_ON);
+  buttonUStatus.init(PUSH_BUTTON_U);
+  buttonDStatus.init(PUSH_BUTTON_D);
+  buttonAStatus.init(PUSH_BUTTON_A);
 
   BatteryController::writePinReset();
   batteryMonitor.setup();
-  pinMode(PUSH_BUTTON_D, INPUT_PULLUP);
-  pinMode(PUSH_BUTTON_U, INPUT_PULLUP);
 
-  const bool flappyRequested{!digitalRead(PUSH_BUTTON_D)};
-  const bool stopwatchRequested{!digitalRead(PUSH_BUTTON_U)};
-
-  // 開始時にどのボタンを押しているかで、ゲームモード、ストップウォッチモードを起動するか決定する
-  if (stopwatchRequested)
-  {
-    startupMode = StartupMode::Stopwatch;
-  }
-  else if (flappyRequested)
-  {
-    startupMode = StartupMode::FlappyGame;
-  }
-  else
-  {
-    startupMode = StartupMode::BatteryController;
-  }
-
-  if (startupMode == StartupMode::Stopwatch)
-  {
-    stopWatch.setup();
-  }
-  else if (startupMode == StartupMode::FlappyGame)
-  {
-    flappyGame.setup();
-  }
-  else
-  {
-    controller.setup();
-  }
+  AdafruitGfxUtility::setupDisplay(oledDisplay);
+  drawStartupMenu();
 
   loopSubMillis = millis();
 
@@ -241,7 +315,11 @@ void loop()
       continue;
     }
 
-    if (startupMode == StartupMode::Stopwatch)
+    if (startupMode == StartupMode::Menu)
+    {
+      updateStartupMenu();
+    }
+    else if (startupMode == StartupMode::Stopwatch)
     {
       stopWatch.loop();
     }

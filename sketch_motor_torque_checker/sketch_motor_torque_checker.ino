@@ -270,6 +270,8 @@ void setup() {
   drawAdafruit.setupDisplay();
 
   controller.setup();
+
+  LowPower.deepSleep(5000);
 }
 
 void loop() {

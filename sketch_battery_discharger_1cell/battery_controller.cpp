@@ -108,22 +108,9 @@ void BatteryController::setup()
 
     digitalWrite(PA6, HIGH); // FLASH
 
-    // MemReset
-    pinMode(MEM_RESET_PIN, INPUT_PULLUP);
-    int val{HIGH};
-    val = digitalRead(MEM_RESET_PIN);
-    if (val != LOW)
-    {
-        loadMain();
-        loadConfig();
-        loadMeasurement();
-    }
-    else
-    {
-        saveMain();
-        saveConfig();
-        saveMeasurement();
-    }
+    loadMain();
+    loadConfig();
+    loadMeasurement();
 
     // Button
     pinMode(PUSH_BUTTON_L, INPUT_PULLUP);
@@ -162,6 +149,28 @@ void BatteryController::setup()
     updateConfigSaveData();
     updateMeasurementSaveData();
 };
+
+void BatteryController::startMeasurementMode()
+{
+    _measurement.state = MeasurementState::MainResultMenu;
+    _measurement.resultPage = 0;
+    _mainMode = MainMode::MeasurementMode;
+}
+
+void BatteryController::resetSavedData()
+{
+    _saveBatteryConfigData = SaveBatteryConfigData{};
+    _saveConfigData = SaveConfigData{};
+    _saveMeasurementData = SaveMeasurementData{};
+
+    saveMain();
+    saveConfig();
+    saveMeasurement();
+
+    updateBatterySaveData();
+    updateConfigSaveData();
+    updateMeasurementSaveData();
+}
 
 void BatteryController::updateConfigSaveData()
 {
@@ -683,6 +692,23 @@ void BatteryController::storeMeasurementResult()
     }
 }
 
+void BatteryController::cancelMeasurement()
+{
+    for (int index = 0; index < 2; ++index)
+    {
+        BatteryInfo &battery{_batteryStatuses[_measurement.pair * 2 + index]};
+        battery.pushOff();
+        battery._activeFlag = false;
+        _measurement.result[index] = MeasurementResultData{};
+    }
+
+    _measurement.sampleCount = 0;
+    _measurement.restSampleCount = 0;
+    _measurement.postVoltageCaptured = false;
+    _measurement.state = MeasurementState::MainResultMenu;
+    _measurement.resultPage = 0;
+}
+
 void BatteryController::setDisplayData() const
 {
     AdafruitGfxUtility::drawFillLine(oledDisplay, 0);
@@ -913,7 +939,7 @@ void BatteryController::updateButtonStatus()
             pushType = _buttonBStatus.getVal();
             if (pushType == PushType::ReleaseShort)
             {
-                nextMode = MainMode::DischargerMode;
+                cancelMeasurement();
             }
         }
         else if (_measurement.state == MeasurementState::Editing)
@@ -963,6 +989,11 @@ void BatteryController::updateButtonStatus()
                 _measurement.postVoltageCaptured = false;
                 _measurement.state = MeasurementState::Resting;
             }
+            pushType = _buttonBStatus.getVal();
+            if (pushType == PushType::ReleaseShort)
+            {
+                cancelMeasurement();
+            }
         }
         else if (_measurement.state == MeasurementState::Resting)
         {
@@ -976,6 +1007,11 @@ void BatteryController::updateButtonStatus()
                 storeMeasurementResult();
                 _measurement.state = MeasurementState::MainResultMenu;
                 _measurement.resultPage = 0;
+            }
+            pushType = _buttonBStatus.getVal();
+            if (pushType == PushType::ReleaseShort)
+            {
+                cancelMeasurement();
             }
         }
         else if (_measurement.state == MeasurementState::MainResultMenu)

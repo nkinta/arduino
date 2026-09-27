@@ -235,6 +235,8 @@ private:
 
     void storeMeasurementResult();
 
+    void cancelMeasurement();
+
     // void goDeepSleep();
 
     void updateButtonStatus();
@@ -287,6 +289,10 @@ public:
     void displaySleep();
 
     void setup();
+
+    void startMeasurementMode();
+
+    void resetSavedData();
 
     static void writePinReset();
 
