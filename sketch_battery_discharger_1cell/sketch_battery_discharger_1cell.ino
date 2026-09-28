@@ -92,13 +92,13 @@ void drawStartupMenu()
     "Discharge",
     "Measure",
     "Stopwatch",
-    "FlappyGame",
+    "Game",
     "",
     "MemoryReset",
   };
 
   oledDisplay.clearDisplay();
-  AdafruitGfxUtility::drawStringC(oledDisplay, "- Menu -", 0);
+  AdafruitGfxUtility::drawStringC(oledDisplay, "< Menu >", 0);
   for (uint8_t index{0}; index < static_cast<uint8_t>(StartupMenuItem::Max); ++index)
   {
     const bool selected{index == static_cast<uint8_t>(startupMenuItem)};
