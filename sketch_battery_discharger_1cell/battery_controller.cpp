@@ -1294,13 +1294,16 @@ void BatteryController::loopSub()
         {
             for (size_t index = 0; index < _batteryStatuses.size(); ++index)
             {
-            if (index == _measurement.pair * 2 || index == _measurement.pair * 2 + 1)
+                _batteryStatuses[index].read();
+
+                if (index == _measurement.pair * 2 || index == _measurement.pair * 2 + 1)
                 {
                     _batteryStatuses[index].loopSubPushDischarge();
                 }
                 else
                 {
-                    _batteryStatuses[index].read();
+                    _batteryStatuses[index].pushOff();
+                    _batteryStatuses[index].loopSubPushDischarge();
                 }
             }
             updateMeasurement();
